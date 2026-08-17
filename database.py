@@ -1,12 +1,37 @@
 import os
+import re
+import sqlite3
 import pymysql
 import pymysql.cursors
 import bcrypt
+from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from config import Config
 
-def get_db_connection():
-    """Establish connection to the MySQL database (supports both local and cloud databases)."""
+_ENGINE_MODE = None # 'mysql' or 'sqlite'
+
+def sqlite_date_format(val, fmt):
+    """Custom SQLite function to support MySQL DATE_FORMAT(voucher_date, '%b %Y')."""
+    if not val:
+        return ''
+    try:
+        val_clean = str(val).split(' ')[0]
+        dt = datetime.strptime(val_clean, '%Y-%m-%d')
+        py_fmt = fmt.replace('%i', '%M').replace('%s', '%S')
+        return dt.strftime(py_fmt)
+    except Exception:
+        return str(val)
+
+def get_sqlite_connection():
+    """Establish connection to local SQLite database with Row factory and custom functions."""
+    db_path = Config.SQLITE_PATH
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    conn.create_function('DATE_FORMAT', 2, sqlite_date_format)
+    return conn
+
+def get_mysql_connection():
+    """Establish connection to MySQL / Cloud MySQL (TiDB, Aiven, RDS, Railway)."""
     conn_params = {
         'host': Config.DB_HOST,
         'port': Config.DB_PORT,
@@ -16,41 +41,117 @@ def get_db_connection():
         'charset': 'utf8mb4',
         'cursorclass': pymysql.cursors.DictCursor,
         'autocommit': True,
-        'connect_timeout': 10
+        'connect_timeout': 5
     }
-    
     if Config.DB_SSL:
-        conn_params['ssl'] = {'ssl': {}}
-        
+        conn_params['ssl'] = {'check_hostname': False}
     return pymysql.connect(**conn_params)
 
-def query_db(query, params=None, one=False):
-    """Execute SELECT query and return dictionary results safely."""
-    conn = get_db_connection()
+def determine_engine():
+    """Determine whether to use MySQL or fallback to SQLite."""
+    global _ENGINE_MODE
+    if _ENGINE_MODE is not None:
+        return _ENGINE_MODE
+
+    if Config.DB_TYPE == 'sqlite':
+        _ENGINE_MODE = 'sqlite'
+        return _ENGINE_MODE
+
+    if Config.DB_TYPE == 'mysql':
+        _ENGINE_MODE = 'mysql'
+        return _ENGINE_MODE
+
+    # Auto mode:
+    # If on Vercel or cloud and DB_HOST is still default localhost, use SQLite immediately
+    is_cloud = os.environ.get('VERCEL') == '1' or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
+    if is_cloud and Config.DB_HOST in ('localhost', '127.0.0.1'):
+        _ENGINE_MODE = 'sqlite'
+        return _ENGINE_MODE
+
+    # Try connecting to MySQL
     try:
-        with conn.cursor() as cur:
-            if params:
-                cur.execute(query, params)
-            else:
-                cur.execute(query)
-            if one:
-                return cur.fetchone()
-            return cur.fetchall()
-    finally:
+        conn = get_mysql_connection()
         conn.close()
+        _ENGINE_MODE = 'mysql'
+    except Exception as e:
+        print(f"[DB Auto-Fallback] MySQL unavailable ({e}). Using bundled SQLite database: {Config.SQLITE_PATH}")
+        _ENGINE_MODE = 'sqlite'
+
+    return _ENGINE_MODE
+
+def query_db(query, params=None, one=False):
+    """Execute SELECT query and return dictionary results safely across MySQL & SQLite."""
+    engine = determine_engine()
+    
+    if engine == 'sqlite':
+        sqlite_query = re.sub(r'%s', '?', query)
+        conn = get_sqlite_connection()
+        try:
+            cur = conn.cursor()
+            if params:
+                cur.execute(sqlite_query, params)
+            else:
+                cur.execute(sqlite_query)
+            if one:
+                row = cur.fetchone()
+                return dict(row) if row else None
+            return [dict(r) for r in cur.fetchall()]
+        finally:
+            conn.close()
+    else:
+        try:
+            conn = get_mysql_connection()
+            try:
+                with conn.cursor() as cur:
+                    if params:
+                        cur.execute(query, params)
+                    else:
+                        cur.execute(query)
+                    if one:
+                        return cur.fetchone()
+                    return cur.fetchall()
+            finally:
+                conn.close()
+        except Exception as e:
+            print(f"[DB Query Error] MySQL query failed: {e}. Falling back to SQLite.")
+            global _ENGINE_MODE
+            _ENGINE_MODE = 'sqlite'
+            return query_db(query, params, one)
 
 def execute_db(query, params=None):
     """Execute INSERT, UPDATE, or DELETE query and return last insert id or affected rows."""
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cur:
+    engine = determine_engine()
+    
+    if engine == 'sqlite':
+        sqlite_query = re.sub(r'%s', '?', query)
+        conn = get_sqlite_connection()
+        try:
+            cur = conn.cursor()
             if params:
-                cur.execute(query, params)
+                cur.execute(sqlite_query, params)
             else:
-                cur.execute(query)
+                cur.execute(sqlite_query)
+            conn.commit()
             return cur.lastrowid
-    finally:
-        conn.close()
+        finally:
+            conn.close()
+    else:
+        try:
+            conn = get_mysql_connection()
+            try:
+                with conn.cursor() as cur:
+                    if params:
+                        cur.execute(query, params)
+                    else:
+                        cur.execute(query)
+                    return cur.lastrowid
+            finally:
+                conn.close()
+        except Exception as e:
+            print(f"[DB Execute Error] MySQL execute failed: {e}. Falling back to SQLite.")
+            global _ENGINE_MODE
+            _ENGINE_MODE = 'sqlite'
+            return execute_db(query, params)
 
 def verify_password(plain_password: str, hashed: str) -> bool:
     """Verify password against bcrypt hash ($2b$...) or werkzeug hash."""
@@ -73,11 +174,26 @@ def hash_password(plain_password: str) -> str:
 
 def init_db():
     """
-    Initialize database extensions and verify tables in sddra_billing.
+    Initialize database extensions and verify tables in sddra_billing / sddra.db.
     Completely non-destructive: preserves all 44 members, 190 receipts, and 81 expenses.
     """
+    engine = determine_engine()
+    if engine == 'sqlite':
+        try:
+            conn = get_sqlite_connection()
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT COUNT(*) FROM tbl_membership;")
+                cnt = cur.fetchone()[0]
+                print(f"[DB Init] Connected successfully to SQLite database '{Config.SQLITE_PATH}' with {cnt} members.")
+            finally:
+                conn.close()
+        except Exception as e:
+            print(f"[DB Warning] SQLite init note: {e}")
+        return
+
     try:
-        conn = get_db_connection()
+        conn = get_mysql_connection()
         try:
             with conn.cursor() as cur:
                 # 1. Non-destructively ensure password_hash column exists on tbl_membership
@@ -136,4 +252,6 @@ def init_db():
         finally:
             conn.close()
     except Exception as e:
-        print(f"[DB Warning] Could not connect to MySQL database ({e}).")
+        print(f"[DB Warning] Could not connect to MySQL database ({e}). Switching to SQLite.")
+        global _ENGINE_MODE
+        _ENGINE_MODE = 'sqlite'

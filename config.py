@@ -6,13 +6,15 @@ load_dotenv()
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'sddra-billing-portal-secret-key-2026')
     
-    # MySQL Database Configuration (Supports Local & Cloud Providers like TiDB Cloud, Aiven, Railway, AWS RDS)
+    # Database Configuration (Supports Cloud MySQL e.g. TiDB/Aiven/AWS/Railway and bundled SQLite fallback)
+    DB_TYPE = os.environ.get('DB_TYPE', 'auto').lower() # 'auto', 'mysql', 'sqlite'
     DB_HOST = os.environ.get('DB_HOST', 'localhost')
     DB_PORT = int(os.environ.get('DB_PORT', 3306))
     DB_USER = os.environ.get('DB_USER', 'root')
     DB_PASSWORD = os.environ.get('DB_PASSWORD', 'passwd')
     DB_NAME = os.environ.get('DB_NAME', 'sddra_billing')
     DB_SSL = os.environ.get('DB_SSL', 'False').lower() in ('true', '1', 't')
+    SQLITE_PATH = os.environ.get('SQLITE_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sddra.db'))
     
     # SMTP Email Configuration
     SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')

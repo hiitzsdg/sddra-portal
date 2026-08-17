@@ -1,4 +1,6 @@
 import os
+import re
+import traceback
 from functools import wraps
 from datetime import datetime, date
 from decimal import Decimal
@@ -7,18 +9,31 @@ from config import Config
 from database import init_db, query_db, execute_db, verify_password, hash_password
 from email_service import send_receipt_email
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, 'templates'),
+    static_folder=os.path.join(BASE_DIR, 'static')
+)
 app.config.from_object(Config)
 
-# Administrative Roles
+# Ensure database tables and initial hashes exist non-destructively
+try:
+    init_db()
+except Exception as _e:
+    pass
+
+# Administrative & Privileged Roles
 ADMIN_ROLES = {'super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker'}
 EXECUTIVE_ROLES = {'super_admin', 'billing_admin', 'president', 'secretary', 'treasurer'}
 
 @app.context_processor
 def inject_globals():
     user = session.get('user')
-    is_admin = (user.get('role') in ADMIN_ROLES or user.get('is_admin')) if user else False
-    is_exec = (user.get('role') in EXECUTIVE_ROLES or user.get('is_admin')) if user else False
+    if not isinstance(user, dict):
+        user = None
+    is_admin = bool(user and (user.get('role') in ADMIN_ROLES or user.get('is_admin', False)))
+    is_exec = bool(user and (user.get('role') in EXECUTIVE_ROLES or user.get('is_admin', False)))
     return {
         'config': Config,
         'now': datetime.now(),
@@ -27,11 +42,13 @@ def inject_globals():
         'is_executive': is_exec,
     }
 
-# --- Decorators ---
+# --- Defensive Decorators ---
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user' not in session:
+        user = session.get('user')
+        if not user or not isinstance(user, dict) or 'role' not in user:
+            session.pop('user', None)
             flash('Please log in to access this page.', 'warning')
             return redirect(url_for('login', next=request.url))
         return f(*args, **kwargs)
@@ -41,139 +58,188 @@ def roles_required(*allowed_roles):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            if 'user' not in session:
+            user = session.get('user')
+            if not user or not isinstance(user, dict):
+                session.pop('user', None)
                 flash('Please log in to continue.', 'warning')
                 return redirect(url_for('login', next=request.url))
-            user_role = session['user'].get('role')
-            if user_role not in allowed_roles and not session['user'].get('is_admin'):
+            user_role = user.get('role', 'MEMBER')
+            is_admin = user.get('is_admin', False)
+            if user_role not in allowed_roles and not is_admin:
                 flash('Access Denied: You do not have permission to view this resource.', 'danger')
                 return redirect(url_for('dashboard'))
             return f(*args, **kwargs)
         return decorated_function
     return decorator
 
+# --- Error Handlers ---
+@app.errorhandler(500)
+def internal_server_error(e):
+    app.logger.error(f"Internal Server Error: {e}\n{traceback.format_exc()}")
+    # Clear invalid session if it caused the issue
+    return render_template('error.html', error=e, code=500), 500
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('error.html', error=e, code=404), 404
+
 # --- Authentication Routes ---
 @app.route('/')
 def index():
-    if 'user' in session:
+    if session.get('user'):
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if 'user' in session:
+    # If already logged in and session is valid, redirect to dashboard
+    if session.get('user') and isinstance(session.get('user'), dict) and 'role' in session['user']:
         return redirect(url_for('dashboard'))
 
     # Quick demo login parameter handler
     demo_user = request.args.get('demo')
     if demo_user:
-        # Check admin
-        admin = query_db("SELECT * FROM tbl_admins WHERE username = %s", (demo_user,), one=True)
-        if admin:
-            session['user'] = {
-                'id': admin['admin_id'],
-                'username': admin['username'],
-                'name': f"{admin['username'].title()} ({admin['role']})",
-                'role': admin['role'],
-                'is_admin': True,
-                'flat_no': 'Office'
-            }
-            flash(f"Welcome back, {admin['username']} ({admin['role']})!", 'success')
-            return redirect(url_for('dashboard'))
-            
-        # Check membership
-        member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s OR id = %s", (demo_user, demo_user), one=True)
-        if member:
-            contact = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (member['flat_no'],), one=True)
-            session['user'] = {
-                'id': member['id'],
-                'username': member['flat_no'],
-                'name': member['member_name'],
-                'flat_no': member['flat_no'],
-                'role': 'MEMBER',
-                'is_admin': False,
-                'email': contact.get('email_1') if contact else None,
-                'phone': contact.get('mobile_num_1') if contact else None,
-                'monthly_charge': member.get('monthly_charge', 2000),
-                'sq_feet': member.get('RvsdFlatSize', 1200)
-            }
-            flash(f"Welcome back, {member['member_name']} (Flat {member['flat_no']})!", 'success')
-            return redirect(url_for('dashboard'))
+        try:
+            # 1. Check if demo is an admin username
+            admin = query_db("SELECT * FROM tbl_admins WHERE username = %s", (demo_user,), one=True)
+            if admin:
+                session['user'] = {
+                    'id': admin['admin_id'],
+                    'username': admin['username'],
+                    'name': f"{admin['username'].title()} ({admin['role']})",
+                    'role': admin['role'],
+                    'is_admin': True,
+                    'flat_no': 'Office'
+                }
+                flash(f"Welcome back, {admin['username']} ({admin['role']})!", 'success')
+                return redirect(url_for('dashboard'))
+                
+            # 2. Check if demo matches a flat_no in tbl_membership
+            member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s OR id = %s", (demo_user, demo_user), one=True)
+            if member:
+                contact = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (member['flat_no'],), one=True)
+                session['user'] = {
+                    'id': member['id'],
+                    'username': member['flat_no'],
+                    'name': member['member_name'],
+                    'flat_no': member['flat_no'],
+                    'role': 'MEMBER',
+                    'is_admin': False,
+                    'email': contact.get('email_1') if contact else None,
+                    'phone': contact.get('mobile_num_1') if contact else None,
+                    'monthly_charge': member.get('monthly_charge', 2000),
+                    'sq_feet': member.get('RvsdFlatSize', 1200)
+                }
+                flash(f"Welcome back, {member['member_name']} (Flat {member['flat_no']})!", 'success')
+                return redirect(url_for('dashboard'))
+        except Exception as e:
+            flash(f"Demo login note: {e}", 'warning')
 
     if request.method == 'POST':
-        login_id = request.form.get('username', '').strip()
+        raw_login = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
 
-        if not login_id or not password:
-            flash('Please enter your Flat Number or Username and Password.', 'danger')
+        if not raw_login or not password:
+            flash('Please enter both your Flat Number or Username and Password.', 'danger')
             return render_template('login.html')
 
-        # 1. Check tbl_admins
-        admin = query_db("SELECT * FROM tbl_admins WHERE username = %s", (login_id,), one=True)
-        if admin and verify_password(password, admin['password_hash']):
-            session['user'] = {
-                'id': admin['admin_id'],
-                'username': admin['username'],
-                'name': f"{admin['username'].title()}",
-                'role': admin['role'],
-                'is_admin': True,
-                'flat_no': 'Office'
-            }
-            flash(f"Login successful! Welcome, {admin['username']}.", 'success')
-            next_p = request.args.get('next')
-            return redirect(next_p or url_for('dashboard'))
+        try:
+            # 1. Check tbl_admins first (by username)
+            admin = query_db("SELECT * FROM tbl_admins WHERE LOWER(username) = LOWER(%s)", (raw_login,), one=True)
+            if admin and verify_password(password, admin.get('password_hash', '')):
+                session['user'] = {
+                    'id': admin['admin_id'],
+                    'username': admin['username'],
+                    'name': f"{admin['username'].title()}",
+                    'role': admin.get('role', 'super_admin'),
+                    'is_admin': True,
+                    'flat_no': 'Office'
+                }
+                flash(f"Login successful! Welcome, {admin['username']}.", 'success')
+                next_p = request.args.get('next')
+                return redirect(next_p or url_for('dashboard'))
 
-        # 2. Check tbl_membership (by flat_no, or member_name, or contact email/phone)
-        member = query_db(
-            """SELECT m.*, c.email_1, c.email_2, c.mobile_num_1 
-               FROM tbl_membership m
-               LEFT JOIN tbl_mbr_cntct c ON m.flat_no = c.flat_no
-               WHERE m.flat_no = %s OR c.email_1 = %s OR c.email_2 = %s OR c.mobile_num_1 = %s""",
-            (login_id, login_id, login_id, login_id),
-            one=True
-        )
+            # 2. Check tbl_membership with flexible normalization
+            # Variants: e.g. "A/4-C", "a/4-c", "A-4-C", "A4C", "a4c"
+            clean_input = raw_login.upper()
+            variants = [
+                raw_login,
+                clean_input,
+                clean_input.replace('-', '/'),
+                clean_input.replace('_', '/'),
+                clean_input.replace(' ', ''),
+            ]
+            
+            # Extract pattern like "A4C" -> "A/4-C"
+            m_match = re.match(r'^([A-Z])[\/-]?([0-9]|GR)[\/-]?([A-Z])$', clean_input)
+            if m_match:
+                blk, flr, unt = m_match.groups()
+                variants.append(f"{blk}/{flr}-{unt}")
+                variants.append(f"{blk}/{flr}{unt}")
+            
+            # Remove duplicates
+            variants = list(dict.fromkeys(variants))
+            
+            # Query members by any of the flat variants or email or mobile number
+            placeholders = ", ".join(["%s"] * len(variants))
+            member = query_db(
+                f"""SELECT m.*, c.email_1, c.email_2, c.mobile_num_1 
+                    FROM tbl_membership m
+                    LEFT JOIN tbl_mbr_cntct c ON m.flat_no = c.flat_no
+                    WHERE m.flat_no IN ({placeholders}) 
+                       OR c.email_1 = %s 
+                       OR c.email_2 = %s 
+                       OR c.mobile_num_1 = %s 
+                       OR c.mobile_num_2 = %s 
+                    LIMIT 1""",
+                (*variants, raw_login, raw_login, raw_login, raw_login),
+                one=True
+            )
 
-        if member and verify_password(password, member.get('password_hash')):
-            session['user'] = {
-                'id': member['id'],
-                'username': member['flat_no'],
-                'name': member['member_name'],
-                'flat_no': member['flat_no'],
-                'role': 'MEMBER',
-                'is_admin': False,
-                'email': member.get('email_1'),
-                'phone': member.get('mobile_num_1'),
-                'monthly_charge': member.get('monthly_charge', 2000),
-                'sq_feet': member.get('RvsdFlatSize', 1200)
-            }
-            flash(f"Welcome, {member['member_name']}!", 'success')
-            next_p = request.args.get('next')
-            return redirect(next_p or url_for('dashboard'))
-        else:
-            flash('Invalid credentials. For residents, please use your Flat Number (e.g. A/4-C) and password.', 'danger')
+            if member and verify_password(password, member.get('password_hash', '')):
+                session['user'] = {
+                    'id': member['id'],
+                    'username': member['flat_no'],
+                    'name': member['member_name'],
+                    'flat_no': member['flat_no'],
+                    'role': 'MEMBER',
+                    'is_admin': False,
+                    'email': member.get('email_1'),
+                    'phone': member.get('mobile_num_1'),
+                    'monthly_charge': member.get('monthly_charge', 2000),
+                    'sq_feet': member.get('RvsdFlatSize', 1200)
+                }
+                flash(f"Welcome, {member['member_name']} (Flat {member['flat_no']})!", 'success')
+                next_p = request.args.get('next')
+                return redirect(next_p or url_for('dashboard'))
+            else:
+                flash('Invalid credentials. Please verify your Flat Number (e.g. A/4-C) and password (default: sdera@123).', 'danger')
+        except Exception as e:
+            flash(f"Database login error: {e}", 'danger')
 
     return render_template('login.html')
 
 @app.route('/logout')
 def logout():
-    session.pop('user', None)
+    session.clear()
     flash('You have been logged out successfully.', 'info')
     return redirect(url_for('login'))
 
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    user = session['user']
-    flat_no = user.get('flat_no')
+    user = session.get('user', {})
+    flat_no = user.get('flat_no', '')
+    is_admin = user.get('is_admin', False)
     
-    member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True) if not user['is_admin'] else None
-    contact = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (flat_no,), one=True) if not user['is_admin'] else None
-    admin = query_db("SELECT * FROM tbl_admins WHERE username = %s", (user['username'],), one=True) if user['is_admin'] else None
+    member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True) if not is_admin else None
+    contact = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (flat_no,), one=True) if not is_admin else None
+    admin = query_db("SELECT * FROM tbl_admins WHERE username = %s", (user.get('username'),), one=True) if is_admin else None
 
     if request.method == 'POST':
         action = request.form.get('action')
         
-        if action == 'update_info' and not user['is_admin']:
+        if action == 'update_info' and not is_admin:
             email1 = request.form.get('email', '').strip()
             phone1 = request.form.get('phone', '').strip()
             
@@ -192,7 +258,7 @@ def profile():
             new_pwd = request.form.get('new_password', '')
             confirm_pwd = request.form.get('confirm_password', '')
             
-            current_hash = admin['password_hash'] if user['is_admin'] else (member.get('password_hash') if member else None)
+            current_hash = admin['password_hash'] if is_admin else (member.get('password_hash') if member else None)
             
             if not verify_password(current_pwd, current_hash):
                 flash('Current password does not match.', 'danger')
@@ -202,7 +268,7 @@ def profile():
                 flash('New password confirmation does not match.', 'danger')
             else:
                 new_h = hash_password(new_pwd)
-                if user['is_admin']:
+                if is_admin:
                     execute_db("UPDATE tbl_admins SET password_hash = %s WHERE username = %s", (new_h, user['username']))
                 else:
                     execute_db("UPDATE tbl_membership SET password_hash = %s WHERE flat_no = %s", (new_h, flat_no))
@@ -215,8 +281,8 @@ def profile():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    user = session['user']
-    is_admin = user['is_admin']
+    user = session.get('user', {})
+    is_admin = bool(user.get('is_admin') or user.get('role') in ADMIN_ROLES)
     
     if is_admin:
         total_collected_row = query_db("SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM tbl_receipts", one=True)
@@ -247,7 +313,7 @@ def dashboard():
             current_year=2026
         )
     else:
-        flat_no = user['flat_no']
+        flat_no = user.get('flat_no', '')
         my_receipts = query_db(
             "SELECT * FROM tbl_receipts WHERE flat_no = %s ORDER BY receipt_no DESC", 
             (flat_no,)
@@ -263,7 +329,6 @@ def dashboard():
         member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
         monthly_rate = float(member.get('monthly_charge', 2000)) if member else 2000.0
         
-        # Expected for months recorded (Apr - Aug 2026 = 5 months)
         expected_total = monthly_rate * 5
         outstanding = max(0.0, expected_total - total_paid)
         
@@ -287,12 +352,14 @@ def dashboard():
 @app.route('/receipts/<int:receipt_no>')
 @login_required
 def view_receipt(receipt_no):
-    user = session['user']
+    user = session.get('user', {})
+    is_admin = bool(user.get('is_admin') or user.get('role') in ADMIN_ROLES)
+    
     receipt = query_db("SELECT * FROM tbl_receipts WHERE receipt_no = %s", (receipt_no,), one=True)
     if not receipt:
         abort(404, description="Receipt not found")
         
-    if not user['is_admin'] and receipt['flat_no'] != user['flat_no']:
+    if not is_admin and receipt.get('flat_no') != user.get('flat_no'):
         flash('Access Denied: You are not authorized to view another resident\'s receipt.', 'danger')
         return redirect(url_for('dashboard'))
         
@@ -304,12 +371,14 @@ def view_receipt(receipt_no):
 @app.route('/receipts/<int:receipt_no>/email', methods=['POST'])
 @login_required
 def email_receipt(receipt_no):
-    user = session['user']
+    user = session.get('user', {})
+    is_admin = bool(user.get('is_admin') or user.get('role') in ADMIN_ROLES)
+    
     receipt = query_db("SELECT * FROM tbl_receipts WHERE receipt_no = %s", (receipt_no,), one=True)
     if not receipt:
         return jsonify({"success": False, "message": f"Receipt #{receipt_no} not found"}), 404
         
-    if not user['is_admin'] and receipt['flat_no'] != user['flat_no']:
+    if not is_admin and receipt.get('flat_no') != user.get('flat_no'):
         return jsonify({"success": False, "message": "Unauthorized"}), 403
         
     custom_email = request.form.get('email')
