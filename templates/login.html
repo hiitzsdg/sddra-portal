@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Resident Login - SDDRA Residents' Association Portal{% endblock %}
+
+{% block content %}
+<div style="max-width: 960px; margin: 1.5rem auto; display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 2.5rem; align-items: start;">
+    
+    <!-- Login Form Box -->
+    <div class="card" style="padding: 2.2rem; box-shadow: var(--shadow-xl); border: 1px solid var(--slate-200);">
+        <div style="text-align: center; margin-bottom: 1.8rem;">
+            <div style="display: inline-flex; width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #ffffff; align-items: center; justify-content: center; font-size: 2rem; margin-bottom: 1rem; box-shadow: 0 8px 16px rgba(37, 99, 235, 0.3);">
+                🏢
+            </div>
+            <h2 style="font-size: 1.5rem; color: var(--slate-900);">Resident & Committee Portal</h2>
+            <p style="font-size: 0.85rem; color: var(--slate-500); margin-top: 0.25rem;">
+                South Dumdum Enclave Residents' Association (SDDRA)
+            </p>
+        </div>
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="form-group">
+                <label class="form-label" for="username">Flat Number or Admin Username</label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="e.g. A/4-C, A/1-A, B/1-B or admin" required autofocus>
+                <small style="color: var(--slate-500); font-size: 0.75rem;">Residents enter Flat No (e.g. <code>A/4-C</code> or <code>A/1-B</code>)</small>
+            </div>
+
+            <div class="form-group">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label class="form-label" for="password">Password</label>
+                </div>
+                <input type="password" id="password" name="password" class="form-control" placeholder="Enter password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-size: 0.95rem; margin-top: 0.5rem;">
+                🔐 Sign In to Portal
+            </button>
+        </form>
+
+        <div style="margin-top: 1.5rem; padding-top: 1.2rem; border-top: 1px solid var(--slate-100); text-align: center; font-size: 0.8rem; color: var(--slate-500);">
+            <p>Connected live to MySQL <code>sddra_billing</code> database.</p>
+            <p style="margin-top: 0.25rem;">Default resident password: <code>sdera@123</code> &bull; Admin: <code>passwd</code></p>
+        </div>
+    </div>
+
+    <!-- Quick Role Switcher / Demo Credentials -->
+    <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+        <div class="card" style="background: linear-gradient(135deg, #0f172a, #1e293b); color: #ffffff; border: none;">
+            <h3 style="color: #ffffff; font-size: 1.15rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                ⚡ 1-Click Instant Login
+            </h3>
+            <p style="color: var(--slate-300); font-size: 0.82rem; margin-bottom: 1.25rem;">
+                Test real database accounts from <code>sddra_billing</code>:
+            </p>
+
+            <!-- Committee Roles -->
+            <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                <a href="{{ url_for('login', demo='treasurer') }}" class="btn btn-secondary" style="background: rgba(255,255,255,0.1); color: #ffffff; border-color: rgba(255,255,255,0.15); justify-content: space-between;">
+                    <span>💰 Association Treasurer (Master Admin)</span>
+                    <span class="badge badge-treasurer">Super Admin</span>
+                </a>
+
+                <a href="{{ url_for('login', demo='admin') }}" class="btn btn-secondary" style="background: rgba(255,255,255,0.1); color: #ffffff; border-color: rgba(255,255,255,0.15); justify-content: space-between;">
+                    <span>📝 Billing Admin</span>
+                    <span class="badge badge-secretary">Billing Admin</span>
+                </a>
+            </div>
+
+            <div style="margin: 1rem 0 0.6rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.8rem; font-size: 0.8rem; color: var(--slate-400);">
+                <strong>Enclave Residents (Personal Flat & Receipts View):</strong>
+            </div>
+
+            <!-- Member Roles (Real data from tbl_membership) -->
+            <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                <a href="{{ url_for('login', demo='A/4-C') }}" class="btn btn-secondary" style="background: rgba(255,255,255,0.06); color: #ffffff; border-color: rgba(255,255,255,0.1); justify-content: space-between;">
+                    <span>🏠 Mr. Swapnadeep Ganguly (Flat A/4-C)</span>
+                    <span class="badge badge-member">Resident</span>
+                </a>
+
+                <a href="{{ url_for('login', demo='A/1-B') }}" class="btn btn-secondary" style="background: rgba(255,255,255,0.06); color: #ffffff; border-color: rgba(255,255,255,0.1); justify-content: space-between;">
+                    <span>🏠 Mrs. Kripa Ghosal (Flat A/1-B)</span>
+                    <span class="badge badge-member">Resident</span>
+                </a>
+
+                <a href="{{ url_for('login', demo='A/1-A') }}" class="btn btn-secondary" style="background: rgba(255,255,255,0.06); color: #ffffff; border-color: rgba(255,255,255,0.1); justify-content: space-between;">
+                    <span>🏠 Mr. Biswajit Manna (Flat A/1-A)</span>
+                    <span class="badge badge-member">Resident</span>
+                </a>
+
+                <a href="{{ url_for('login', demo='A/Gr-B') }}" class="btn btn-secondary" style="background: rgba(255,255,255,0.06); color: #ffffff; border-color: rgba(255,255,255,0.1); justify-content: space-between;">
+                    <span>🏠 Mrs. Sunanda Paul (Flat A/Gr-B)</span>
+                    <span class="badge badge-member">Resident</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 1rem 1.25rem; font-size: 0.82rem; background: var(--primary-50); border-color: var(--primary-200);">
+            <strong style="color: var(--primary-900); display: block; margin-bottom: 0.25rem;">🔒 Strict Member Privacy:</strong>
+            <p style="color: var(--primary-800); margin: 0;">
+                A member is only allowed to view their own flat details and receipts. Society expenses are open to all members for transparency.
+            </p>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - SDDRA Residents' Association Portal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-title">
+        <h2>
+            {% if is_admin %}
+            🏢 Executive Management Console
+            {% else %}
+            👋 Welcome, {{ current_user.name }}
+            {% endif %}
+        </h2>
+        <p>
+            {% if is_admin %}
+            South Dumdum Enclave Residents' Association (SDDRA) &bull; Billing & Financial Console
+            {% else %}
+            Resident Portal for Flat <strong>{{ current_user.flat_no }}</strong> &bull; {{ current_user.sq_feet or 1200 }} sq. ft.
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="page-header-actions">
+        {% if is_admin %}
+        <a href="{{ url_for('admin_receipts') }}" class="btn btn-primary">
+            ➕ Issue New Receipt
+        </a>
+        <a href="{{ url_for('admin_members') }}" class="btn btn-secondary">
+            👥 Resident Directory (44 Flats)
+        </a>
+        {% else %}
+        <a href="{{ url_for('expenses_list') }}" class="btn btn-secondary">
+            📊 View Society Expenses (81 Vouchers)
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{% if is_admin %}
+<!-- ================= ADMIN / COMMITTEE DASHBOARD ================= -->
+<div class="grid-4" style="margin-bottom: 2rem;">
+    <div class="stat-card" style="--stat-accent: #2563eb; --stat-bg: #eff6ff;">
+        <div class="stat-icon">💰</div>
+        <div class="stat-info">
+            <div class="stat-label">Total Maintenance Collected</div>
+            <div class="stat-value">₹ {{ "{:,.2f}".format(total_collected) }}</div>
+            <div class="stat-sub">{{ total_receipts_count }} receipts issued</div>
+        </div>
+    </div>
+
+    <div class="stat-card" style="--stat-accent: #ef4444; --stat-bg: #fef2f2;">
+        <div class="stat-icon">🧾</div>
+        <div class="stat-info">
+            <div class="stat-label">Total Incurred Expenses</div>
+            <div class="stat-value">₹ {{ "{:,.2f}".format(total_expenses) }}</div>
+            <div class="stat-sub">{{ total_vouchers_count }} payment vouchers</div>
+        </div>
+    </div>
+
+    <div class="stat-card" style="--stat-accent: {% if net_balance >= 0 %}#10b981{% else %}#f59e0b{% endif %}; --stat-bg: {% if net_balance >= 0 %}#ecfdf5{% else %}#fffbeb{% endif %};">
+        <div class="stat-icon">📈</div>
+        <div class="stat-info">
+            <div class="stat-label">Association Reserve</div>
+            <div class="stat-value">₹ {{ "{:,.2f}".format(net_balance) }}</div>
+            <div class="stat-sub">{% if net_balance >= 0 %}Net Operating Reserve{% else %}Deficit{% endif %}</div>
+        </div>
+    </div>
+
+    <div class="stat-card" style="--stat-accent: #8b5cf6; --stat-bg: #f5f3ff;">
+        <div class="stat-icon">🏘️</div>
+        <div class="stat-info">
+            <div class="stat-label">Enclave Flats</div>
+            <div class="stat-value">{{ total_members }}</div>
+            <div class="stat-sub">Registered residential units</div>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Recent Receipts from tbl_receipts -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">💳 Recent Maintenance Collections</h3>
+            <a href="{{ url_for('admin_receipts') }}" class="btn btn-sm btn-outline-primary">All {{ total_receipts_count }} Receipts</a>
+        </div>
+        <div class="table-container">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Receipt #</th>
+                        <th>Flat & Member</th>
+                        <th>Period / Remarks</th>
+                        <th>Amount</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in recent_receipts %}
+                    <tr>
+                        <td>
+                            <strong style="color: var(--primary-700);">#{{ r.receipt_no }}</strong><br>
+                            <span style="font-size: 0.75rem; color: var(--slate-500);">{{ r.payment_date or r.receipt_date }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ r.member_name }}</strong><br>
+                            <span class="badge badge-info">Flat {{ r.flat_no }}</span>
+                        </td>
+                        <td>
+                            <span class="badge badge-warning">{{ r.remarks or 'Monthly' }}</span>
+                        </td>
+                        <td><strong style="color: var(--emerald-700);">₹ {{ "{:,.2f}".format(r.amount) }}</strong></td>
+                        <td>
+                            <div style="display: flex; gap: 0.35rem;">
+                                <a href="{{ url_for('view_receipt', receipt_no=r.receipt_no) }}" class="btn btn-sm btn-secondary" title="View & Print">📄</a>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="emailReceiptAjax({{ r.receipt_no }}, this)" title="Email Receipt">✉️</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Expenses from tbl_expenses -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🧾 Recent Society Expense Vouchers</h3>
+            <a href="{{ url_for('expenses_list') }}" class="btn btn-sm btn-outline-primary">All {{ total_vouchers_count }} Vouchers</a>
+        </div>
+        <div class="table-container">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Voucher #</th>
+                        <th>Description</th>
+                        <th>Particulars</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in recent_expenses %}
+                    <tr>
+                        <td>
+                            <strong>#{{ e.voucher_no }}</strong><br>
+                            <span style="font-size: 0.75rem; color: var(--slate-500);">{{ e.voucher_date }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ e.expense_description }}</strong>
+                            {% if e.spl_head %}
+                            <div style="font-size: 0.75rem; color: var(--slate-500);">Head: {{ e.spl_head }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge badge-warning">{{ e.particulars }}</span>
+                        </td>
+                        <td><strong style="color: var(--rose-600);">₹ {{ "{:,.2f}".format(e.amount) }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- ================= REGULAR RESIDENT DASHBOARD ================= -->
+<div class="grid-3" style="margin-bottom: 2rem;">
+    <div class="stat-card" style="--stat-accent: #10b981; --stat-bg: #ecfdf5;">
+        <div class="stat-icon">✅</div>
+        <div class="stat-info">
+            <div class="stat-label">Total Maintenance Paid</div>
+            <div class="stat-value">₹ {{ "{:,.2f}".format(total_paid) }}</div>
+            <div class="stat-sub">{{ my_receipts|length }} payment receipts recorded</div>
+        </div>
+    </div>
+
+    <div class="stat-card" style="--stat-accent: {% if outstanding == 0 %}#10b981{% else %}#f59e0b{% endif %}; --stat-bg: {% if outstanding == 0 %}#ecfdf5{% else %}#fffbeb{% endif %};">
+        <div class="stat-icon">⚖️</div>
+        <div class="stat-info">
+            <div class="stat-label">Monthly Rate / Dues</div>
+            <div class="stat-value">₹ {{ "{:,.2f}".format(member.monthly_charge if member else 2000) }}/mo</div>
+            <div class="stat-sub">{% if outstanding == 0 %}All dues cleared up to date!{% else %}Pending balance: ₹ {{ "{:,.2f}".format(outstanding) }}{% endif %}</div>
+        </div>
+    </div>
+
+    <div class="stat-card" style="--stat-accent: #3b82f6; --stat-bg: #eff6ff;">
+        <div class="stat-icon">🏛️</div>
+        <div class="stat-info">
+            <div class="stat-label">Total Association Expenses</div>
+            <div class="stat-value">₹ {{ "{:,.2f}".format(total_expenses) }}</div>
+            <div class="stat-sub"><a href="{{ url_for('expenses_list') }}" style="color: var(--primary-600); font-weight: 600;">View full audit ledger &rarr;</a></div>
+        </div>
+    </div>
+</div>
+
+<!-- My Personal Receipts Table -->
+<div class="card" style="margin-bottom: 2rem;">
+    <div class="card-header">
+        <h3 class="card-title">📄 My Flat Maintenance Receipts ({{ current_user.flat_no }})</h3>
+        <span class="badge badge-success">Personal Records Only</span>
+    </div>
+    
+    <div class="table-container">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Receipt No</th>
+                    <th>Period / Remarks</th>
+                    <th>Payment Date</th>
+                    <th>Payment Mode</th>
+                    <th>Subscription Type</th>
+                    <th>Amount Paid</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in my_receipts %}
+                <tr>
+                    <td>
+                        <strong style="color: var(--primary-700); font-size: 0.95rem;">#{{ r.receipt_no }}</strong>
+                    </td>
+                    <td>
+                        <span class="badge badge-warning">{{ r.remarks or 'Monthly' }}</span>
+                    </td>
+                    <td>{{ r.payment_date or r.receipt_date }}</td>
+                    <td>
+                        <span class="badge badge-info">{{ r.pymnt_mode }}</span>
+                    </td>
+                    <td>{{ r.subscription_type or 'Monthly Subscription' }}</td>
+                    <td>
+                        <strong style="color: #047857; font-size: 1rem;">₹ {{ "{:,.2f}".format(r.amount) }}</strong>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <a href="{{ url_for('view_receipt', receipt_no=r.receipt_no) }}" class="btn btn-sm btn-primary" title="View & Print Official Receipt">
+                                📄 View / Print
+                            </a>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="emailReceiptAjax({{ r.receipt_no }}, this)" title="Send official receipt to my email">
+                                ✉️ Email to Me
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--slate-500); padding: 2rem;">
+                        No maintenance receipts found for Flat {{ current_user.flat_no }}.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Society Expenditure Highlight for Transparency -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">🔍 Association Expenditure Transparency (Recent Bills)</h3>
+        <a href="{{ url_for('expenses_list') }}" class="btn btn-sm btn-outline-primary">Full Financial Ledger (81 Vouchers)</a>
+    </div>
+    <div class="table-container">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Voucher #</th>
+                    <th>Expense Detail</th>
+                    <th>Particulars</th>
+                    <th>Date</th>
+                    <th>Payment Mode</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in recent_expenses %}
+                <tr>
+                    <td><strong>#{{ e.voucher_no }}</strong></td>
+                    <td>
+                        <strong>{{ e.expense_description }}</strong>
+                        {% if e.spl_head %}
+                        <span style="font-size: 0.75rem; color: var(--slate-500); margin-left: 4px;">({{ e.spl_head }})</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge badge-warning">{{ e.particulars }}</span></td>
+                    <td>{{ e.voucher_date }}</td>
+                    <td><span class="badge badge-info">{{ e.payment_by }}</span></td>
+                    <td><strong style="color: var(--rose-600);">₹ {{ "{:,.2f}".format(e.amount) }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}

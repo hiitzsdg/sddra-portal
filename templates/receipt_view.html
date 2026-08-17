@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}Receipt #{{ receipt.receipt_no }} - SDDRA Residents' Association{% endblock %}
+
+{% block content %}
+<div class="no-print" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+        &larr; Back to Dashboard
+    </a>
+    
+    <div style="display: flex; gap: 0.75rem;">
+        <button type="button" class="btn btn-primary" onclick="emailReceiptAjax({{ receipt.receipt_no }}, this)">
+            ✉️ Email Receipt
+        </button>
+        <button type="button" class="btn btn-success" onclick="window.print()">
+            🖨️ Print / Save as PDF
+        </button>
+    </div>
+</div>
+
+<!-- Printable Official Receipt Voucher -->
+<div class="receipt-voucher">
+    <div class="receipt-watermark">SDDRA OFFICIAL</div>
+
+    <div class="receipt-header">
+        <div style="display: inline-flex; width: 48px; height: 48px; border-radius: 10px; background: #1e3a8a; color: #ffffff; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 0.5rem;">
+            🏢
+        </div>
+        <h2>{{ config.ASSOCIATION_NAME }}</h2>
+        <p><strong>Registration No:</strong> {{ config.ASSOCIATION_REG_NO }}</p>
+        <p>{{ config.ASSOCIATION_ADDRESS }}</p>
+        <p>Email: {{ config.ASSOCIATION_EMAIL }} | Phone: {{ config.ASSOCIATION_PHONE }}</p>
+        <div style="margin-top: 0.6rem;">
+            <span style="border: 2px solid #0f172a; padding: 3px 14px; font-weight: 800; font-size: 0.85rem; letter-spacing: 1px; text-transform: uppercase;">
+                OFFICIAL MAINTENANCE RECEIPT
+            </span>
+        </div>
+    </div>
+
+    <div class="receipt-meta-bar">
+        <div>
+            <strong>Receipt No:</strong> <span style="font-family: monospace; font-size: 1.1rem; font-weight: 800; color: #1e3a8a;">#{{ receipt.receipt_no }}</span>
+        </div>
+        <div>
+            <strong>Date of Issue:</strong> {{ receipt.receipt_date or receipt.payment_date }}
+        </div>
+    </div>
+
+    <table class="receipt-details-table">
+        <tr>
+            <td class="label">Resident / Member Name:</td>
+            <td><strong>{{ receipt.member_name or member.member_name }}</strong></td>
+            <td class="label">Flat Number:</td>
+            <td><strong style="color: #1e40af; font-size: 1.05rem;">Flat {{ receipt.flat_no }}</strong></td>
+        </tr>
+        <tr>
+            <td class="label">Contact Mobile:</td>
+            <td>{{ contact.mobile_num_1 or contact.mobile_num_2 or 'On File' }}</td>
+            <td class="label">Registered Email:</td>
+            <td>{{ contact.email_1 or contact.email_2 or 'On File' }}</td>
+        </tr>
+        <tr>
+            <td class="label">Subscription Type:</td>
+            <td><span class="badge badge-info">{{ receipt.subscription_type or 'Monthly Subscription' }}</span></td>
+            <td class="label">Period / Month:</td>
+            <td><strong style="color: #0f172a; font-size: 1rem;">{{ receipt.remarks or 'Monthly' }}</strong></td>
+        </tr>
+        <tr>
+            <td class="label">Payment Date:</td>
+            <td>{{ receipt.payment_date or receipt.receipt_date }}</td>
+            <td class="label">Payment Mode:</td>
+            <td><span class="badge badge-success">{{ receipt.pymnt_mode }}</span></td>
+        </tr>
+        <tr>
+            <td class="label">Flat Size / Space:</td>
+            <td>{{ member.RvsdFlatSize or 1200 }} Sq. Ft.</td>
+            <td class="label">Car Parking Space:</td>
+            <td>{{ member.car_parking_space or '-' }}</td>
+        </tr>
+        {% if receipt.coverage_start and receipt.coverage_end %}
+        <tr>
+            <td class="label">Billing Coverage:</td>
+            <td colspan="3">From <strong>{{ receipt.coverage_start }}</strong> to <strong>{{ receipt.coverage_end }}</strong></td>
+        </tr>
+        {% endif %}
+    </table>
+
+    <div class="receipt-total-box">
+        <div>
+            <span style="font-size: 0.85rem; color: #1e40af; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: block;">Total Amount Received</span>
+            <span style="font-size: 0.85rem; color: #475569; font-style: italic;">Maintenance and Common Services Charge</span>
+        </div>
+        <div style="font-size: 1.85rem; font-weight: 900; color: #1e3a8a; font-family: var(--font-heading);">
+            INR {{ "{:,.2f}".format(receipt.amount) }}
+        </div>
+    </div>
+
+    <div class="receipt-signatures">
+        <div style="font-size: 0.75rem; color: var(--slate-500); width: 300px;">
+            <p><strong>Note:</strong> This receipt is computer generated from the SDDRA Billing System and holds official validity under South Dumdum Enclave Association Bye-Laws.</p>
+            <p style="margin-top: 4px;">Helpline: {{ config.ASSOCIATION_PHONE }}</p>
+        </div>
+
+        <div class="signature-box">
+            <div class="signature-line"></div>
+            <p style="font-size: 0.85rem; font-weight: 700; color: #0f172a; margin: 0;">Honorary Treasurer / Secretary</p>
+            <p style="font-size: 0.72rem; color: var(--slate-500); margin: 0;">South Dumdum Enclave Residents' Association</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

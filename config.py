@@ -1,0 +1,31 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class Config:
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'sddra-billing-portal-secret-key-2026')
+    
+    # MySQL Database Configuration (Supports Local & Cloud Providers like TiDB Cloud, Aiven, Railway, AWS RDS)
+    DB_HOST = os.environ.get('DB_HOST', 'localhost')
+    DB_PORT = int(os.environ.get('DB_PORT', 3306))
+    DB_USER = os.environ.get('DB_USER', 'root')
+    DB_PASSWORD = os.environ.get('DB_PASSWORD', 'passwd')
+    DB_NAME = os.environ.get('DB_NAME', 'sddra_billing')
+    DB_SSL = os.environ.get('DB_SSL', 'False').lower() in ('true', '1', 't')
+    
+    # SMTP Email Configuration
+    SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
+    SMTP_USE_TLS = os.environ.get('SMTP_USE_TLS', 'True').lower() in ('true', '1', 't')
+    SMTP_USERNAME = os.environ.get('SMTP_USERNAME', '')
+    SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
+    SMTP_FROM_EMAIL = os.environ.get('SMTP_FROM_EMAIL', 'sddra.billing@gmail.com')
+    SMTP_FROM_NAME = os.environ.get('SMTP_FROM_NAME', "South Dumdum Enclave Residents' Association")
+    
+    # Association Information
+    ASSOCIATION_NAME = "South Dumdum Enclave Residents' Association"
+    ASSOCIATION_REG_NO = "WB/IV/2021/04589"
+    ASSOCIATION_ADDRESS = "142/A, P.K. Guha Road, South Dumdum, Kolkata - 700028, West Bengal"
+    ASSOCIATION_EMAIL = "contact@southdumdumenclave.org"
+    ASSOCIATION_PHONE = "+91 33 2551 8900"

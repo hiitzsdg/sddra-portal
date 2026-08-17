@@ -1,0 +1,69 @@
+# South Dumdum Enclave Residents' Association (SDERA) Web Portal
+
+A web portal for the **South Dumdum Enclave Residents' Association** built with Python Flask, MySQL DB integration, secure Role-Based Access Control (RBAC), expense tracking analytics, and automated email receipt dispatch.
+
+---
+
+## 🌟 Key Features
+
+1. **Role-Based Access Control (RBAC)**:
+   - **Regular Members**: Restricted strictly to their own flat details and maintenance receipts.
+   - **Committee Officials (President, Secretary, Treasurer, Caretaker)**: Full oversight across all flats, payment collections, and receipts.
+2. **Maintenance Receipts Ledger**:
+   - Issue, track, view, and print official verified receipts with watermarked layouts.
+   - 1-click **Email Receipt** to dispatch receipt slips directly to member inboxes.
+3. **Association Expense Transparency**:
+   - Public expense ledger visible to all members for complete financial accountability.
+   - Interactive Chart.js category breakdown (Electricity, Security, Lift AMC, Generator, etc.) and monthly spending trend.
+4. **Member & Flat Management**:
+   - Manage flat roster, square footage, dues statuses, and reset credentials.
+5. **Database Dual-Mode**:
+   - Connects directly to local **MySQL** (`south_dumdum_enclave` database).
+   - Features seamless auto-fallback to standalone SQLite if MySQL credentials are being configured.
+
+---
+
+## 🚀 Quick Start
+
+### 1. Install Dependencies
+```bash
+pip install flask pymysql cryptography python-dotenv
+```
+
+### 2. Run the Portal
+```bash
+python app.py
+```
+Open your browser and navigate to: **`http://localhost:5000`**
+
+---
+
+## 🔑 Default Demo Accounts
+
+All test accounts use default password: **`sdera@123`**
+
+| Role | Name | Username | Flat | Permissions |
+| :--- | :--- | :--- | :--- | :--- |
+| **President** | Subhashish Mukherjee | `president` | A-401 | Full Association & Financial Admin |
+| **Secretary** | Debasish Roy | `secretary` | B-202 | Member & Operational Admin |
+| **Treasurer** | Amitabha Sengupta | `treasurer` | A-102 | Receipts & Expense Management |
+| **Caretaker** | Bikas Mondal | `caretaker` | Staff (CT-01) | Roster & Payment Collection Entry |
+| **Member** | Sourav Ganguly | `sourav101` | A-101 | Personal Receipts & Expense View Only |
+| **Member** | Anirban Bhattacharya | `anirban201` | A-201 | Personal Receipts & Expense View Only |
+| **Member** | Priya Mukherjee | `priya301` | A-301 | Personal Receipts & Expense View Only |
+
+---
+
+## ⚙️ MySQL Configuration
+
+To point directly to your local MySQL server, copy `.env.example` to `.env` and set your credentials:
+
+```ini
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=south_dumdum_enclave
+```
+
+The application will automatically create the database and tables on startup.

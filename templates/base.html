@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}South Dumdum Enclave Residents' Association{% endblock %}</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Main Style -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+        <div class="navbar-container">
+            <a href="{{ url_for('dashboard') if current_user else url_for('login') }}" class="brand-wrapper">
+                <div class="brand-logo-badge">🏢</div>
+                <div class="brand-info">
+                    <h1>South Dumdum Enclave</h1>
+                    <p>Residents' Association Portal</p>
+                </div>
+            </a>
+
+            {% if current_user %}
+            <nav>
+                <ul class="nav-menu">
+                    <li><a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">📊 Dashboard</a></li>
+                    <li><a href="{{ url_for('expenses_list') }}" class="nav-link {% if request.endpoint == 'expenses_list' %}active{% endif %}">🧾 Association Expenses</a></li>
+                    
+                    {% if is_admin %}
+                    <li><a href="{{ url_for('admin_members') }}" class="nav-link {% if request.endpoint == 'admin_members' %}active{% endif %}">👥 Resident Directory</a></li>
+                    <li><a href="{{ url_for('admin_receipts') }}" class="nav-link {% if request.endpoint == 'admin_receipts' %}active{% endif %}">💳 Receipts Ledger</a></li>
+                    {% endif %}
+                    
+                    <li><a href="{{ url_for('profile') }}" class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}">⚙️ Profile</a></li>
+                </ul>
+            </nav>
+
+            <div class="user-nav-badge">
+                <div class="user-nav-details">
+                    <span class="user-name">{{ current_user.name }}</span>
+                    <span class="user-sub">Flat {{ current_user.flat_number }}</span>
+                </div>
+                <span class="badge badge-{{ current_user.role|lower }}">{{ current_user.role }}</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-sm btn-secondary" style="padding: 0.25rem 0.6rem;" title="Sign Out">🚪</a>
+            </div>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-wrapper">
+        <!-- Flash Alerts -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="alerts-container">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    <span>{{ message }}</span>
+                    <button type="button" class="close-btn" onclick="this.parentElement.remove()">&times;</button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer no-print">
+        <div class="footer-container">
+            <div>
+                <strong>{{ config.ASSOCIATION_NAME }}</strong>
+                <p style="font-size: 0.75rem; margin-top: 2px;">Reg No: {{ config.ASSOCIATION_REG_NO }} | {{ config.ASSOCIATION_ADDRESS }}</p>
+            </div>
+            <div style="text-align: right; font-size: 0.8rem;">
+                <p>Support: {{ config.ASSOCIATION_PHONE }} | {{ config.ASSOCIATION_EMAIL }}</p>
+                <p style="margin-top: 2px; color: var(--slate-500);">&copy; {{ now.year }} SDERA. Secured Role-Based Portal.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

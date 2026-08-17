@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}Receipts Ledger - SDDRA Portal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-title">
+        <h2>💳 Maintenance Receipts Ledger (190 Receipts)</h2>
+        <p>Master collection registry of all maintenance payments recorded in <code>tbl_receipts</code>.</p>
+    </div>
+
+    <div class="page-header-actions">
+        <button type="button" class="btn btn-primary" onclick="openModal('createReceiptModal')">
+            ➕ Issue New Receipt
+        </button>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+    <form method="GET" action="{{ url_for('admin_receipts') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+        <div style="width: 220px;">
+            <label class="form-label" for="flat">Filter by Flat</label>
+            <select id="flat" name="flat" class="form-select">
+                <option value="">All Flats (44)</option>
+                {% for f in all_flats %}
+                <option value="{{ f.flat_no }}" {% if flat_filter == f.flat_no %}selected{% endif %}>
+                    Flat {{ f.flat_no }} - {{ f.member_name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="width: 180px;">
+            <label class="form-label" for="month">Filter by Month</label>
+            <select id="month" name="month" class="form-select">
+                <option value="">All Months</option>
+                {% for mon in ["Apr'2026", "May'2026", "Jun'2026", "Jul'2026", "Aug'2026", "Sep'2026", "Oct'2026", "Nov'2026", "Dec'2026"] %}
+                <option value="{{ mon }}" {% if month_filter == mon %}selected{% endif %}>{{ mon }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary">🔍 Apply Filter</button>
+            <a href="{{ url_for('admin_receipts') }}" class="btn btn-secondary">Reset</a>
+        </div>
+    </form>
+</div>
+
+<!-- Receipts Table -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">📜 Receipts Collection Registry</h3>
+        <span class="badge badge-success">{{ receipts|length }} Receipts Found</span>
+    </div>
+
+    <div class="table-container">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Receipt No</th>
+                    <th>Flat Number</th>
+                    <th>Resident Name</th>
+                    <th>Period / Remarks</th>
+                    <th>Date Paid</th>
+                    <th>Payment Mode</th>
+                    <th>Amount</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in receipts %}
+                <tr>
+                    <td>
+                        <strong style="color: var(--primary-700);">#{{ r.receipt_no }}</strong>
+                    </td>
+                    <td>
+                        <span class="badge badge-info">Flat {{ r.flat_no }}</span>
+                    </td>
+                    <td>
+                        <strong>{{ r.member_name }}</strong>
+                    </td>
+                    <td>
+                        <span class="badge badge-warning">{{ r.remarks or 'Monthly' }}</span>
+                    </td>
+                    <td>{{ r.payment_date or r.receipt_date }}</td>
+                    <td>
+                        <span class="badge badge-info">{{ r.pymnt_mode }}</span>
+                    </td>
+                    <td>
+                        <strong style="color: var(--emerald-700); font-size: 0.95rem;">₹ {{ "{:,.2f}".format(r.amount) }}</strong>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 0.35rem;">
+                            <a href="{{ url_for('view_receipt', receipt_no=r.receipt_no) }}" class="btn btn-sm btn-secondary" title="View & Print Official Receipt">
+                                📄
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="emailReceiptAjax({{ r.receipt_no }}, this)" title="Email Receipt to Resident">
+                                ✉️
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--slate-500); padding: 2rem;">
+                        No receipt records found matching your filters.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal: Issue New Receipt -->
+<div id="createReceiptModal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 style="font-size: 1.15rem; color: var(--slate-900);">➕ Issue Maintenance Payment Receipt</h3>
+            <button type="button" class="close-btn" onclick="closeModal('createReceiptModal')">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('create_receipt') }}">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="rcpt_flat">Select Flat Resident *</label>
+                    <select id="rcpt_flat" name="flat_no" class="form-select" required>
+                        <option value="">-- Choose Flat Resident --</option>
+                        {% for f in all_flats %}
+                        <option value="{{ f.flat_no }}">Flat {{ f.flat_no }} - {{ f.member_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="rcpt_amount">Amount Received (INR) *</label>
+                        <input type="number" step="0.01" id="rcpt_amount" name="amount" class="form-control" value="2000.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="rcpt_date">Payment Date *</label>
+                        <input type="date" id="rcpt_date" name="payment_date" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="rcpt_remarks">Month / Remarks *</label>
+                        <input type="text" id="rcpt_remarks" name="remarks" class="form-control" value="Aug'2026" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="rcpt_mode">Payment Mode *</label>
+                        <select id="rcpt_mode" name="pymnt_mode" class="form-select">
+                            <option value="Online">Online (UPI / NEFT / Net Banking)</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Cheque">Cheque</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="rcpt_sub_type">Subscription Type</label>
+                    <input type="text" id="rcpt_sub_type" name="subscription_type" class="form-control" value="Monthly Subscription">
+                </div>
+
+                <div style="background: var(--slate-50); border: 1px solid var(--slate-200); padding: 0.85rem 1rem; border-radius: var(--radius-sm);">
+                    <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.88rem;">
+                        <input type="checkbox" name="auto_email" value="1" checked style="width: 16px; height: 16px;">
+                        <span><strong>Dispatch official email receipt</strong> to the resident immediately upon generation</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('createReceiptModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Generate & Issue Receipt</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

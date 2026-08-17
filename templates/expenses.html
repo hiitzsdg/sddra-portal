@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+
+{% block title %}Association Expenses - SDDRA Portal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-title">
+        <h2>🧾 Association Expenditure & Transparency Portal</h2>
+        <p>Complete transparent record of 81 incurred expense vouchers, bills, service charges, and maintenance outlays.</p>
+    </div>
+
+    <div class="page-header-actions">
+        {% if is_executive %}
+        <button type="button" class="btn btn-primary" onclick="openModal('addExpenseModal')">
+            ➕ Record Incurred Expense
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Financial Summary & Visualizations -->
+<div class="grid-2" style="margin-bottom: 2rem;">
+    <!-- Doughnut Chart: Category Distribution -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📊 Expense Distribution by Head</h3>
+            <span class="badge badge-info">Actual Vouchers</span>
+        </div>
+        <div style="position: relative; height: 260px;">
+            <canvas id="expenseCategoryChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Bar Chart: Monthly Expenditure -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📅 Monthly Expenditure Trend</h3>
+            <span class="badge badge-success">Year 2026</span>
+        </div>
+        <div style="position: relative; height: 260px;">
+            <canvas id="expenseMonthlyChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Expense Filter and Search -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+    <form method="GET" action="{{ url_for('expenses_list') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 220px;">
+            <label class="form-label" for="q">Search Description / Particulars / Voucher #</label>
+            <input type="text" id="q" name="q" class="form-control" placeholder="e.g. Security, Sweeper, Electricity, AMC..." value="{{ search_q }}">
+        </div>
+
+        <div style="width: 200px;">
+            <label class="form-label" for="particulars">Filter by Particulars</label>
+            <select id="particulars" name="particulars" class="form-select">
+                <option value="">All Particulars</option>
+                {% for p in particulars_list %}
+                <option value="{{ p.particulars }}" {% if current_particulars == p.particulars %}selected{% endif %}>
+                    {{ p.particulars }} ({{ p.cnt }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="width: 180px;">
+            <label class="form-label" for="spl_head">Filter by Special Head</label>
+            <select id="spl_head" name="spl_head" class="form-select">
+                <option value="">All Special Heads</option>
+                {% for s in spl_heads_list %}
+                <option value="{{ s.spl_head }}" {% if current_spl_head == s.spl_head %}selected{% endif %}>
+                    {{ s.spl_head }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary">🔍 Filter</button>
+            <a href="{{ url_for('expenses_list') }}" class="btn btn-secondary">Reset</a>
+        </div>
+    </form>
+</div>
+
+<!-- Expenses Table -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">📋 Incurred Expense Vouchers</h3>
+        <span style="font-size: 0.95rem; font-weight: 800; color: var(--rose-600);">
+            Total Incurred: ₹ {{ "{:,.2f}".format(total_incurred) }}
+        </span>
+    </div>
+
+    <div class="table-container">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Voucher #</th>
+                    <th>Date</th>
+                    <th>Expense Description</th>
+                    <th>Particulars</th>
+                    <th>Special Head</th>
+                    <th>Payment Mode</th>
+                    <th>Amount</th>
+                    {% if is_executive %}
+                    <th>Action</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in expenses %}
+                <tr>
+                    <td><strong style="color: var(--primary-700);">#{{ e.voucher_no }}</strong></td>
+                    <td>{{ e.voucher_date }}</td>
+                    <td><strong>{{ e.expense_description }}</strong></td>
+                    <td><span class="badge badge-warning">{{ e.particulars }}</span></td>
+                    <td>
+                        {% if e.spl_head %}
+                        <span class="badge badge-info">{{ e.spl_head }}</span>
+                        {% else %}
+                        <span style="color: var(--slate-400); font-size: 0.8rem;">-</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge badge-info">{{ e.payment_by }}</span></td>
+                    <td>
+                        <strong style="color: var(--rose-600); font-size: 0.95rem;">₹ {{ "{:,.2f}".format(e.amount) }}</strong>
+                    </td>
+                    {% if is_executive %}
+                    <td>
+                        <form method="POST" action="{{ url_for('delete_expense', voucher_no=e.voucher_no) }}" onsubmit="return confirm('Are you sure you want to delete voucher #{{ e.voucher_no }}?');" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-secondary" style="color: var(--rose-600); padding: 0.25rem 0.5rem;" title="Delete Record">
+                                🗑️
+                            </button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--slate-500); padding: 2rem;">
+                        No expense records match your filter criteria.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if is_executive %}
+<!-- Modal: Add New Incurred Expense -->
+<div id="addExpenseModal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 style="font-size: 1.15rem; color: var(--slate-900);">➕ Record Incurred Society Expense</h3>
+            <button type="button" class="close-btn" onclick="closeModal('addExpenseModal')">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('add_expense') }}">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="exp_desc">Expense Description *</label>
+                    <input type="text" id="exp_desc" name="expense_description" class="form-control" placeholder="e.g. Security Bill for Aug'2026" required>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="exp_part">Particulars *</label>
+                        <select id="exp_part" name="particulars" class="form-select" required>
+                            <option value="Service Charges">Service Charges</option>
+                            <option value="Electricity Charges">Electricity Charges</option>
+                            <option value="Repair & Maintenance">Repair & Maintenance</option>
+                            <option value="Stationary">Stationary</option>
+                            <option value="AMC Lift">AMC Lift</option>
+                            <option value="Accounting Charges">Accounting Charges</option>
+                            <option value="Misc & Other Expenses">Misc & Other Expenses</option>
+                            <option value="AGM">AGM</option>
+                            <option value="Cultural Program & Milonotsav">Cultural Program & Milonotsav</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="exp_spl">Special Head</label>
+                        <input type="text" id="exp_spl" name="spl_head" class="form-control" placeholder="e.g. Security, Lift, Caretaker, Water, Electric">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="exp_amount">Amount (INR) *</label>
+                        <input type="number" step="0.01" id="exp_amount" name="amount" class="form-control" placeholder="e.g. 18500.00" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="exp_date">Voucher Date *</label>
+                        <input type="date" id="exp_date" name="voucher_date" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="exp_pay">Payment Mode</label>
+                    <select id="exp_pay" name="payment_by" class="form-select">
+                        <option value="Online">Online / NEFT / UPI</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Cheque">Cheque</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addExpenseModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Expense Voucher</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

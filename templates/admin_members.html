@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Resident Directory - SDDRA Portal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-title">
+        <h2>👥 Resident Roster & Flat Directory (44 Flats)</h2>
+        <p>Complete official membership registry of South Dumdum Enclave Residents' Association from <code>tbl_membership</code>.</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">🏢 Registered Flats Roster</h3>
+        <span class="badge badge-info">{{ members|length }} Registered Units</span>
+    </div>
+
+    <div class="table-container">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>Flat Number</th>
+                    <th>Resident Name</th>
+                    <th>Size (Sq Ft)</th>
+                    <th>Parking</th>
+                    <th>Monthly Rate</th>
+                    <th>Contact Phone</th>
+                    <th>Contact Email</th>
+                    <th>Total Paid</th>
+                    <th>Receipts</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in members %}
+                <tr>
+                    <td>
+                        <strong style="color: var(--primary-800); font-size: 1rem;">Flat {{ m.flat_no }}</strong>
+                    </td>
+                    <td>
+                        <strong>{{ m.member_name }}</strong>
+                    </td>
+                    <td>{{ m.RvsdFlatSize or '-' }} sq. ft.</td>
+                    <td>
+                        {% if m.cps_owner %}
+                        <span class="badge badge-info">CPS: {{ m.car_parking_space }}</span>
+                        {% else %}
+                        <span style="color: var(--slate-400);">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong style="color: var(--slate-800);">₹ {{ "{:,.2f}".format(m.monthly_charge or 0) }}</strong>
+                    </td>
+                    <td>
+                        {{ m.mobile_num_1 or m.mobile_num_2 or '-' }}
+                    </td>
+                    <td>
+                        <span style="font-size: 0.8rem; color: var(--slate-600);">{{ m.email_1 or m.email_2 or '-' }}</span>
+                    </td>
+                    <td>
+                        <strong style="color: var(--emerald-700);">₹ {{ "{:,.2f}".format(m.total_paid) }}</strong>
+                    </td>
+                    <td>
+                        <span class="badge badge-success">{{ m.receipts_count }} receipts</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
