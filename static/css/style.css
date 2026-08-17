@@ -285,7 +285,17 @@ a:hover {
   gap: 0.5rem;
 }
 
-/* Grid Layouts */
+/* Grid Layouts & Containers */
+.login-container {
+  max-width: 1080px;
+  margin: 2rem auto;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 2.5rem;
+  align-items: start;
+  width: 100%;
+}
+
 .grid-2 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -305,14 +315,52 @@ a:hover {
 }
 
 @media (max-width: 1024px) {
-  .grid-4 { grid-template-columns: repeat(2, 1fr); }
-  .grid-3 { grid-template-columns: repeat(1, 1fr); }
+  .login-container {
+    grid-template-columns: 1fr;
+    max-width: 620px;
+    gap: 2rem;
+    margin: 1.5rem auto;
+  }
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
-  .grid-2, .grid-4 { grid-template-columns: 1fr; }
-  .navbar-container { flex-direction: column; align-items: stretch; }
-  .nav-menu { flex-wrap: wrap; justify-content: center; }
+  .login-container {
+    padding: 0 0.5rem;
+  }
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns: 1fr;
+  }
+  .navbar-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  .nav-menu {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem;
+  }
+  .user-nav-badge {
+    justify-content: space-between;
+  }
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .page-header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+  .page-header-actions .btn {
+    width: 100%;
+  }
 }
 
 /* Stat Cards */
