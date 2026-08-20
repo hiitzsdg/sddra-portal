@@ -60,14 +60,14 @@
         </div>
     </div>
 
-    <!-- Right: 1-Click Instant Demo Command Deck -->
+    <!-- Right: Administrator Quick Select -->
     <div style="display: flex; flex-direction: column; gap: 1.5rem;">
         <div class="demo-hub-card">
             <h3 class="card-title" style="font-size: 1.25rem; margin-bottom: 0.35rem;">
-                ⚡ 1-Click Instant Login Hub
+                ⚡ Administrator Quick Select
             </h3>
             <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1.4rem;">
-                Select any verified profile to test immediate role-based views:
+                Select an administrative profile to authenticate:
             </p>
 
             <!-- Committee Roles (Password Prompt Required) -->
@@ -92,45 +92,6 @@
                     </span>
                 </button>
             </div>
-
-            <div style="margin: 1.25rem 0 0.75rem; border-top: 1px solid var(--surface-border); padding-top: 1rem; font-size: 0.82rem; font-weight: 600;" class="text-muted">
-                🏢 Verified Enclave Residents (Real Association Records):
-            </div>
-
-            <!-- Member Roles -->
-            <div style="display: flex; flex-direction: column; gap: 0.65rem;">
-                <a href="{{ url_for('login', demo='A/4-C') }}" class="demo-btn">
-                    <span style="display: flex; align-items: center; gap: 0.6rem;">
-                        <span style="font-size: 1.2rem;">🏠</span>
-                        <span class="text-main">Mr. Swapnadeep Ganguly</span>
-                    </span>
-                    <span class="badge badge-member">Flat A/4-C</span>
-                </a>
-
-                <a href="{{ url_for('login', demo='A/1-B') }}" class="demo-btn">
-                    <span style="display: flex; align-items: center; gap: 0.6rem;">
-                        <span style="font-size: 1.2rem;">🏠</span>
-                        <span class="text-main">Mrs. Kripa Ghosal</span>
-                    </span>
-                    <span class="badge badge-member">Flat A/1-B</span>
-                </a>
-
-                <a href="{{ url_for('login', demo='A/1-A') }}" class="demo-btn">
-                    <span style="display: flex; align-items: center; gap: 0.6rem;">
-                        <span style="font-size: 1.2rem;">🏠</span>
-                        <span class="text-main">Mr. Biswajit Manna</span>
-                    </span>
-                    <span class="badge badge-member">Flat A/1-A</span>
-                </a>
-
-                <a href="{{ url_for('login', demo='A/Gr-B') }}" class="demo-btn">
-                    <span style="display: flex; align-items: center; gap: 0.6rem;">
-                        <span style="font-size: 1.2rem;">🏠</span>
-                        <span class="text-main">Mrs. Sunanda Paul</span>
-                    </span>
-                    <span class="badge badge-member">Flat A/Gr-B</span>
-                </a>
-            </div>
         </div>
 
         <div class="card" style="padding: 1.25rem 1.5rem; font-size: 0.85rem;">
@@ -141,6 +102,7 @@
                 Every member is isolated to their own unit's maintenance receipts and charges. Full society expenses and financial vouchers are openly accessible to all residents for governance transparency.
             </p>
         </div>
+    </div>
 </div>
 {% endblock %}
 
