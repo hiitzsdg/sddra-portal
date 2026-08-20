@@ -250,7 +250,7 @@ def generate_official_receipt_document_html(receipt, member_info, contact_info):
 <body>
     <div class="no-print">
         <span style="font-size: 13.5px; color: #475569;">
-            📎 <strong>Official SDDRA Receipt Voucher:</strong> Voucher {formatted_rcpt_no} (Flat {flat_no})
+            📎 <strong>Official SDERA Receipt Voucher:</strong> Voucher {formatted_rcpt_no} (Flat {flat_no})
         </span>
         <button type="button" class="btn btn-print" onclick="window.print()">
             🖨️ Print / Save as PDF
@@ -258,7 +258,7 @@ def generate_official_receipt_document_html(receipt, member_info, contact_info):
     </div>
 
     <div class="receipt-voucher">
-        <div class="receipt-watermark">SDDRA OFFICIAL</div>
+        <div class="receipt-watermark">SDERA OFFICIAL</div>
 
         <div class="receipt-header">
             <div style="display: inline-flex; width: 44px; height: 44px; border-radius: 10px; background: #1e3a8a; color: #ffffff; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 0.4rem;">
@@ -334,7 +334,7 @@ def generate_official_receipt_document_html(receipt, member_info, contact_info):
 
         <div class="receipt-signatures">
             <div class="note">
-                <p><strong>Note:</strong> This receipt is computer generated from the SDDRA Billing System and holds official validity under South Dumdum Enclave Association Bye-Laws.</p>
+                <p><strong>Note:</strong> This receipt is computer generated from the SDERA Billing System and holds official validity under South Dumdum Enclave Association Bye-Laws.</p>
                 <p style="margin-top: 4px;">Helpline: {Config.ASSOCIATION_PHONE} &bull; {Config.ASSOCIATION_EMAIL}</p>
             </div>
 

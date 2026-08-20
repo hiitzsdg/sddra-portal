@@ -26,7 +26,7 @@ def _draw_page_decorations(canvas_obj, doc):
     canvas_obj.rotate(32)
     canvas_obj.setFont("Helvetica-Bold", 44)
     canvas_obj.setFillColor(colors.HexColor('#1E3A8A'), alpha=0.038)
-    canvas_obj.drawCentredString(0, 0, "SDDRA OFFICIAL")
+    canvas_obj.drawCentredString(0, 0, "SDERA OFFICIAL")
     
     canvas_obj.restoreState()
 
@@ -293,7 +293,7 @@ def generate_receipt_pdf_bytes(receipt, member_info=None, contact_info=None):
     
     # 6. Signatures and Disclaimer Section
     note_p = Paragraph(
-        f"<b>Note:</b> This receipt is computer-generated from the SDDRA Billing System and holds official validity under South Dumdum Enclave Association Bye-Laws.<br/><font color='#64748B' size=7.5>Helpline: {Config.ASSOCIATION_PHONE} &bull; Email: {Config.ASSOCIATION_EMAIL}</font>",
+        f"<b>Note:</b> This receipt is computer-generated from the SDERA Billing System and holds official validity under South Dumdum Enclave Association Bye-Laws.<br/><font color='#64748B' size=7.5>Helpline: {Config.ASSOCIATION_PHONE} &bull; Email: {Config.ASSOCIATION_EMAIL}</font>",
         ParagraphStyle('Note', parent=styles['Normal'], fontSize=7.5, leading=9.5, textColor=colors.HexColor('#475569'))
     )
     
