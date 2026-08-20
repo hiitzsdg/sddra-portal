@@ -24,11 +24,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Comprehensive date string parser for all SQLite & MySQL date formats
 function parseVoucherMonthYear(dateStr) {
     if (!dateStr) return { short: '', full: '', ym: '' };
-    const str = String(dateStr).trim().replace(/'/g, '');
+    let str = String(dateStr).trim().replace(/['"’`]/g, '');
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const fullNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-    // 1. Format: YYYY-MM-DD or YYYY/MM/DD or YYYY-MM
+    // 1. Check if string contains month name (e.g. "May 2026", "May 26", "May'2026", "May")
+    const lowerStr = str.toLowerCase();
+    for (let i = 0; i < 12; i++) {
+        const shortName = monthNames[i].toLowerCase();
+        const fullName = fullNames[i].toLowerCase();
+        if (lowerStr.includes(shortName) || lowerStr.includes(fullName)) {
+            let year = '2026';
+            const y4Match = str.match(/(20\d{2})/);
+            const y2Match = str.match(/(\d{2})$/);
+            if (y4Match) {
+                year = y4Match[1];
+            } else if (y2Match && parseInt(y2Match[1], 10) >= 20 && parseInt(y2Match[1], 10) <= 40) {
+                year = '20' + y2Match[1];
+            }
+            return {
+                short: `${monthNames[i]} ${year}`,
+                full: `${fullNames[i]} ${year}`,
+                ym: `${year}-${String(i + 1).padStart(2, '0')}`
+            };
+        }
+    }
+
+    // 2. Format: YYYY-MM-DD or YYYY/MM/DD or YYYY-MM
     let m = str.match(/^(\d{4})[-\/](\d{1,2})/);
     if (m) {
         const year = m[1];
@@ -42,7 +64,7 @@ function parseVoucherMonthYear(dateStr) {
         }
     }
 
-    // 2. Format: DD-MM-YYYY or DD/MM/YYYY
+    // 3. Format: DD-MM-YYYY or DD/MM/YYYY
     m = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
     if (m) {
         const year = m[3];
@@ -52,22 +74,6 @@ function parseVoucherMonthYear(dateStr) {
                 short: `${monthNames[mIdx]} ${year}`,
                 full: `${fullNames[mIdx]} ${year}`,
                 ym: `${year}-${String(mIdx + 1).padStart(2, '0')}`
-            };
-        }
-    }
-
-    // 3. Format containing month names (e.g. "Apr 2026", "April 2026", "Apr'2026")
-    const lowerStr = str.toLowerCase();
-    for (let i = 0; i < 12; i++) {
-        const shortName = monthNames[i].toLowerCase();
-        const fullName = fullNames[i].toLowerCase();
-        if (lowerStr.includes(shortName) || lowerStr.includes(fullName)) {
-            const yMatch = str.match(/(\d{4})/);
-            const year = yMatch ? yMatch[1] : '2026';
-            return {
-                short: `${monthNames[i]} ${year}`,
-                full: `${fullNames[i]} ${year}`,
-                ym: `${year}-${String(i + 1).padStart(2, '0')}`
             };
         }
     }
@@ -238,6 +244,8 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
         let totalRows = 0;
         let totalAmount = 0;
 
+        const filterInfo = selectedMonthFilter ? parseVoucherMonthYear(selectedMonthFilter) : null;
+
         rows.forEach(row => {
             if (row.children.length === 1 && row.children[0].getAttribute('colspan')) {
                 return;
@@ -246,17 +254,18 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
 
             // 1. Month match
             let matchesMonth = true;
-            if (selectedMonthFilter) {
-                const dateVal = row.getAttribute('data-voucher-date') || row.querySelector('td:nth-child(1) span, td:nth-child(2)')?.textContent || '';
+            if (selectedMonthFilter && filterInfo) {
+                const rowYm = row.getAttribute('data-voucher-ym');
+                const dateVal = row.getAttribute('data-voucher-date') || '';
                 const myInfo = parseVoucherMonthYear(dateVal);
-                const targetClean = selectedMonthFilter.trim().toLowerCase();
 
                 matchesMonth = (
-                    myInfo.short.toLowerCase() === targetClean ||
-                    myInfo.full.toLowerCase() === targetClean ||
-                    myInfo.ym.toLowerCase() === targetClean ||
-                    dateVal.toLowerCase().includes(targetClean) ||
-                    row.textContent.toLowerCase().includes(targetClean)
+                    (rowYm && filterInfo.ym && rowYm === filterInfo.ym) ||
+                    (myInfo.ym && filterInfo.ym && myInfo.ym === filterInfo.ym) ||
+                    (myInfo.short && filterInfo.short && myInfo.short.toLowerCase() === filterInfo.short.toLowerCase()) ||
+                    (filterInfo.ym && dateVal.includes(filterInfo.ym)) ||
+                    (filterInfo.short && dateVal.toLowerCase().includes(filterInfo.short.toLowerCase())) ||
+                    (filterInfo.short && row.textContent.toLowerCase().includes(filterInfo.short.toLowerCase()))
                 );
             }
 
@@ -287,11 +296,17 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
                 row.style.display = '';
                 matchCount++;
 
-                // Sum up amounts
-                const amtEl = row.querySelector('.text-amount-danger, td:nth-child(4), td:last-child');
-                if (amtEl) {
-                    const num = parseFloat(amtEl.textContent.replace(/[^0-9.]/g, ''));
+                // Sum up amounts directly from data-amount attribute or formatted text
+                const dataAmt = row.getAttribute('data-amount');
+                if (dataAmt !== null && dataAmt !== '') {
+                    const num = parseFloat(dataAmt);
                     if (!isNaN(num)) totalAmount += num;
+                } else {
+                    const amtEl = row.querySelector('.text-amount-danger, td:nth-child(7), td:nth-child(4), td:last-child');
+                    if (amtEl) {
+                        const num = parseFloat(amtEl.textContent.replace(/[^0-9.]/g, ''));
+                        if (!isNaN(num)) totalAmount += num;
+                    }
                 }
             } else {
                 row.style.display = 'none';

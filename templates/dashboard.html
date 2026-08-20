@@ -209,7 +209,7 @@
                 </thead>
                 <tbody>
                     {% for e in recent_expenses %}
-                    <tr data-voucher-date="{{ e.voucher_date }}" data-particulars="{{ e.particulars }}">
+                    <tr data-voucher-date="{{ e.voucher_date }}" data-voucher-ym="{{ (e.voucher_date|string)[:7] if e.voucher_date else '' }}" data-amount="{{ e.amount }}" data-particulars="{{ e.particulars }}">
                         <td>
                             <strong class="text-secondary">#{{ e.voucher_no }}</strong><br>
                             <span class="text-muted" style="font-size: 0.75rem;">{{ e.voucher_date }}</span>
@@ -397,7 +397,7 @@
             </thead>
             <tbody>
                 {% for e in recent_expenses %}
-                <tr data-voucher-date="{{ e.voucher_date }}" data-particulars="{{ e.particulars }}">
+                <tr data-voucher-date="{{ e.voucher_date }}" data-voucher-ym="{{ (e.voucher_date|string)[:7] if e.voucher_date else '' }}" data-amount="{{ e.amount }}" data-particulars="{{ e.particulars }}">
                     <td><strong class="text-secondary">#{{ e.voucher_no }}</strong></td>
                     <td>
                         <strong class="text-main">{{ e.expense_description }}</strong>

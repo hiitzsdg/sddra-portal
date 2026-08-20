@@ -133,7 +133,7 @@
             </thead>
             <tbody>
                 {% for e in expenses %}
-                <tr data-voucher-date="{{ e.voucher_date }}" data-particulars="{{ e.particulars }}">
+                <tr data-voucher-date="{{ e.voucher_date }}" data-voucher-ym="{{ (e.voucher_date|string)[:7] if e.voucher_date else '' }}" data-amount="{{ e.amount }}" data-particulars="{{ e.particulars }}">
                     <td><strong class="text-highlight-blue">#{{ e.voucher_no }}</strong></td>
                     <td class="text-secondary">{{ e.voucher_date }}</td>
                     <td><strong class="text-main">{{ e.expense_description }}</strong></td>
