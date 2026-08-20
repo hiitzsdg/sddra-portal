@@ -63,32 +63,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ================= Theme Switcher (Light / Dark Mode) =================
 function initThemeSwitcher() {
-    const themeBtn = document.getElementById('themeToggleBtn');
-    const themeIcon = document.getElementById('themeToggleIcon');
     const savedTheme = localStorage.getItem('sddra_theme') || 
         (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
     
     applyTheme(savedTheme);
 
-    if (themeBtn) {
-        themeBtn.addEventListener('click', () => {
+    function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+            const icon = btn.querySelector('.theme-toggle-icon') || btn.querySelector('span') || btn;
+            if (icon) icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+            btn.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        });
+        window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme } }));
+    }
+
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.theme-toggle-btn');
+        if (btn) {
+            e.preventDefault();
             const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
             const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
             applyTheme(newTheme);
-            localStorage.setItem('sddra_theme', newTheme);
-        });
-    }
-
-    function applyTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-        if (themeIcon) {
-            themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+            try {
+                localStorage.setItem('sddra_theme', newTheme);
+            } catch (err) {}
         }
-        if (themeBtn) {
-            themeBtn.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
-        }
-        window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme } }));
-    }
+    });
 }
 
 // ================= Modal Dialog Controller =================
