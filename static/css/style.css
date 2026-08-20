@@ -1346,3 +1346,50 @@ code {
   animation: cardPulseGlow 1.2s ease-out 1;
 }
 
+/* ================= Password Visibility Toggle Styling ================= */
+.password-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.password-input-group .form-control {
+  padding-right: 2.85rem !important;
+  width: 100%;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 0.35rem 0.5rem;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease, transform 0.15s ease, color 0.2s ease;
+  user-select: none;
+  z-index: 2;
+}
+
+.password-toggle-btn:hover {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.12);
+  color: var(--primary);
+}
+
+.password-toggle-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  border-radius: 4px;
+}
+
+

@@ -117,17 +117,32 @@
 
             <div class="form-group">
                 <label class="form-label" for="current_password">Current Password *</label>
-                <input type="password" id="current_password" name="current_password" class="form-control" placeholder="Enter your existing password" required>
+                <div class="password-input-group">
+                    <input type="password" id="current_password" name="current_password" class="form-control" placeholder="Enter your existing password" required>
+                    <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('current_password', this)" title="Show password" aria-label="Toggle Current Password visibility">
+                        <span class="eye-icon">👁️</span>
+                    </button>
+                </div>
             </div>
 
             <div class="form-group">
                 <label class="form-label" for="new_password">New Password *</label>
-                <input type="password" id="new_password" name="new_password" class="form-control" placeholder="Minimum 6 characters" required>
+                <div class="password-input-group">
+                    <input type="password" id="new_password" name="new_password" class="form-control" placeholder="Minimum 6 characters" required>
+                    <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('new_password', this)" title="Show password" aria-label="Toggle New Password visibility">
+                        <span class="eye-icon">👁️</span>
+                    </button>
+                </div>
             </div>
 
             <div class="form-group">
                 <label class="form-label" for="confirm_password">Confirm New Password *</label>
-                <input type="password" id="confirm_password" name="confirm_password" class="form-control" placeholder="Re-type new password" required>
+                <div class="password-input-group">
+                    <input type="password" id="confirm_password" name="confirm_password" class="form-control" placeholder="Re-type new password" required>
+                    <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('confirm_password', this)" title="Show password" aria-label="Toggle Confirm New Password visibility">
+                        <span class="eye-icon">👁️</span>
+                    </button>
+                </div>
             </div>
 
             <button type="submit" class="btn btn-secondary" style="margin-top: 0.5rem;">

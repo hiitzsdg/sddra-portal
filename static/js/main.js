@@ -625,4 +625,28 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// ==========================================================================
+// 6. Password Visibility Toggle Functionality (Show / Hide Password)
+// ==========================================================================
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+
+    if (btn) {
+        btn.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
+        btn.setAttribute('title', isPassword ? 'Hide password' : 'Show password');
+        btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+
+        const eyeIcon = btn.querySelector('.eye-icon') || btn;
+        if (eyeIcon) {
+            eyeIcon.textContent = isPassword ? '🙈' : '👁️';
+        }
+    }
+}
+window.togglePasswordVisibility = togglePasswordVisibility;
+
+
 
