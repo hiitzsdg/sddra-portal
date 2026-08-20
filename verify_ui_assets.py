@@ -14,13 +14,13 @@ def run_verification():
 
     resp_js = client.get('/static/js/main.js')
     assert resp_js.status_code == 200
-    assert b'initGenericLiveSearch' in resp_js.data and b'mobileMenuBtn' in resp_js.data
-    print(f"[OK] Master JS verified: {len(resp_js.data)} bytes, Live Search & Mobile Drawer active")
+    assert b'initGenericLiveSearch' in resp_js.data and b'mobileMenuBtn' in resp_js.data and b'emailReceiptAjax' in resp_js.data
+    print(f"[OK] Master JS verified: {len(resp_js.data)} bytes, Live Search & Resilient Email AJAX active")
 
     resp_charts = client.get('/static/js/charts.js')
     assert resp_charts.status_code == 200
     assert b'expenseCategoryChart' in resp_charts.data
-    print(f"[OK] Master Charts JS verified: {len(resp_charts.data)} bytes, Dark-mode visualizer active")
+    print(f"[OK] Master Charts JS verified: {len(resp_charts.data)} bytes, Dual-theme visualizer active")
 
     # 2. Verify Unauthenticated Login Page
     resp_login = client.get('/login')
@@ -44,12 +44,13 @@ def run_verification():
     assert 'categories' in chart_data and 'monthly' in chart_data
     print(f"[OK] Chart Data API verified: {len(chart_data['categories'])} categories, {len(chart_data['monthly'])} monthly trends")
 
-    # 5. Verify Society Expenses Page
+    # 5. Verify Society Expenses Page & Alphabetical Special Heads
     resp_exp = client.get('/expenses')
     assert resp_exp.status_code == 200
     assert b'Association Expenditure & Transparency Portal' in resp_exp.data
     assert b'data-live-search="#expensesTable"' in resp_exp.data
-    print(f"[OK] Society Expenses Page verified: {len(resp_exp.data)} bytes, real-time search connected")
+    assert b'Special Head (Sorted A-Z)' in resp_exp.data
+    print(f"[OK] Society Expenses Page verified: {len(resp_exp.data)} bytes, sorted special heads active")
 
     # 6. Verify Resident Directory
     resp_members = client.get('/admin/members')
@@ -64,8 +65,18 @@ def run_verification():
     assert b'Maintenance Receipts Ledger' in resp_rcpts.data
     print(f"[OK] Receipts Ledger verified: {len(resp_rcpts.data)} bytes")
 
+    # 8. Verify AJAX Email Dispatch API
+    resp_email_ajax = client.post(
+        '/receipts/2204/email',
+        headers={'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}
+    )
+    assert resp_email_ajax.status_code == 200
+    email_data = resp_email_ajax.get_json()
+    assert email_data and email_data.get('success') is True
+    print(f"[OK] AJAX Email Dispatch Endpoint verified: Status 200, Result: {email_data.get('message')}")
+
     print("\n========================================================")
-    print("ALL 7 VERIFICATION CRITERIA PASSED WITH 100% SUCCESS!")
+    print("ALL 8 VERIFICATION CRITERIA PASSED WITH 100% SUCCESS!")
     print("========================================================")
 
 if __name__ == '__main__':

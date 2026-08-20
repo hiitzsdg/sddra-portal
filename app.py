@@ -380,21 +380,40 @@ def view_receipt(receipt_no):
 def email_receipt(receipt_no):
     user = session.get('user', {})
     is_admin = bool(user.get('is_admin') or user.get('role') in ADMIN_ROLES)
+    is_ajax = bool(
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 
+        request.is_json or 
+        'application/json' in request.headers.get('Accept', '')
+    )
     
     receipt = query_db("SELECT * FROM tbl_receipts WHERE receipt_no = %s", (receipt_no,), one=True)
     if not receipt:
-        return jsonify({"success": False, "message": f"Receipt #{receipt_no} not found"}), 404
+        if is_ajax:
+            return jsonify({"success": False, "message": f"Receipt #{receipt_no} not found."}), 404
+        flash(f"Receipt #{receipt_no} not found.", 'danger')
+        return redirect(url_for('dashboard'))
         
-    if not is_admin and receipt.get('flat_no') != user.get('flat_no'):
-        return jsonify({"success": False, "message": "Unauthorized"}), 403
+    if not is_admin and str(receipt.get('flat_no')).strip().lower() != str(user.get('flat_no')).strip().lower():
+        if is_ajax:
+            return jsonify({"success": False, "message": "Access Denied: You cannot dispatch another resident's receipt."}), 403
+        flash("Access Denied: You cannot dispatch another resident's receipt.", 'danger')
+        return redirect(url_for('dashboard'))
         
-    custom_email = request.form.get('email')
-    result = send_receipt_email(receipt_no, custom_recipient=custom_email)
-    
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
-        return jsonify(result)
+    custom_email = None
+    if request.is_json:
+        custom_email = (request.get_json(silent=True) or {}).get('email')
+    if not custom_email:
+        custom_email = request.form.get('email')
         
-    if result['success']:
+    try:
+        result = send_receipt_email(receipt_no, custom_recipient=custom_email)
+    except Exception as e:
+        result = {"success": False, "message": f"Dispatch error: {str(e)}"}
+        
+    if is_ajax:
+        return jsonify(result), (200 if result.get('success') else 400)
+        
+    if result.get('success'):
         flash(result['message'], 'success')
     else:
         flash(result['message'], 'danger')

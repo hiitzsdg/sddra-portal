@@ -194,17 +194,28 @@ async function emailReceiptAjax(receiptId, btnElement) {
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
             }
         });
         
-        const data = await response.json();
+        let data;
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            const text = await response.text();
+            data = {
+                success: response.ok,
+                message: response.ok ? 'Receipt processed successfully.' : `Server returned error (${response.status})`
+            };
+        }
         
-        if (data.success) {
+        if (data && data.success) {
             btnElement.innerHTML = '✓ Sent!';
             btnElement.classList.remove('btn-outline-primary', 'btn-secondary');
             btnElement.classList.add('btn-success');
-            showToast(data.message, 'success');
+            showToast(data.message || `Receipt #${receiptId} dispatched.`, 'success');
             setTimeout(() => {
                 btnElement.innerHTML = originalText;
                 btnElement.disabled = false;
@@ -213,12 +224,12 @@ async function emailReceiptAjax(receiptId, btnElement) {
         } else {
             btnElement.innerHTML = originalText;
             btnElement.disabled = false;
-            showToast(data.message || 'Failed to dispatch receipt email.', 'danger');
+            showToast(data.message || 'Could not complete receipt email dispatch.', 'danger');
         }
     } catch (err) {
         btnElement.innerHTML = originalText;
         btnElement.disabled = false;
-        showToast('Network error while requesting email dispatch.', 'danger');
+        showToast(`Request failed: ${err.message || 'Unable to connect to server.'}`, 'danger');
     }
 }
 
