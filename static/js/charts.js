@@ -21,33 +21,69 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
-// Helper: Parse date string to year-month variations
+// Comprehensive date string parser for all SQLite & MySQL date formats
 function parseVoucherMonthYear(dateStr) {
     if (!dateStr) return { short: '', full: '', ym: '' };
-    const str = String(dateStr).trim();
-    const match = str.match(/^(\d{4})-(\d{2})/);
+    const str = String(dateStr).trim().replace(/'/g, '');
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const fullNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-    if (match) {
-        const year = match[1];
-        const mIdx = parseInt(match[2], 10) - 1;
+    // 1. Format: YYYY-MM-DD or YYYY/MM/DD or YYYY-MM
+    let m = str.match(/^(\d{4})[-\/](\d{1,2})/);
+    if (m) {
+        const year = m[1];
+        const mIdx = parseInt(m[2], 10) - 1;
         if (mIdx >= 0 && mIdx < 12) {
             return {
                 short: `${monthNames[mIdx]} ${year}`,
                 full: `${fullNames[mIdx]} ${year}`,
-                ym: `${year}-${match[2]}`
+                ym: `${year}-${String(mIdx + 1).padStart(2, '0')}`
             };
         }
     }
+
+    // 2. Format: DD-MM-YYYY or DD/MM/YYYY
+    m = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+    if (m) {
+        const year = m[3];
+        const mIdx = parseInt(m[2], 10) - 1;
+        if (mIdx >= 0 && mIdx < 12) {
+            return {
+                short: `${monthNames[mIdx]} ${year}`,
+                full: `${fullNames[mIdx]} ${year}`,
+                ym: `${year}-${String(mIdx + 1).padStart(2, '0')}`
+            };
+        }
+    }
+
+    // 3. Format containing month names (e.g. "Apr 2026", "April 2026", "Apr'2026")
+    const lowerStr = str.toLowerCase();
+    for (let i = 0; i < 12; i++) {
+        const shortName = monthNames[i].toLowerCase();
+        const fullName = fullNames[i].toLowerCase();
+        if (lowerStr.includes(shortName) || lowerStr.includes(fullName)) {
+            const yMatch = str.match(/(\d{4})/);
+            const year = yMatch ? yMatch[1] : '2026';
+            return {
+                short: `${monthNames[i]} ${year}`,
+                full: `${fullNames[i]} ${year}`,
+                ym: `${year}-${String(i + 1).padStart(2, '0')}`
+            };
+        }
+    }
+
+    // 4. Native JS Date parsing fallback
     const d = new Date(str);
     if (!isNaN(d.getTime())) {
+        const mIdx = d.getMonth();
+        const year = d.getFullYear();
         return {
-            short: `${monthNames[d.getMonth()]} ${d.getFullYear()}`,
-            full: `${fullNames[d.getMonth()]} ${d.getFullYear()}`,
-            ym: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+            short: `${monthNames[mIdx]} ${year}`,
+            full: `${fullNames[mIdx]} ${year}`,
+            ym: `${year}-${String(mIdx + 1).padStart(2, '0')}`
         };
     }
+
     return { short: '', full: '', ym: '' };
 }
 
@@ -69,7 +105,7 @@ function getBarColors(labels, isLight) {
     return {
         bg: labels.map(label => label === selectedMonthFilter ? activeColor : dimmedColor),
         border: labels.map(label => label === selectedMonthFilter ? activeBorder : 'transparent'),
-        borderWidth: labels.map(label => label === selectedMonthFilter ? 2 : 0)
+        borderWidth: labels.map(label => label === selectedMonthFilter ? 2.5 : 0)
     };
 }
 
@@ -84,9 +120,42 @@ function updateChartVisualSelection() {
     monthlyChartInstance.data.datasets[0].borderColor = colors.border;
     monthlyChartInstance.data.datasets[0].borderWidth = colors.borderWidth;
     monthlyChartInstance.update('none');
+
+    updateMonthPillsVisual();
 }
 
-// Toggle month filter when bar is clicked
+// Render or update interactive month filter pills below chart
+function updateMonthPillsVisual() {
+    const containers = document.querySelectorAll('#expenseMonthlyPills');
+    if (!containers || containers.length === 0 || !cachedChartData || !cachedChartData.monthly) return;
+
+    containers.forEach(container => {
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const months = cachedChartData.monthly;
+        
+        let html = `
+            <button type="button" onclick="clearMonthlyChartFilter()" class="btn btn-sm ${!selectedMonthFilter ? 'btn-primary' : 'btn-secondary'}" style="padding: 0.2rem 0.65rem; font-size: 0.78rem; border-radius: 20px; margin: 2px;">
+                ✨ All Months
+            </button>
+        `;
+
+        months.forEach(m => {
+            const isSelected = selectedMonthFilter === m.month;
+            const activeStyle = isSelected 
+                ? 'background: #3b82f6; color: #ffffff; border-color: #60a5fa; font-weight: 700;' 
+                : '';
+            html += `
+                <button type="button" onclick="toggleMonthExpenditureFilter('${m.month}')" class="btn btn-sm ${isSelected ? 'btn-primary' : 'btn-secondary'}" style="padding: 0.2rem 0.65rem; font-size: 0.78rem; border-radius: 20px; margin: 2px; ${activeStyle}">
+                    📅 ${m.month}
+                </button>
+            `;
+        });
+
+        container.innerHTML = html;
+    });
+}
+
+// Toggle month filter when bar or pill is clicked
 function toggleMonthExpenditureFilter(clickedMonth) {
     if (selectedMonthFilter === clickedMonth) {
         selectedMonthFilter = null;
@@ -180,7 +249,8 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
                     myInfo.short.toLowerCase() === targetClean ||
                     myInfo.full.toLowerCase() === targetClean ||
                     myInfo.ym.toLowerCase() === targetClean ||
-                    dateVal.toLowerCase().includes(targetClean)
+                    dateVal.toLowerCase().includes(targetClean) ||
+                    row.textContent.toLowerCase().includes(targetClean)
                 );
             }
 
@@ -256,7 +326,7 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
             const card = document.querySelector(cfg.cardId);
             if (card) {
                 card.classList.remove('card-highlight-pulse');
-                void card.offsetWidth; // Trigger reflow
+                void card.offsetWidth;
                 card.classList.add('card-highlight-pulse');
             }
         }
@@ -336,8 +406,17 @@ async function renderAllCharts(existingData = null) {
                         }
                     },
                     onClick: (event, elements) => {
-                        if (!elements || elements.length === 0) return;
-                        const index = elements[0].index;
+                        let targetElements = elements;
+                        if ((!targetElements || targetElements.length === 0) && categoryChartInstance) {
+                            targetElements = categoryChartInstance.getElementsAtEventForMode(
+                                event.native || event,
+                                'nearest',
+                                { intersect: true },
+                                false
+                            );
+                        }
+                        if (!targetElements || targetElements.length === 0) return;
+                        const index = targetElements[0].index;
                         if (categoryChartInstance && categoryChartInstance.data.labels[index]) {
                             const clickedCategory = categoryChartInstance.data.labels[index];
                             toggleCategoryExpenditureFilter(clickedCategory);
@@ -406,17 +485,31 @@ async function renderAllCharts(existingData = null) {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
                     onHover: (event, chartElement) => {
                         const canvas = event.native ? event.native.target : (monthlyChartInstance ? monthlyChartInstance.canvas : null);
                         if (canvas) {
-                            canvas.style.cursor = chartElement && chartElement.length ? 'pointer' : 'default';
+                            canvas.style.cursor = 'pointer';
                         }
                     },
-                    onClick: (event, elements) => {
-                        if (!elements || elements.length === 0) return;
-                        const index = elements[0].index;
-                        if (monthlyChartInstance && monthlyChartInstance.data.labels[index]) {
-                            const clickedMonth = monthlyChartInstance.data.labels[index];
+                    onClick: (event, elements, chart) => {
+                        let targetElements = elements;
+                        const chartObj = chart || monthlyChartInstance;
+                        if ((!targetElements || targetElements.length === 0) && chartObj) {
+                            targetElements = chartObj.getElementsAtEventForMode(
+                                event.native || event,
+                                'index',
+                                { intersect: false },
+                                false
+                            );
+                        }
+                        if (!targetElements || targetElements.length === 0) return;
+                        const index = targetElements[0].index;
+                        if (chartObj && chartObj.data.labels[index]) {
+                            const clickedMonth = chartObj.data.labels[index];
                             toggleMonthExpenditureFilter(clickedMonth);
                         }
                     },
@@ -464,7 +557,24 @@ async function renderAllCharts(existingData = null) {
                     }
                 }
             });
+
+            // Native DOM click & touch event listener for fail-safe trigger
+            monthlyTrendCanvas.style.cursor = 'pointer';
+            monthlyTrendCanvas.onclick = (e) => {
+                if (!monthlyChartInstance) return;
+                const points = monthlyChartInstance.getElementsAtEventForMode(e, 'index', { intersect: false }, false);
+                if (points && points.length > 0) {
+                    const idx = points[0].index;
+                    const clickedMonth = monthlyChartInstance.data.labels[idx];
+                    if (clickedMonth) {
+                        toggleMonthExpenditureFilter(clickedMonth);
+                    }
+                }
+            };
         }
+
+        // Render interactive month pills below chart
+        updateMonthPillsVisual();
 
         // Re-apply any active filters
         if (selectedMonthFilter || selectedCategoryFilter) {
@@ -474,4 +584,5 @@ async function renderAllCharts(existingData = null) {
         console.warn('Note: Chart visualizer skipped or offline data mode active:', e);
     }
 }
+
 

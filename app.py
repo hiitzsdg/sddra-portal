@@ -30,7 +30,7 @@ app.config.from_object(Config)
 @app.after_request
 def set_response_headers(response):
     if request.path.startswith('/static/'):
-        response.headers['Cache-Control'] = 'public, max-age=31536000'
+        response.headers['Cache-Control'] = 'public, max-age=0, must-revalidate'
     return response
 
 # Ensure database tables and initial hashes exist non-destructively
