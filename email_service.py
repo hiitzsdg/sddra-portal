@@ -13,6 +13,8 @@ def generate_official_receipt_document_html(receipt, member_info, contact_info):
     to be displayed in browser view.
     """
     flat_no = receipt.get('flat_no', 'N/A')
+    raw_rcpt_no = str(receipt.get('receipt_no', 'N/A'))
+    formatted_rcpt_no = f"SDERA_{raw_rcpt_no}" if not raw_rcpt_no.startswith('SDERA_') else raw_rcpt_no
     member_name = receipt.get('member_name', 'Resident')
     amount = float(receipt.get('amount', 0))
     payment_date = str(receipt.get('payment_date', receipt.get('receipt_date', 'N/A')))
@@ -55,7 +57,7 @@ def generate_official_receipt_document_html(receipt, member_info, contact_info):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Official Receipt #{receipt['receipt_no']} - Flat {flat_no} - {Config.ASSOCIATION_NAME}</title>
+    <title>Official Receipt {formatted_rcpt_no} - Flat {flat_no} - {Config.ASSOCIATION_NAME}</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
         
@@ -248,7 +250,7 @@ def generate_official_receipt_document_html(receipt, member_info, contact_info):
 <body>
     <div class="no-print">
         <span style="font-size: 13.5px; color: #475569;">
-            📎 <strong>Official SDDRA Receipt Voucher:</strong> Voucher #{receipt['receipt_no']} (Flat {flat_no})
+            📎 <strong>Official SDDRA Receipt Voucher:</strong> Voucher {formatted_rcpt_no} (Flat {flat_no})
         </span>
         <button type="button" class="btn btn-print" onclick="window.print()">
             🖨️ Print / Save as PDF
@@ -273,7 +275,7 @@ def generate_official_receipt_document_html(receipt, member_info, contact_info):
 
         <div class="receipt-meta-bar">
             <div>
-                <strong>Receipt No:</strong> <span style="font-family: monospace; font-size: 1.15rem; font-weight: 800; color: #1e3a8a;">#{receipt['receipt_no']}</span>
+                <strong>Receipt No:</strong> <span style="font-family: monospace; font-size: 1.15rem; font-weight: 800; color: #1e3a8a;">{formatted_rcpt_no}</span>
             </div>
             <div>
                 <strong>Date of Issue:</strong> {receipt_date}
@@ -351,6 +353,8 @@ def generate_official_receipt_document_html(receipt, member_info, contact_info):
 def generate_receipt_html(receipt, member_info, contact_info, attachment_filename=None):
     """Generate official HTML receipt email body from sddra_billing database records."""
     flat_no = receipt.get('flat_no', 'N/A')
+    raw_rcpt_no = str(receipt.get('receipt_no', 'N/A'))
+    formatted_rcpt_no = f"SDERA_{raw_rcpt_no}" if not raw_rcpt_no.startswith('SDERA_') else raw_rcpt_no
     member_name = receipt.get('member_name', 'Resident')
     amount = float(receipt.get('amount', 0))
     payment_date = str(receipt.get('payment_date', receipt.get('receipt_date', 'N/A')))
@@ -413,7 +417,7 @@ def generate_receipt_html(receipt, member_info, contact_info, attachment_filenam
                     <table width="100%" cellpadding="6" cellspacing="0" style="font-size: 14px;">
                         <tr>
                             <td style="color: #64748b; font-weight: 500;">Receipt Number:</td>
-                            <td style="color: #0f172a; font-weight: 700; text-align: right;">#{receipt['receipt_no']}</td>
+                            <td style="color: #0f172a; font-weight: 700; text-align: right; font-family: monospace; font-size: 15px;">{formatted_rcpt_no}</td>
                         </tr>
                         <tr>
                             <td style="color: #64748b; font-weight: 500;">Flat Number:</td>
@@ -456,7 +460,7 @@ def generate_receipt_html(receipt, member_info, contact_info, attachment_filenam
                 </div>
 
                 <p style="font-size: 13px; color: #475569; margin-top: 20px;">
-                    Please find your official PDF money receipt (<code>{attachment_filename or f"SDDRA_Receipt_{receipt['receipt_no']}.pdf"}</code>) attached to this email. You can download and keep it for your personal records or tax documentation.
+                    Please find your official PDF money receipt (<code>{attachment_filename or f"Official_Receipt_{formatted_rcpt_no}.pdf"}</code>) attached to this email. You can download and keep it for your personal records or tax documentation.
                 </p>
             </div>
             <div class="footer">
@@ -476,6 +480,9 @@ def send_receipt_email(receipt_no, custom_recipient=None):
         return {"success": False, "message": f"Receipt #{receipt_no} not found in sddra_billing."}
     
     flat_no = receipt['flat_no']
+    raw_rcpt_no = str(receipt.get('receipt_no', 'N/A'))
+    formatted_rcpt_no = f"SDERA_{raw_rcpt_no}" if not raw_rcpt_no.startswith('SDERA_') else raw_rcpt_no
+    
     member_info = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
     contact_info = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (flat_no,), one=True)
     
@@ -487,9 +494,9 @@ def send_receipt_email(receipt_no, custom_recipient=None):
         recipient = f"{flat_no.replace('/', '_').lower()}@sddra.org"
     
     clean_flat = str(flat_no).replace('/', '_').replace(' ', '')
-    attachment_filename = f"Official_Receipt_{receipt['receipt_no']}_{clean_flat}.pdf"
+    attachment_filename = f"Official_Receipt_{formatted_rcpt_no}_{clean_flat}.pdf"
     
-    subject = f"Official Maintenance Receipt #{receipt['receipt_no']} (Flat {flat_no}) - {Config.ASSOCIATION_NAME}"
+    subject = f"Official Maintenance Receipt {formatted_rcpt_no} (Flat {flat_no}) - {Config.ASSOCIATION_NAME}"
     html_body = generate_receipt_html(receipt, member_info, contact_info, attachment_filename=attachment_filename)
     
     # Generate official vector PDF binary data
@@ -507,7 +514,7 @@ def send_receipt_email(receipt_no, custom_recipient=None):
             # Alternative body (text + HTML)
             body_alt = MIMEMultipart('alternative')
             p_date = str(receipt.get('payment_date') or receipt.get('receipt_date') or 'N/A')
-            plain_text = f"Maintenance Receipt #{receipt['receipt_no']}\nFlat: {flat_no}\nAmount: INR {receipt['amount']}\nDate: {p_date}\n\nPlease find your official PDF receipt attached: {attachment_filename}"
+            plain_text = f"Maintenance Receipt {formatted_rcpt_no}\nFlat: {flat_no}\nAmount: INR {receipt['amount']}\nDate: {p_date}\n\nPlease find your official PDF receipt attached: {attachment_filename}"
             body_alt.attach(MIMEText(plain_text, 'plain'))
             body_alt.attach(MIMEText(html_body, 'html'))
             msg.attach(body_alt)
@@ -534,7 +541,7 @@ def send_receipt_email(receipt_no, custom_recipient=None):
 
             return {
                 "success": True, 
-                "message": f"Receipt #{receipt['receipt_no']} successfully emailed to {recipient} with attached official PDF ({attachment_filename})!",
+                "message": f"Receipt {formatted_rcpt_no} successfully emailed to {recipient} with attached official PDF ({attachment_filename})!",
                 "status": "SENT",
                 "attachment": attachment_filename
             }
@@ -549,7 +556,7 @@ def send_receipt_email(receipt_no, custom_recipient=None):
 
             return {
                 "success": True, 
-                "message": f"Receipt #{receipt['receipt_no']} prepared with attached PDF voucher ({attachment_filename}) for {recipient} (SMTP Note: {str(e)}).",
+                "message": f"Receipt {formatted_rcpt_no} prepared with attached PDF voucher ({attachment_filename}) for {recipient} (SMTP Note: {str(e)}).",
                 "status": "SIMULATED",
                 "preview_html": html_body,
                 "attachment": attachment_filename
@@ -565,10 +572,11 @@ def send_receipt_email(receipt_no, custom_recipient=None):
 
         return {
             "success": True, 
-            "message": f"Receipt #{receipt['receipt_no']} successfully emailed to {recipient} with attached official PDF voucher ({attachment_filename}) (Simulated Dispatch).",
+            "message": f"Receipt {formatted_rcpt_no} successfully emailed to {recipient} with attached official PDF voucher ({attachment_filename}) (Simulated Dispatch).",
             "status": "SIMULATED",
             "preview_html": html_body,
             "attachment": attachment_filename
         }
+
 
 

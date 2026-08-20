@@ -183,9 +183,11 @@ def generate_receipt_pdf_bytes(receipt, member_info=None, contact_info=None):
     elements.append(Spacer(1, 8))
     
     # 3. Meta Bar (Receipt # and Date of Issue)
+    raw_rcpt_no = str(receipt.get('receipt_no', 'N/A'))
+    formatted_rcpt_no = f"SDERA_{raw_rcpt_no}" if not raw_rcpt_no.startswith('SDERA_') else raw_rcpt_no
     meta_data = [
         [
-            Paragraph(f"<b>Receipt No:</b> <font color='#1E3A8A' size=10><b>#{receipt.get('receipt_no', 'N/A')}</b></font>", cell_value_style),
+            Paragraph(f"<b>Receipt No:</b> <font color='#1E3A8A' size=10><b>{formatted_rcpt_no}</b></font>", cell_value_style),
             Paragraph(f"<b>Date of Issue:</b> {receipt_date}", cell_value_style)
         ]
     ]

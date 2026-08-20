@@ -165,7 +165,7 @@ if (typeof window.openMemberReceiptsModal !== 'function') {
 
             let rowsHtml = data.receipts.map(r => `
                 <tr>
-                    <td><strong class="text-highlight-blue">#${r.receipt_no}</strong></td>
+                    <td><strong class="text-highlight-blue">SDERA_${r.receipt_no}</strong></td>
                     <td class="text-secondary">${r.payment_date || r.receipt_date || '-'}</td>
                     <td><span class="badge badge-warning">${r.remarks || 'Monthly'}</span></td>
                     <td><span class="badge badge-info">${r.pymnt_mode || 'Online'}</span></td>

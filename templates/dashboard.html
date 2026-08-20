@@ -132,7 +132,7 @@
                     {% for r in recent_receipts %}
                     <tr>
                         <td>
-                            <strong class="text-highlight-blue">#{{ r.receipt_no }}</strong><br>
+                            <strong class="text-highlight-blue">SDERA_{{ r.receipt_no }}</strong><br>
                             <span class="text-muted" style="font-size: 0.75rem;">{{ r.payment_date or r.receipt_date }}</span>
                         </td>
                         <td>
@@ -333,7 +333,7 @@
                 {% for r in my_receipts %}
                 <tr>
                     <td>
-                        <strong class="text-highlight-blue" style="font-size: 0.95rem;">#{{ r.receipt_no }}</strong>
+                        <strong class="text-highlight-blue" style="font-size: 0.95rem;">SDERA_{{ r.receipt_no }}</strong>
                     </td>
                     <td>
                         <span class="badge badge-warning">{{ r.remarks or 'Monthly' }}</span>

@@ -424,7 +424,7 @@ def download_receipt_pdf(receipt_no):
     
     pdf_bytes = generate_receipt_pdf_bytes(receipt, member_info or {}, contact_info or {})
     clean_flat = str(receipt.get('flat_no', '')).replace('/', '_').replace(' ', '')
-    filename = f"Official_Receipt_{receipt_no}_{clean_flat}.pdf"
+    filename = f"Official_Receipt_SDERA_{receipt_no}_{clean_flat}.pdf"
     
     as_attachment = request.args.get('download', '0') == '1'
     disposition = 'attachment' if as_attachment else 'inline'

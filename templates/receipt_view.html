@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Receipt #{{ receipt.receipt_no }} - SDDRA Residents' Association{% endblock %}
+{% block title %}Receipt SDERA_{{ receipt.receipt_no }} - SDDRA Residents' Association{% endblock %}
 
 {% block content %}
 <div class="no-print" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
@@ -42,7 +42,7 @@
 
     <div class="receipt-meta-bar">
         <div>
-            <strong>Receipt No:</strong> <span style="font-family: monospace; font-size: 1.1rem; font-weight: 800; color: #1e3a8a;">#{{ receipt.receipt_no }}</span>
+            <strong>Receipt No:</strong> <span style="font-family: monospace; font-size: 1.1rem; font-weight: 800; color: #1e3a8a;">SDERA_{{ receipt.receipt_no }}</span>
         </div>
         <div>
             <strong>Date of Issue:</strong> {{ receipt.receipt_date or receipt.payment_date }}
