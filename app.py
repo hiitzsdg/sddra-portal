@@ -1,5 +1,6 @@
 import os
 import re
+import calendar
 import traceback
 from functools import wraps
 from datetime import datetime, date
@@ -732,21 +733,43 @@ def calculate_flat_penalty(flat_no, member=None, target_date=None):
         coverage_display = latest_cov.strftime("%b'%Y")
         last_covered_text = latest_cov.strftime("%B %Y")
 
-    target_year = target_date.year
-    target_month = target_date.month
+    # Count overdue months N that have passed their respective due dates (last calendar day of each month)
+    # Start iterating from the month immediately following latest_cov up to target_date
+    overdue_months = 0
+    cur_y = cov_year
+    cur_m = cov_month + 1
+    if cur_m > 12:
+        cur_y += 1
+        cur_m = 1
 
-    # Calculate number of overdue months N
-    overdue_months = (target_year - cov_year) * 12 + (target_month - cov_month)
-    if overdue_months < 0:
-        overdue_months = 0
+    while True:
+        # If candidate unpaid month is beyond target_date's year and month, stop
+        if (cur_y > target_date.year) or (cur_y == target_date.year and cur_m > target_date.month):
+            break
+        
+        # Last day of this candidate unpaid month (e.g. Aug 31, Sep 30, Feb 28/29)
+        _, last_day = calendar.monthrange(cur_y, cur_m)
+        due_date = date(cur_y, cur_m, last_day)
+        
+        # A month is strictly overdue only if target_date has passed its monthly due date
+        # (e.g. August 2026 maintenance is due on 31st August 2026, so no penalty is levied on or before 31st August)
+        if target_date > due_date:
+            overdue_months += 1
+
+        # Advance to next month
+        cur_m += 1
+        if cur_m > 12:
+            cur_y += 1
+            cur_m = 1
 
     # Formula: N * (N + 1) / 2 * 100
     if overdue_months > 0:
         penalty_amount = (overdue_months * (overdue_months + 1) // 2) * 100
+        base_due = overdue_months * monthly_charge
     else:
         penalty_amount = 0
+        base_due = 0.0
 
-    base_due = overdue_months * monthly_charge
     total_due = base_due + penalty_amount
 
     # Month-by-month penalty ladder calculation for transparency

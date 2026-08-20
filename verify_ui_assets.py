@@ -98,11 +98,21 @@ def run_verification():
     assert b'Cumulative Penalty' in resp_pen_page.data
     print(f"[OK] Penalty Management Console page verified: {len(resp_pen_page.data)} bytes")
 
-    resp_pen_api = client.get('/api/penalties/calculate?flat=A/4-C')
+    resp_pen_api = client.get('/api/penalties/calculate?flat=A/4-C&as_of=2026-08-20')
     assert resp_pen_api.status_code == 200
     pen_json = resp_pen_api.get_json()
     assert pen_json and pen_json.get('success') is True
-    print(f"[OK] Penalty Calculation API verified: Flat A/4-C overdue months={pen_json['data']['overdue_months']}, penalty={pen_json['data']['penalty_amount']}")
+    assert pen_json['data']['overdue_months'] == 0
+    assert pen_json['data']['penalty_amount'] == 0
+    print(f"[OK] Penalty Calculation API (August Grace Period) verified: Flat A/4-C overdue months={pen_json['data']['overdue_months']}, penalty={pen_json['data']['penalty_amount']}")
+
+    # Verify September 1 boundary (August becomes overdue)
+    resp_pen_sep = client.get('/api/penalties/calculate?flat=A/4-C&as_of=2026-09-01')
+    assert resp_pen_sep.status_code == 200
+    pen_sep_json = resp_pen_sep.get_json()
+    assert pen_sep_json['data']['overdue_months'] == 1
+    assert pen_sep_json['data']['penalty_amount'] == 100
+    print(f"[OK] Penalty Calculation API (September Boundary) verified: Flat A/4-C overdue months={pen_sep_json['data']['overdue_months']}, penalty={pen_sep_json['data']['penalty_amount']}")
 
     print("\n========================================================")
     print("ALL 11 VERIFICATION CRITERIA PASSED WITH 100% SUCCESS!")
