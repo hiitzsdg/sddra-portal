@@ -369,7 +369,7 @@ async function openMemberReceiptsModal(flatNo, memberName) {
     document.body.style.overflow = 'hidden';
 
     try {
-        const res = await fetch(`/api/members/${encodeURIComponent(flatNo)}/receipts`);
+        const res = await fetch(`/api/member-receipts?flat=${encodeURIComponent(flatNo)}`);
         const data = await res.json();
 
         if (!data.success || !data.receipts || data.receipts.length === 0) {
