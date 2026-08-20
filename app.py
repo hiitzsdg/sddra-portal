@@ -143,8 +143,8 @@ def login():
                     'is_admin': False,
                     'email': contact.get('email_1') if contact else None,
                     'phone': contact.get('mobile_num_1') if contact else None,
-                    'monthly_charge': member.get('monthly_charge', 2000),
-                    'sq_feet': member.get('RvsdFlatSize', 1200)
+                    'monthly_charge': member.get('monthly_charge', 0),
+                    'sq_feet': member.get('RvsdFlatSize')
                 }
                 flash(f"Welcome back, {member['member_name']} (Flat {member['flat_no']})!", 'success')
                 return redirect(url_for('dashboard'))
@@ -222,8 +222,8 @@ def login():
                     'is_admin': False,
                     'email': member.get('email_1'),
                     'phone': member.get('mobile_num_1'),
-                    'monthly_charge': member.get('monthly_charge', 2000),
-                    'sq_feet': member.get('RvsdFlatSize', 1200)
+                    'monthly_charge': member.get('monthly_charge', 0),
+                    'sq_feet': member.get('RvsdFlatSize')
                 }
                 flash(f"Welcome, {member['member_name']} (Flat {member['flat_no']})!", 'success')
                 next_p = request.args.get('next')
@@ -246,10 +246,10 @@ def logout():
 def profile():
     user = session.get('user', {})
     flat_no = user.get('flat_no', '')
-    is_admin = user.get('is_admin', False)
+    is_admin = bool(user.get('is_admin', False))
     
-    member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True) if not is_admin else None
-    contact = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (flat_no,), one=True) if not is_admin else None
+    member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True) if flat_no else None
+    contact = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (flat_no,), one=True) if flat_no else None
     admin = query_db("SELECT * FROM tbl_admins WHERE username = %s", (user.get('username'),), one=True) if is_admin else None
 
     if request.method == 'POST':

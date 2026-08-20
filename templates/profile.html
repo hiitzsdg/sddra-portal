@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
 
-{% block title %}My Profile - South Dumdum Enclave Residents' Association{% endblock %}
+{% block title %}My Profile & Account Settings - SDDRA Portal{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div class="page-header-title">
-        <h2>⚙️ Account Settings & Profile</h2>
-        <p>Manage your contact preferences, registered email for receipts, and security credentials.</p>
+        <h2>⚙️ Account Settings & Member Profile</h2>
+        <p>Manage your contact preferences, registered email for digital receipt delivery, and portal security credentials.</p>
     </div>
 </div>
 
@@ -15,18 +15,55 @@
     <div class="card">
         <div class="card-header">
             <h3 class="card-title">👤 Resident Details</h3>
-            <span class="badge badge-{{ member.role|lower }}">{{ member.role }}</span>
+            <span class="badge badge-{{ (current_user.role or 'member')|lower }}">{{ current_user.role or 'MEMBER' }}</span>
         </div>
 
         <div style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
-            <div style="width: 56px; height: 56px; border-radius: 12px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);">
+            <div style="width: 56px; height: 56px; border-radius: 12px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4); flex-shrink: 0;">
                 🏢
             </div>
             <div>
-                <h3 class="text-main" style="font-size: 1.25rem; margin-bottom: 0.15rem;">{{ member.name }}</h3>
-                <p class="text-muted" style="font-size: 0.85rem;">
-                    Flat <strong class="text-main">{{ member.flat_number }}</strong> (Block {{ member.block }}) &bull; {{ member.sq_feet or 1200 }} sq. ft.
+                <h3 class="text-main" style="font-size: 1.25rem; margin-bottom: 0.2rem;">
+                    {{ member.member_name if member else current_user.name }}
+                </h3>
+                <p class="text-secondary" style="font-size: 0.88rem; margin: 0;">
+                    {% if member and member.flat_no %}
+                    <strong class="text-highlight-blue">Flat {{ member.flat_no }}</strong> &bull; 
+                    <strong class="text-main">{{ member.RvsdFlatSize or '-' }} sq. ft.</strong>
+                    {% if member.cps_owner and member.car_parking_space %}
+                    &bull; <span class="badge badge-info" style="font-size: 0.75rem;">CPS: {{ member.car_parking_space }}</span>
+                    {% endif %}
+                    {% else %}
+                    <strong class="text-highlight-blue">Flat {{ current_user.flat_no or 'N/A' }}</strong> &bull; 
+                    <strong class="text-main">{{ current_user.sq_feet or member.RvsdFlatSize or '-' }} sq. ft.</strong>
+                    {% endif %}
                 </p>
+            </div>
+        </div>
+
+        <!-- Membership Quick Badges Summary -->
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem; padding: 0.85rem 1rem; background: var(--surface-hover); border-radius: var(--radius-md); border: 1px solid var(--surface-border);">
+            <div>
+                <span class="text-muted" style="font-size: 0.75rem; display: block;">Flat Size</span>
+                <strong class="text-main" style="font-size: 0.95rem;">
+                    {{ (member.RvsdFlatSize if member else current_user.sq_feet) or '-' }} sq. ft.
+                </strong>
+            </div>
+            <div style="border-left: 1px solid var(--surface-border); padding-left: 0.75rem;">
+                <span class="text-muted" style="font-size: 0.75rem; display: block;">Monthly Maintenance</span>
+                <strong class="text-amount-success" style="font-size: 0.95rem;">
+                    ₹ {{ "{:,.2f}".format((member.monthly_charge if member else current_user.monthly_charge) or 0) }}
+                </strong>
+            </div>
+            <div style="border-left: 1px solid var(--surface-border); padding-left: 0.75rem;">
+                <span class="text-muted" style="font-size: 0.75rem; display: block;">Parking Status</span>
+                <strong class="text-main" style="font-size: 0.95rem;">
+                    {% if member and member.cps_owner %}
+                    CPS {{ member.car_parking_space }}
+                    {% else %}
+                    None
+                    {% endif %}
+                </strong>
             </div>
         </div>
 
@@ -34,19 +71,19 @@
             <input type="hidden" name="action" value="update_info">
             
             <div class="form-group">
-                <label class="form-label" for="prof_username">Portal Username</label>
-                <input type="text" id="prof_username" class="form-control" value="{{ member.username }}" disabled style="opacity: 0.7;">
-                <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.3rem; display: block;">Usernames are permanent and managed by the Association Secretary.</small>
+                <label class="form-label" for="prof_username">Portal Username / Flat ID</label>
+                <input type="text" id="prof_username" class="form-control" value="{{ current_user.username or (member.flat_no if member else '') }}" disabled style="opacity: 0.75;">
+                <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.3rem; display: block;">Permanent resident account identifier.</small>
             </div>
 
             <div class="form-group">
                 <label class="form-label" for="prof_email">Registered Email for Receipt Delivery *</label>
-                <input type="email" id="prof_email" name="email" class="form-control" value="{{ member.email }}" required>
+                <input type="email" id="prof_email" name="email" class="form-control" value="{{ (contact.email_1 or contact.email_2) if contact else (current_user.email or '') }}" placeholder="e.g. resident@example.com" required>
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="prof_phone">Primary Phone Number *</label>
-                <input type="text" id="prof_phone" name="phone" class="form-control" value="{{ member.phone }}" required>
+                <label class="form-label" for="prof_phone">Primary Contact Phone Number *</label>
+                <input type="text" id="prof_phone" name="phone" class="form-control" value="{{ (contact.mobile_num_1 or contact.mobile_num_2) if contact else (current_user.phone or '') }}" placeholder="e.g. +91 98765 43210" required>
             </div>
 
             <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem;">
@@ -66,7 +103,7 @@
 
             <div class="form-group">
                 <label class="form-label" for="current_password">Current Password *</label>
-                <input type="password" id="current_password" name="current_password" class="form-control" placeholder="Enter existing password" required>
+                <input type="password" id="current_password" name="current_password" class="form-control" placeholder="Enter your existing password" required>
             </div>
 
             <div class="form-group">
