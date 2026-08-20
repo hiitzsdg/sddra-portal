@@ -10,10 +10,18 @@ from database import init_db, query_db, execute_db, verify_password, hash_passwo
 from email_service import send_receipt_email
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+template_dir = os.path.join(BASE_DIR, 'templates')
+if not os.path.exists(template_dir):
+    template_dir = os.path.join(os.getcwd(), 'templates')
+
+static_dir = os.path.join(BASE_DIR, 'static')
+if not os.path.exists(static_dir):
+    static_dir = os.path.join(os.getcwd(), 'static')
+
 app = Flask(
     __name__,
-    template_folder=os.path.join(BASE_DIR, 'templates'),
-    static_folder=os.path.join(BASE_DIR, 'static'),
+    template_folder=template_dir,
+    static_folder=static_dir,
     static_url_path='/static'
 )
 app.config.from_object(Config)

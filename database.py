@@ -23,8 +23,20 @@ def sqlite_date_format(val, fmt):
         return str(val)
 
 def get_sqlite_connection():
-    """Establish connection to local SQLite database with Row factory and custom functions."""
+    """Establish connection to local SQLite database with Row factory, custom functions, and path fallbacks."""
     db_path = Config.SQLITE_PATH
+    if not os.path.exists(db_path):
+        candidates = [
+            os.path.join(os.getcwd(), 'sddra.db'),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sddra.db'),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sddra.db'),
+            '/var/task/sddra.db',
+            '/tmp/sddra.db'
+        ]
+        for p in candidates:
+            if os.path.exists(p):
+                db_path = p
+                break
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.create_function('DATE_FORMAT', 2, sqlite_date_format)
