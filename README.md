@@ -46,7 +46,7 @@ All test accounts use default password: **`sdera@123`**
 | :--- | :--- | :--- | :--- | :--- |
 | **President** | Subhashish Mukherjee | `president` | A-401 | Full Association & Financial Admin |
 | **Secretary** | Debasish Roy | `secretary` | B-202 | Member & Operational Admin |
-| **Treasurer** | Amitabha Sengupta | `treasurer` | A-102 | Receipts & Expense Management |
+| **Treasurer** | Swapnadeep Ganguly | `treasurer` | A/4-C | Receipts & Expense Management |
 | **Caretaker** | Bikas Mondal | `caretaker` | Staff (CT-01) | Roster & Payment Collection Entry |
 | **Member** | Sourav Ganguly | `sourav101` | A-101 | Personal Receipts & Expense View Only |
 | **Member** | Anirban Bhattacharya | `anirban201` | A-201 | Personal Receipts & Expense View Only |

@@ -17,6 +17,12 @@ def generate_receipt_html(receipt, member_info, contact_info):
     sub_type = receipt.get('subscription_type', 'Monthly Subscription')
     sq_feet = member_info.get('RvsdFlatSize', 1200) if member_info else 1200
     phone = contact_info.get('mobile_num_1', '') if contact_info else ''
+    
+    cps_space = member_info.get('car_parking_space', '-') if member_info else '-'
+    cps_display = f"{cps_space} sq. ft." if cps_space and cps_space != '-' else "None"
+    tws_count = member_info.get('tws_count', 0) if member_info else 0
+    tws_charges = float(member_info.get('tws_charges', 0)) if member_info else 0.0
+    tws_display = f"{tws_count} Space(s) (INR {tws_charges:,.2f})" if tws_count > 0 or tws_charges > 0 else "None (INR 0.00)"
 
     return f"""
     <!DOCTYPE html>
@@ -78,6 +84,14 @@ def generate_receipt_html(receipt, member_info, contact_info):
                             <td style="color: #64748b; font-weight: 500;">Flat Size:</td>
                             <td style="color: #0f172a; font-weight: 600; text-align: right;">{sq_feet} sq. ft.</td>
                         </tr>
+                        <tr>
+                            <td style="color: #64748b; font-weight: 500;">Car Parking Space (CPS):</td>
+                            <td style="color: #0f172a; font-weight: 600; text-align: right;">{cps_display}</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #64748b; font-weight: 500;">Two Wheeler Parking Space:</td>
+                            <td style="color: #0f172a; font-weight: 600; text-align: right;">{tws_display}</td>
+                        </tr>
                     </table>
                 </div>
 
@@ -91,7 +105,8 @@ def generate_receipt_html(receipt, member_info, contact_info):
                 </p>
             </div>
             <div class="footer">
-                <p style="margin: 0 0 6px;">This is an electronically generated receipt issued by <strong>{Config.ASSOCIATION_NAME}</strong>.</p>
+                <p style="margin: 0 0 4px;">Issued by: <strong>Swapnadeep Ganguly</strong>, Honorary Treasurer</p>
+                <p style="margin: 0 0 6px;"><strong>{Config.ASSOCIATION_NAME}</strong></p>
                 <p style="margin: 0;">Helpline: {Config.ASSOCIATION_PHONE} | Email: {Config.ASSOCIATION_EMAIL}</p>
             </div>
         </div>
