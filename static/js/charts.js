@@ -227,6 +227,21 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
         }
     ];
 
+    const filterInfo = selectedMonthFilter ? parseVoucherMonthYear(selectedMonthFilter) : null;
+
+    // Pre-aggregated month total lookup from chart API
+    let chartMonthTotal = null;
+    if (selectedMonthFilter && cachedChartData && cachedChartData.monthly) {
+        const foundMonth = cachedChartData.monthly.find(m => {
+            const mInfo = parseVoucherMonthYear(m.month);
+            return (filterInfo && mInfo.ym && filterInfo.ym && mInfo.ym === filterInfo.ym) ||
+                   (m.month.toLowerCase() === selectedMonthFilter.toLowerCase());
+        });
+        if (foundMonth && typeof foundMonth.total === 'number') {
+            chartMonthTotal = foundMonth.total;
+        }
+    }
+
     let lastActiveTotalAmount = 0;
     let lastActiveMatchCount = 0;
 
@@ -243,8 +258,6 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
         let matchCount = 0;
         let totalRows = 0;
         let totalAmount = 0;
-
-        const filterInfo = selectedMonthFilter ? parseVoucherMonthYear(selectedMonthFilter) : null;
 
         rows.forEach(row => {
             if (row.children.length === 1 && row.children[0].getAttribute('colspan')) {
@@ -296,22 +309,37 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
                 row.style.display = '';
                 matchCount++;
 
-                // Sum up amounts directly from data-amount attribute or formatted text
+                // Sum up amounts directly from data-amount attribute or formatted cells
+                let rowAmt = 0;
                 const dataAmt = row.getAttribute('data-amount');
-                if (dataAmt !== null && dataAmt !== '') {
-                    const num = parseFloat(dataAmt);
-                    if (!isNaN(num)) totalAmount += num;
+                if (dataAmt !== null && dataAmt !== '' && !isNaN(parseFloat(dataAmt))) {
+                    rowAmt = parseFloat(dataAmt);
                 } else {
-                    const amtEl = row.querySelector('.text-amount-danger, td:nth-child(7), td:nth-child(4), td:last-child');
-                    if (amtEl) {
-                        const num = parseFloat(amtEl.textContent.replace(/[^0-9.]/g, ''));
-                        if (!isNaN(num)) totalAmount += num;
+                    const tds = row.querySelectorAll('td');
+                    for (let td of tds) {
+                        const text = td.textContent.trim();
+                        if (text.includes('₹') || text.includes('INR') || td.querySelector('.text-amount-danger') || td.classList.contains('text-amount-danger')) {
+                            const cleaned = text.replace(/[^0-9.]/g, '');
+                            const parsed = parseFloat(cleaned);
+                            if (!isNaN(parsed) && parsed > 0) {
+                                rowAmt = parsed;
+                                break;
+                            }
+                        }
                     }
+                }
+                if (rowAmt > 0) {
+                    totalAmount += rowAmt;
                 }
             } else {
                 row.style.display = 'none';
             }
         });
+
+        // Double fail-safe: If totalAmount is 0 but we matched rows and have pre-calculated chartMonthTotal
+        if (totalAmount === 0 && matchCount > 0 && chartMonthTotal !== null && !rawSearch && !selectedCategoryFilter) {
+            totalAmount = chartMonthTotal;
+        }
 
         lastActiveTotalAmount = totalAmount;
         lastActiveMatchCount = matchCount;
