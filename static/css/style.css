@@ -1173,7 +1173,7 @@ code {
 
 .receipt-signatures { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 3.5rem; padding-top: 1rem; }
 .signature-box { text-align: center; width: 240px; color: #334155; }
-.signature-line { border-top: 1px dashed #64748b; margin-bottom: 0.4rem; }
+.signature-line { border-top: 1.5px dotted #64748b; margin: 4px auto 6px; }
 
 /* ================= Footer ================= */
 .footer {
