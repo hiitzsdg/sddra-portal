@@ -675,15 +675,50 @@ def calculate_flat_penalty(flat_no, member=None, target_date=None):
     member_name = member.get('member_name', 'Resident') if member else 'Resident'
     flat_size = member.get('RvsdFlatSize') if member else None
 
-    # Retrieve latest coverage end date from receipts
-    latest_rcpt = query_db(
-        """SELECT MAX(coverage_end) as latest_coverage, MAX(payment_date) as last_payment 
-           FROM tbl_receipts WHERE flat_no = %s""",
-        (flat_no,),
-        one=True
+    # Retrieve all valid coverage end dates for this flat
+    rcpt_rows = query_db(
+        """SELECT coverage_end, payment_date, remarks, subscription_type 
+           FROM tbl_receipts 
+           WHERE flat_no = %s""",
+        (flat_no,)
     )
 
-    latest_cov = latest_rcpt.get('latest_coverage') if latest_rcpt else None
+    valid_coverage_dates = []
+    month_lookup = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+        'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12
+    }
+
+    for r in (rcpt_rows or []):
+        cov = r.get('coverage_end')
+        if cov:
+            if isinstance(cov, str) and cov.strip().lower() not in ('none', 'null', ''):
+                try:
+                    d = datetime.strptime(cov.strip()[:10], '%Y-%m-%d').date()
+                    valid_coverage_dates.append(d)
+                except Exception:
+                    pass
+            elif hasattr(cov, 'year'):
+                d = cov if not hasattr(cov, 'date') else cov.date()
+                valid_coverage_dates.append(d)
+
+        # Fallback/Supplemental: inspect remarks for coverage text like "May'2026 to Sep'2026" or "Sep'2026"
+        sub_type = str(r.get('subscription_type', '')).lower()
+        if 'monthly' in sub_type or 'subscription' in sub_type:
+            rem = str(r.get('remarks', ''))
+            matches = re.findall(r'([A-Za-z]{3,9})[\'\"\s\-_]*(\d{4})', rem)
+            for m_name, y_str in matches:
+                m_prefix = m_name[:3].lower()
+                if m_prefix in month_lookup:
+                    m_val = month_lookup[m_prefix]
+                    y_val = int(y_str)
+                    last_day = 31 if m_val in (1,3,5,7,8,10,12) else (28 if m_val == 2 else 30)
+                    try:
+                        valid_coverage_dates.append(datetime(y_val, m_val, last_day).date())
+                    except Exception:
+                        pass
+
+    latest_cov = max(valid_coverage_dates) if valid_coverage_dates else None
 
     if not latest_cov:
         # Default association billing epoch start: April 2026 (covered through March 2026)
@@ -692,11 +727,6 @@ def calculate_flat_penalty(flat_no, member=None, target_date=None):
         coverage_display = "No Receipts (Due from Apr'2026)"
         last_covered_text = "None"
     else:
-        if isinstance(latest_cov, str):
-            try:
-                latest_cov = datetime.strptime(latest_cov[:10], '%Y-%m-%d').date()
-            except Exception:
-                latest_cov = datetime(2026, 3, 31).date()
         cov_year = latest_cov.year
         cov_month = latest_cov.month
         coverage_display = latest_cov.strftime("%b'%Y")
