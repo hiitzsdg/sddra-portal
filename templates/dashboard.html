@@ -13,8 +13,9 @@
         <p>Welcome, <strong>{{ member.member_name or current_user.name }}</strong> (Flat <strong>{{ current_user.flat_no }}</strong>). Official maintenance status and bills.</p>
         {% endif %}
     </div>
-    <div>
+    <div class="page-header-actions">
         {% if is_admin %}
+        <a href="{{ url_for('admin_penalties') }}" class="btn btn-outline-primary">⚖️ Penalties & Defaulters</a>
         <a href="{{ url_for('expenses_list') }}" class="btn btn-primary">➕ Record Society Expense</a>
         {% else %}
         <a href="{{ url_for('profile') }}" class="btn btn-secondary">⚙️ Account Settings</a>
@@ -25,8 +26,8 @@
 {% if is_admin %}
 <!-- ================= SUPERADMIN / COMMITTEE DASHBOARD ================= -->
 
-<!-- Executive Stats Grid -->
-<div class="grid-4" style="margin-bottom: 2rem;">
+<!-- Executive Stats Grid (5 KPI Cards) -->
+<div class="stats-grid" style="margin-bottom: 2rem;">
     <div class="stat-card" style="--stat-accent: #3b82f6; --stat-icon-bg: rgba(59, 130, 246, 0.18); --stat-icon-border: rgba(59, 130, 246, 0.35); --stat-icon-color: #3b82f6;">
         <div class="stat-icon">🏢</div>
         <div class="stat-info">
@@ -48,18 +49,22 @@
     <div class="stat-card" style="--stat-accent: #ef4444; --stat-icon-bg: rgba(239, 68, 68, 0.18); --stat-icon-border: rgba(248, 113, 113, 0.35); --stat-icon-color: #ef4444;">
         <div class="stat-icon">🧾</div>
         <div class="stat-info">
-            <div class="stat-label">Total Society Outlays</div>
+            <div class="stat-label">Society Outlays</div>
             <div class="stat-value">₹ {{ "{:,.2f}".format(total_expenses) }}</div>
             <div class="stat-sub">{{ total_vouchers_count }} vouchers recorded</div>
         </div>
     </div>
 
-    <div class="stat-card" style="--stat-accent: {% if net_balance >= 0 %}#10b981{% else %}#ef4444{% endif %}; --stat-icon-bg: {% if net_balance >= 0 %}rgba(16, 185, 129, 0.18){% else %}rgba(239, 68, 68, 0.18){% endif %}; --stat-icon-border: {% if net_balance >= 0 %}rgba(52, 211, 153, 0.35){% else %}rgba(248, 113, 113, 0.35){% endif %}; --stat-icon-color: {% if net_balance >= 0 %}#10b981{% else %}#ef4444{% endif %};">
-        <div class="stat-icon">⚖️</div>
+    <div class="stat-card" style="--stat-accent: #f59e0b; --stat-icon-bg: rgba(245, 158, 11, 0.18); --stat-icon-border: rgba(251, 191, 36, 0.35); --stat-icon-color: #f59e0b;">
+        <div class="stat-icon">⚠️</div>
         <div class="stat-info">
-            <div class="stat-label">Society Net Treasury</div>
-            <div class="stat-value">₹ {{ "{:,.2f}".format(net_balance) }}</div>
-            <div class="stat-sub">Audited Bank & Cash Balance</div>
+            <div class="stat-label">Overdue Defaulters</div>
+            <div class="stat-value text-amount-danger" style="font-size: 1.55rem;">
+                {{ defaulters_total_count }} <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-muted);">Flats</span>
+            </div>
+            <div class="stat-sub">
+                <a href="{{ url_for('admin_penalties') }}" class="text-highlight-blue" style="font-weight: 600;">Penalty: ₹ {{ "{:,.0f}".format(total_penalty_accumulated) }} &rarr;</a>
+            </div>
         </div>
     </div>
 </div>
@@ -225,24 +230,55 @@
         </div>
     </div>
 
-    <div class="stat-card" style="--stat-accent: {% if outstanding == 0 %}#10b981{% else %}#f59e0b{% endif %}; --stat-icon-bg: {% if outstanding == 0 %}rgba(16, 185, 129, 0.18){% else %}rgba(245, 158, 11, 0.18){% endif %}; --stat-icon-border: {% if outstanding == 0 %}rgba(52, 211, 153, 0.35){% else %}rgba(251, 191, 36, 0.35){% endif %}; --stat-icon-color: {% if outstanding == 0 %}#10b981{% else %}#f59e0b{% endif %};">
+    <div class="stat-card" style="--stat-accent: {% if my_penalty.overdue_months == 0 %}#10b981{% else %}#ef4444{% endif %}; --stat-icon-bg: {% if my_penalty.overdue_months == 0 %}rgba(16, 185, 129, 0.18){% else %}rgba(239, 68, 68, 0.18){% endif %}; --stat-icon-border: {% if my_penalty.overdue_months == 0 %}rgba(52, 211, 153, 0.35){% else %}rgba(248, 113, 113, 0.35){% endif %}; --stat-icon-color: {% if my_penalty.overdue_months == 0 %}#10b981{% else %}#ef4444{% endif %};">
         <div class="stat-icon">⚖️</div>
         <div class="stat-info">
-            <div class="stat-label">Monthly Rate / Status</div>
-            <div class="stat-value">₹ {{ "{:,.2f}".format(member.monthly_charge if member else 2000) }}/mo</div>
-            <div class="stat-sub">{% if outstanding == 0 %}All dues cleared up to date!{% else %}Pending balance: ₹ {{ "{:,.2f}".format(outstanding) }}{% endif %}</div>
+            <div class="stat-label">Maintenance & Penalty Status</div>
+            {% if my_penalty.overdue_months == 0 %}
+            <div class="stat-value text-amount-success" style="font-size: 1.45rem;">✓ Paid Up to Date</div>
+            <div class="stat-sub">Covered through {{ my_penalty.coverage_display }}</div>
+            {% else %}
+            <div class="stat-value text-amount-danger" style="font-size: 1.45rem;">
+                ₹ {{ "{:,.2f}".format(my_penalty.total_due) }} Due
+            </div>
+            <div class="stat-sub">
+                {{ my_penalty.overdue_months }} mo. overdue • Late Penalty: ₹ {{ "{:,.2f}".format(my_penalty.penalty_amount) }}
+            </div>
+            {% endif %}
         </div>
     </div>
 
     <div class="stat-card" style="--stat-accent: #3b82f6; --stat-icon-bg: rgba(59, 130, 246, 0.18); --stat-icon-border: rgba(59, 130, 246, 0.35); --stat-icon-color: #3b82f6;">
         <div class="stat-icon">🏛️</div>
         <div class="stat-info">
-            <div class="stat-label">Total Society Expenses</div>
-            <div class="stat-value">₹ {{ "{:,.2f}".format(total_expenses) }}</div>
-            <div class="stat-sub"><a href="{{ url_for('expenses_list') }}" class="text-highlight-blue">View full audit ledger &rarr;</a></div>
+            <div class="stat-label">Monthly Rate & Flat Size</div>
+            <div class="stat-value">₹ {{ "{:,.2f}".format(member.monthly_charge if member else 2000) }}/mo</div>
+            <div class="stat-sub">{{ member.RvsdFlatSize or '-' }} sq. ft. • Flat {{ current_user.flat_no }}</div>
         </div>
     </div>
 </div>
+
+{% if my_penalty.overdue_months > 0 %}
+<!-- Resident Overdue Warning Banner -->
+<div class="card" style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(136, 19, 55, 0.25) 0%, rgba(15, 23, 42, 0.85) 100%); border: 1px solid rgba(244, 63, 94, 0.35);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h3 class="text-main" style="font-size: 1.15rem; margin-bottom: 0.25rem;">
+                ⚠️ Overdue Maintenance Notice: <strong style="color: #f43f5e;">{{ my_penalty.overdue_months }} Months Unpaid</strong>
+            </h3>
+            <p class="text-secondary" style="font-size: 0.88rem; margin: 0;">
+                Your last covered subscription was through <strong>{{ my_penalty.coverage_display }}</strong>. Base maintenance: <strong>₹ {{ "{:,.2f}".format(my_penalty.base_due) }}</strong> + Late penalty: <strong>₹ {{ "{:,.2f}".format(my_penalty.penalty_amount) }}</strong> (Formula: N*(N+1)/2*100).
+            </p>
+        </div>
+        <div style="text-align: right;">
+            <span class="text-muted" style="font-size: 0.78rem;">Total Payable:</span>
+            <div class="text-amount-danger" style="font-size: 1.5rem; font-weight: 800;">
+                ₹ {{ "{:,.2f}".format(my_penalty.total_due) }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- My Personal Receipts Table -->
 <div class="card" style="margin-bottom: 2rem;">

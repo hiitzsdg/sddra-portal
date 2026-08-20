@@ -1,0 +1,523 @@
+{% extends 'base.html' %}
+
+{% block title %}Maintenance Penalties & Defaulters Console - SDDRA Portal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-title">
+        <h2>⚖️ Overdue Maintenance & Penalty Management Console</h2>
+        <p>Official automated computation of overdue subscriptions and cumulative late penalty charges calculated as of <strong>{{ target_display }}</strong>.</p>
+    </div>
+    <div class="page-header-actions">
+        <button type="button" class="btn btn-outline-primary" onclick="openPenaltySimulatorModal()">
+            🧮 Live Penalty Calculator & Simulator
+        </button>
+        <a href="{{ url_for('admin_receipts') }}" class="btn btn-primary">
+            💳 Issue Maintenance Receipt
+        </a>
+    </div>
+</div>
+
+<!-- ================= KPI SUMMARY CARDS ================= -->
+<div class="stats-grid" style="margin-bottom: 2rem;">
+    <!-- Defaulters Count Card -->
+    <div class="stat-card" style="border-left: 4px solid var(--rose-500);">
+        <div class="stat-icon" style="background: rgba(244, 63, 94, 0.15); color: #f43f5e; font-size: 1.7rem; width: 54px; height: 54px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            ⚠️
+        </div>
+        <div class="stat-info">
+            <span class="stat-label">Active Overdue Units</span>
+            <div class="stat-value text-main" style="font-size: 1.75rem; font-weight: 800;">
+                {{ defaulters_count }} <span style="font-size: 0.95rem; font-weight: 500; color: var(--text-muted);">/ {{ total_flats }} Flats</span>
+            </div>
+            <span class="stat-sub text-muted" style="font-size: 0.78rem;">
+                {{ paid_up_count }} units are fully up to date or in advance
+            </span>
+        </div>
+    </div>
+
+    <!-- Base Maintenance Outstanding -->
+    <div class="stat-card" style="border-left: 4px solid var(--amber-500);">
+        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-size: 1.7rem; width: 54px; height: 54px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            📉
+        </div>
+        <div class="stat-info">
+            <span class="stat-label">Base Maintenance Overdue</span>
+            <div class="stat-value" style="font-size: 1.75rem; font-weight: 800; color: #f59e0b;">
+                ₹ {{ "{:,.2f}".format(total_base_due) }}
+            </div>
+            <span class="stat-sub text-muted" style="font-size: 0.78rem;">
+                Unpaid regular monthly charges
+            </span>
+        </div>
+    </div>
+
+    <!-- Cumulative Penalties -->
+    <div class="stat-card" style="border-left: 4px solid #ef4444;">
+        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; font-size: 1.7rem; width: 54px; height: 54px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            ⚖️
+        </div>
+        <div class="stat-info">
+            <span class="stat-label">Accumulated Penalties Due</span>
+            <div class="stat-value text-amount-danger" style="font-size: 1.75rem; font-weight: 800;">
+                ₹ {{ "{:,.2f}".format(total_penalty_due) }}
+            </div>
+            <span class="stat-sub text-muted" style="font-size: 0.78rem;">
+                Formula: N*(N+1)/2 * 100
+            </span>
+        </div>
+    </div>
+
+    <!-- Gross Total Receivables -->
+    <div class="stat-card" style="border-left: 4px solid var(--primary-500);">
+        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-size: 1.7rem; width: 54px; height: 54px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            💰
+        </div>
+        <div class="stat-info">
+            <span class="stat-label">Gross Total Outstanding</span>
+            <div class="stat-value text-highlight-blue" style="font-size: 1.75rem; font-weight: 800;">
+                ₹ {{ "{:,.2f}".format(total_gross_due) }}
+            </div>
+            <span class="stat-sub text-muted" style="font-size: 0.78rem;">
+                Maintenance + Late Fee penalties
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- ================= FORMULA EXPLANATION BANNER ================= -->
+<div class="card" style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(30, 58, 138, 0.25) 0%, rgba(15, 23, 42, 0.85) 100%); border: 1px solid rgba(59, 130, 246, 0.3);">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap;">
+        <div>
+            <h3 class="text-main" style="font-size: 1.15rem; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem;">
+                📐 Official Association Penalty Calculation Rule
+            </h3>
+            <p class="text-secondary" style="font-size: 0.9rem; margin-bottom: 0.75rem; line-height: 1.5;">
+                Late charges accrue progressively for every unpaid month ($N$) starting from the flat's last covered payment date.
+            </p>
+            <div style="display: inline-block; background: var(--surface-card); padding: 0.5rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); font-family: monospace; font-size: 1.05rem; font-weight: 700; color: #60a5fa;">
+                Cumulative Penalty = (N &times; (N + 1) / 2) &times; ₹ 100
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; max-width: 580px;">
+            <div style="background: var(--surface-card); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center; min-width: 95px;">
+                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 1 Month</span>
+                <strong style="color: #f59e0b; font-size: 0.88rem;">₹ 100</strong>
+            </div>
+            <div style="background: var(--surface-card); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center; min-width: 95px;">
+                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 2 Months</span>
+                <strong style="color: #f97316; font-size: 0.88rem;">₹ 300</strong>
+            </div>
+            <div style="background: var(--surface-card); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center; min-width: 95px;">
+                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 3 Months</span>
+                <strong style="color: #ef4444; font-size: 0.88rem;">₹ 600</strong>
+            </div>
+            <div style="background: var(--surface-card); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center; min-width: 95px;">
+                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 4 Months</span>
+                <strong style="color: #dc2626; font-size: 0.88rem;">₹ 1,000</strong>
+            </div>
+            <div style="background: var(--surface-card); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center; min-width: 95px;">
+                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 5 Months</span>
+                <strong style="color: #b91c1c; font-size: 0.88rem;">₹ 1,500</strong>
+            </div>
+            <div style="background: var(--surface-card); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center; min-width: 95px;">
+                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 6 Months</span>
+                <strong style="color: #991b1b; font-size: 0.88rem;">₹ 2,100</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= CONTROLS & FILTER SECTION ================= -->
+<div class="card" style="margin-bottom: 1.75rem;">
+    <form method="GET" action="{{ url_for('admin_penalties') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; justify-content: space-between;">
+        <!-- Search Input -->
+        <div style="flex: 1; min-width: 260px;">
+            <label class="form-label" for="penaltySearch">🔍 Search Flat or Resident</label>
+            <div class="live-search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="penaltySearch" name="q" value="{{ search_q or '' }}" class="form-control" placeholder="Search flat number (e.g. A/4-C), resident name..." data-live-search="#penaltyTable" data-search-counter="#penaltyRosterCountBadge" data-clear-btn="clearPenaltySearch">
+                <button type="button" id="clearPenaltySearch" class="clear-btn" title="Clear search">&times;</button>
+            </div>
+        </div>
+
+        <!-- As-Of Calculation Date Picker -->
+        <div style="min-width: 200px;">
+            <label class="form-label" for="as_of_date">📅 Calculation "As of" Date</label>
+            <input type="date" id="as_of_date" name="as_of" value="{{ target_date }}" class="form-control" onchange="this.form.submit()">
+        </div>
+
+        <!-- Filter Status Select -->
+        <div style="min-width: 180px;">
+            <label class="form-label" for="status_filter">Filter by Status</label>
+            <select id="status_filter" name="status" class="form-control" onchange="this.form.submit()">
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All 44 Units (Full Roster)</option>
+                <option value="defaulters" {% if status_filter == 'defaulters' %}selected{% endif %}>⚠️ Overdue Defaulters Only ({{ defaulters_count }})</option>
+                <option value="paid_up" {% if status_filter == 'paid_up' %}selected{% endif %}>🟢 Paid Up / Advance Units ({{ paid_up_count }})</option>
+            </select>
+        </div>
+
+        <!-- Actions -->
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-secondary">🔄 Refresh</button>
+            <a href="{{ url_for('admin_penalties') }}" class="btn btn-outline-primary" title="Reset Filters">Reset</a>
+        </div>
+    </form>
+</div>
+
+<!-- ================= MAIN DEFAULTERS & PENALTY ROSTER ================= -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">📋 Flat-by-Flat Overdue & Penalty Ledger</h3>
+        <span id="penaltyRosterCountBadge" class="badge badge-info">{{ roster|length }} Flats Evaluated</span>
+    </div>
+
+    <div class="table-container">
+        <table class="custom-table" id="penaltyTable">
+            <thead>
+                <tr>
+                    <th>Flat Number</th>
+                    <th>Resident Name</th>
+                    <th>Monthly Rate</th>
+                    <th>Covered Till</th>
+                    <th>Overdue ($N$)</th>
+                    <th>Base Overdue</th>
+                    <th>Penalty ($\frac{N(N+1)}{2} \times 100$)</th>
+                    <th>Gross Payable</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in roster %}
+                <tr style="{% if row.is_overdue %}background: rgba(244, 63, 94, 0.03);{% endif %}">
+                    <td>
+                        <strong class="text-highlight-blue" style="font-size: 0.95rem;">Flat {{ row.flat_no }}</strong>
+                        {% if row.flat_size %}
+                        <span class="text-muted" style="display: block; font-size: 0.72rem;">{{ row.flat_size }} sq.ft.</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong class="text-main">{{ row.member_name }}</strong>
+                    </td>
+                    <td>
+                        <span class="text-secondary">₹ {{ "{:,.2f}".format(row.monthly_charge) }}</span>
+                    </td>
+                    <td>
+                        {% if row.coverage_end %}
+                        <span class="badge badge-info" style="font-size: 0.78rem;">{{ row.coverage_display }}</span>
+                        {% else %}
+                        <span class="badge badge-danger" style="font-size: 0.75rem;">None (Due Apr'26)</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.overdue_months > 0 %}
+                        <span class="badge badge-warning" style="font-size: 0.85rem; font-weight: 800;">
+                            {{ row.overdue_months }} mo.
+                        </span>
+                        {% else %}
+                        <span class="badge badge-success" style="font-size: 0.75rem;">0 mo.</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.base_due > 0 %}
+                        <strong style="color: #f59e0b; font-size: 0.92rem;">₹ {{ "{:,.2f}".format(row.base_due) }}</strong>
+                        {% else %}
+                        <span class="text-muted">₹ 0.00</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.penalty_amount > 0 %}
+                        <strong class="text-amount-danger" style="font-size: 0.95rem;">
+                            + ₹ {{ "{:,.2f}".format(row.penalty_amount) }}
+                        </strong>
+                        {% else %}
+                        <span class="text-muted">₹ 0.00</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.total_due > 0 %}
+                        <strong class="text-amount-danger" style="font-size: 1.05rem; font-weight: 800;">
+                            ₹ {{ "{:,.2f}".format(row.total_due) }}
+                        </strong>
+                        {% else %}
+                        <strong class="text-amount-success" style="font-size: 0.95rem;">
+                            ✓ Cleared
+                        </strong>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.overdue_months == 0 %}
+                        <span class="badge badge-success">🟢 Current</span>
+                        {% elif row.overdue_months == 1 %}
+                        <span class="badge badge-warning">🟡 1 Mo Due</span>
+                        {% else %}
+                        <span class="badge badge-danger">🔴 {{ row.overdue_months }} Mo Overdue</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 0.35rem;">
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="openBreakdownModal('{{ row.flat_no }}', '{{ row.member_name|replace("'", "\\'") }}', {{ row.monthly_charge }}, '{{ row.last_covered_text }}', {{ row.overdue_months }}, {{ row.base_due }}, {{ row.penalty_amount }}, {{ row.total_due }})" title="View step-by-step calculation breakdown">
+                                🧮 Breakdown
+                            </button>
+                            <a href="{{ url_for('admin_receipts', flat=row.flat_no) }}" class="btn btn-sm btn-outline-primary" title="Issue new receipt for this flat">
+                                💳 Receipt
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ================= BREAKDOWN MODAL DIALOG ================= -->
+<div id="breakdownModal" class="modal-overlay" style="display: none;" onclick="if(event.target === this) closeBreakdownModal()">
+    <div class="modal-container">
+        <div class="modal-header">
+            <div>
+                <h3 class="card-title" id="bdFlatTitle" style="margin: 0; font-size: 1.2rem;">🧮 Penalty Calculation Breakdown</h3>
+                <p id="bdFlatSubtitle" class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.85rem;"></p>
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="closeBreakdownModal()" style="font-size: 1.2rem; padding: 0.2rem 0.6rem; line-height: 1;">&times;</button>
+        </div>
+        
+        <div class="modal-body" id="bdModalBody">
+            <!-- Dynamically populated via JS -->
+        </div>
+
+        <div class="modal-footer">
+            <a id="bdReceiptLink" href="#" class="btn btn-sm btn-primary">➕ Issue Receipt with Penalty &rarr;</a>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="closeBreakdownModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= LIVE PENALTY SIMULATOR MODAL ================= -->
+<div id="simulatorModal" class="modal-overlay" style="display: none;" onclick="if(event.target === this) closePenaltySimulatorModal()">
+    <div class="modal-container">
+        <div class="modal-header">
+            <div>
+                <h3 class="card-title" style="margin: 0; font-size: 1.2rem;">🧮 Interactive Penalty Calculator & Simulator</h3>
+                <p class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.85rem;">Test custom unpaid months and visualize the exact step-by-step formula progression.</p>
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="closePenaltySimulatorModal()" style="font-size: 1.2rem; padding: 0.2rem 0.6rem; line-height: 1;">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="grid-2" style="margin-bottom: 1.5rem;">
+                <div class="form-group">
+                    <label class="form-label" for="sim_months">Number of Overdue Months ($N$):</label>
+                    <input type="number" id="sim_months" class="form-control" value="2" min="0" max="60" oninput="runPenaltySimulation()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="sim_rate">Monthly Maintenance Rate (₹):</label>
+                    <input type="number" id="sim_rate" class="form-control" value="2110" min="0" step="10" oninput="runPenaltySimulation()">
+                </div>
+            </div>
+
+            <!-- Simulation Result Card -->
+            <div style="background: var(--surface-hover); padding: 1.25rem 1.5rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <span class="text-muted" style="font-size: 0.8rem;">Cumulative Penalty Formula:</span>
+                        <div id="sim_formula_display" style="font-family: monospace; font-size: 1.05rem; font-weight: 700; color: var(--highlight-blue); margin-top: 0.2rem;">
+                            (2 &times; 3 / 2) &times; 100 = ₹ 300
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="text-muted" style="font-size: 0.8rem;">Total Payable Amount:</span>
+                        <div id="sim_total_display" class="text-amount-danger" style="font-size: 1.5rem; font-weight: 800;">
+                            ₹ 4,520.00
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Month by Month Step Progression Table -->
+            <h4 class="text-main" style="font-size: 1rem; margin-bottom: 0.75rem;">🪜 Step-by-Step Penalty Ladder</h4>
+            <div class="table-container" style="max-height: 250px; overflow-y: auto;">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Month #</th>
+                            <th>Tier Rate</th>
+                            <th>Month Surcharge</th>
+                            <th>Cumulative Penalty</th>
+                            <th>Running Total Due</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sim_ladder_body">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closePenaltySimulatorModal()">Done</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ================= Breakdown Modal Handler =================
+function openBreakdownModal(flatNo, memberName, monthlyRate, lastCovered, overdueMonths, baseDue, penaltyAmount, totalDue) {
+    const modal = document.getElementById('breakdownModal');
+    if (!modal) return;
+
+    document.getElementById('bdFlatTitle').innerHTML = `🧮 Penalty Breakdown: <strong class="text-highlight-blue">Flat ${flatNo}</strong>`;
+    document.getElementById('bdFlatSubtitle').textContent = `Member: ${memberName} • Monthly Rate: ₹ ${Number(monthlyRate).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    document.getElementById('bdReceiptLink').href = `/admin/receipts?flat=${encodeURIComponent(flatNo)}`;
+
+    let ladderHtml = '';
+    let cumPen = 0;
+    let runningTotal = 0;
+
+    for (let i = 1; i <= overdueMonths; i++) {
+        const mPen = i * 100;
+        cumPen += mPen;
+        runningTotal = (i * monthlyRate) + cumPen;
+        ladderHtml += `
+            <tr>
+                <td><strong>Month ${i}</strong></td>
+                <td>₹ ${Number(monthlyRate).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                <td><span class="badge badge-warning">+ ₹ ${mPen}</span></td>
+                <td><strong class="text-amount-danger">₹ ${cumPen.toLocaleString('en-IN')}</strong></td>
+                <td><strong class="text-main">₹ ${runningTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></td>
+            </tr>
+        `;
+    }
+
+    if (overdueMonths === 0) {
+        ladderHtml = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 2rem;" class="text-muted">
+                    🟢 This flat is currently fully up to date or in advance. No overdue penalties accrued.
+                </td>
+            </tr>
+        `;
+    }
+
+    const bodyEl = document.getElementById('bdModalBody');
+    bodyEl.innerHTML = `
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; background: var(--surface-hover); padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border);">
+            <div style="flex: 1; min-width: 140px;">
+                <span class="text-muted" style="font-size: 0.75rem;">Last Covered Month</span>
+                <strong class="text-main" style="display: block; font-size: 1rem;">${lastCovered}</strong>
+            </div>
+            <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
+                <span class="text-muted" style="font-size: 0.75rem;">Overdue Months (N)</span>
+                <strong class="text-warning" style="display: block; font-size: 1.1rem; color: #f59e0b;">${overdueMonths} Months</strong>
+            </div>
+            <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
+                <span class="text-muted" style="font-size: 0.75rem;">Base Maintenance</span>
+                <strong class="text-main" style="display: block; font-size: 1rem;">₹ ${Number(baseDue).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+            </div>
+            <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
+                <span class="text-muted" style="font-size: 0.75rem;">Cumulative Penalty</span>
+                <strong class="text-amount-danger" style="display: block; font-size: 1.1rem;">+ ₹ ${Number(penaltyAmount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+            </div>
+            <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
+                <span class="text-muted" style="font-size: 0.75rem;">Total Payable Dues</span>
+                <strong class="text-amount-danger" style="display: block; font-size: 1.25rem; font-weight: 800;">₹ ${Number(totalDue).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+            </div>
+        </div>
+
+        <h4 class="text-main" style="font-size: 1rem; margin-bottom: 0.75rem;">🪜 Step-by-Step Penalty Accrual Schedule</h4>
+        <div class="table-container" style="max-height: 250px; overflow-y: auto;">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Overdue Step</th>
+                        <th>Base Rate</th>
+                        <th>Month Penalty</th>
+                        <th>Cumulative Penalty</th>
+                        <th>Running Total Due</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${ladderHtml}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeBreakdownModal() {
+    const modal = document.getElementById('breakdownModal');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// ================= Penalty Simulator Modal =================
+function openPenaltySimulatorModal() {
+    const modal = document.getElementById('simulatorModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        runPenaltySimulation();
+    }
+}
+
+function closePenaltySimulatorModal() {
+    const modal = document.getElementById('simulatorModal');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function runPenaltySimulation() {
+    const n = Math.max(0, parseInt(document.getElementById('sim_months').value) || 0);
+    const rate = Math.max(0, parseFloat(document.getElementById('sim_rate').value) || 0);
+
+    const pen = n > 0 ? (n * (n + 1) / 2) * 100 : 0;
+    const base = n * rate;
+    const total = base + pen;
+
+    document.getElementById('sim_formula_display').textContent = `(${n} × ${n + 1} / 2) × 100 = ₹ ${pen.toLocaleString('en-IN')}`;
+    document.getElementById('sim_total_display').textContent = `₹ ${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+
+    let ladderHtml = '';
+    let cumPen = 0;
+
+    for (let i = 1; i <= n; i++) {
+        const mPen = i * 100;
+        cumPen += mPen;
+        const running = (i * rate) + cumPen;
+        ladderHtml += `
+            <tr>
+                <td><strong>Month ${i}</strong></td>
+                <td>₹ ${rate.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                <td><span class="badge badge-warning">+ ₹ ${mPen}</span></td>
+                <td><strong class="text-amount-danger">₹ ${cumPen.toLocaleString('en-IN')}</strong></td>
+                <td><strong class="text-main">₹ ${running.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></td>
+            </tr>
+        `;
+    }
+
+    if (n === 0) {
+        ladderHtml = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 1.5rem;" class="text-muted">
+                    0 months overdue. No penalty incurred.
+                </td>
+            </tr>
+        `;
+    }
+
+    document.getElementById('sim_ladder_body').innerHTML = ladderHtml;
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeBreakdownModal();
+        closePenaltySimulatorModal();
+    }
+});
+</script>
+{% endblock %}

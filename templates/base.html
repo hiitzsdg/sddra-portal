@@ -142,6 +142,7 @@
                     {% if is_admin %}
                     <li><a href="{{ url_for('admin_members') }}" class="nav-link {% if request.endpoint == 'admin_members' %}active{% endif %}">👥 Resident Directory</a></li>
                     <li><a href="{{ url_for('admin_receipts') }}" class="nav-link {% if request.endpoint == 'admin_receipts' %}active{% endif %}">💳 Receipts Ledger</a></li>
+                    <li><a href="{{ url_for('admin_penalties') }}" class="nav-link {% if request.endpoint == 'admin_penalties' %}active{% endif %}">⚖️ Penalties</a></li>
                     {% endif %}
                     
                     <li><a href="{{ url_for('profile') }}" class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}">⚙️ Profile</a></li>
@@ -188,6 +189,7 @@
                 {% if is_admin %}
                 <li><a href="{{ url_for('admin_members') }}" class="nav-link {% if request.endpoint == 'admin_members' %}active{% endif %}">👥 Resident Directory</a></li>
                 <li><a href="{{ url_for('admin_receipts') }}" class="nav-link {% if request.endpoint == 'admin_receipts' %}active{% endif %}">💳 Receipts Ledger</a></li>
+                <li><a href="{{ url_for('admin_penalties') }}" class="nav-link {% if request.endpoint == 'admin_penalties' %}active{% endif %}">⚖️ Penalties & Defaulters</a></li>
                 {% endif %}
                 
                 <li><a href="{{ url_for('profile') }}" class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}">⚙️ Profile & Settings</a></li>

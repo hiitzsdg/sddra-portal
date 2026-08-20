@@ -291,7 +291,8 @@ def profile():
                 flash('Password updated successfully!', 'success')
                 return redirect(url_for('profile'))
 
-    return render_template('profile.html', member=member or user, contact=contact)
+    penalty_info = calculate_flat_penalty(flat_no, member=member) if flat_no else None
+    return render_template('profile.html', member=member or user, contact=contact, penalty_info=penalty_info)
 
 # --- Dashboard ---
 @app.route('/dashboard')
@@ -312,6 +313,18 @@ def dashboard():
         total_members_row = query_db("SELECT COUNT(*) as count FROM tbl_membership", one=True)
         total_members = total_members_row['count'] if total_members_row else 0
         
+        # Calculate Defaulters & Penalty Overview KPIs
+        members_all = query_db("SELECT flat_no, monthly_charge, member_name FROM tbl_membership")
+        defaulters_total_count = 0
+        total_penalty_accumulated = 0.0
+        total_maintenance_overdue = 0.0
+        for m_row in members_all:
+            p_calc = calculate_flat_penalty(m_row['flat_no'], member=m_row)
+            if p_calc['overdue_months'] > 0:
+                defaulters_total_count += 1
+                total_maintenance_overdue += p_calc['base_due']
+                total_penalty_accumulated += p_calc['penalty_amount']
+
         search_q = request.args.get('q', '').strip()
         rcpt_query = "SELECT * FROM tbl_receipts"
         rcpt_params = []
@@ -331,6 +344,9 @@ def dashboard():
             total_expenses=total_expenses,
             total_vouchers_count=total_vouchers_count,
             net_balance=total_collected - total_expenses,
+            defaulters_total_count=defaulters_total_count,
+            total_penalty_accumulated=total_penalty_accumulated,
+            total_maintenance_overdue=total_maintenance_overdue,
             recent_receipts=recent_receipts,
             recent_expenses=recent_expenses,
             search_q=search_q,
@@ -351,10 +367,7 @@ def dashboard():
         total_paid = float(total_paid_row['total']) if total_paid_row else 0.0
         
         member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
-        monthly_rate = float(member.get('monthly_charge', 2000)) if member else 2000.0
-        
-        expected_total = monthly_rate * 5
-        outstanding = max(0.0, expected_total - total_paid)
+        my_penalty = calculate_flat_penalty(flat_no, member=member)
         
         total_expenses_row = query_db("SELECT COALESCE(SUM(amount), 0) as total FROM tbl_expenses", one=True)
         total_expenses = float(total_expenses_row['total']) if total_expenses_row else 0.0
@@ -366,7 +379,8 @@ def dashboard():
             member=member,
             my_receipts=my_receipts,
             total_paid=total_paid,
-            outstanding=outstanding,
+            outstanding=my_penalty['base_due'],
+            my_penalty=my_penalty,
             total_expenses=total_expenses,
             recent_expenses=recent_expenses,
             current_year=2026
@@ -637,6 +651,188 @@ def api_member_receipts(flat_no=None):
         "email": (contact.get('email_1') or contact.get('email_2')) if contact else None,
         "phone": (contact.get('mobile_num_1') or contact.get('mobile_num_2')) if contact else None,
         "receipts": receipts
+    })
+
+# ================= Overdue Maintenance & Cumulative Penalty Engine =================
+def calculate_flat_penalty(flat_no, member=None, target_date=None):
+    """
+    Calculate overdue months N and cumulative penalty using official formula:
+    Penalty = (N * (N + 1) / 2) * 100
+    where N = number of months maintenance is due from coverage end date.
+    """
+    if not target_date:
+        target_date = datetime.now().date()
+    elif isinstance(target_date, str):
+        try:
+            target_date = datetime.strptime(target_date[:10], '%Y-%m-%d').date()
+        except Exception:
+            target_date = datetime.now().date()
+
+    if not member:
+        member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
+
+    monthly_charge = float(member.get('monthly_charge', 0) if member else 0)
+    member_name = member.get('member_name', 'Resident') if member else 'Resident'
+    flat_size = member.get('RvsdFlatSize') if member else None
+
+    # Retrieve latest coverage end date from receipts
+    latest_rcpt = query_db(
+        """SELECT MAX(coverage_end) as latest_coverage, MAX(payment_date) as last_payment 
+           FROM tbl_receipts WHERE flat_no = %s""",
+        (flat_no,),
+        one=True
+    )
+
+    latest_cov = latest_rcpt.get('latest_coverage') if latest_rcpt else None
+
+    if not latest_cov:
+        # Default association billing epoch start: April 2026 (covered through March 2026)
+        cov_year = 2026
+        cov_month = 3
+        coverage_display = "No Receipts (Due from Apr'2026)"
+        last_covered_text = "None"
+    else:
+        if isinstance(latest_cov, str):
+            try:
+                latest_cov = datetime.strptime(latest_cov[:10], '%Y-%m-%d').date()
+            except Exception:
+                latest_cov = datetime(2026, 3, 31).date()
+        cov_year = latest_cov.year
+        cov_month = latest_cov.month
+        coverage_display = latest_cov.strftime("%b'%Y")
+        last_covered_text = latest_cov.strftime("%B %Y")
+
+    target_year = target_date.year
+    target_month = target_date.month
+
+    # Calculate number of overdue months N
+    overdue_months = (target_year - cov_year) * 12 + (target_month - cov_month)
+    if overdue_months < 0:
+        overdue_months = 0
+
+    # Formula: N * (N + 1) / 2 * 100
+    if overdue_months > 0:
+        penalty_amount = (overdue_months * (overdue_months + 1) // 2) * 100
+    else:
+        penalty_amount = 0
+
+    base_due = overdue_months * monthly_charge
+    total_due = base_due + penalty_amount
+
+    # Month-by-month penalty ladder calculation for transparency
+    penalty_ladder = []
+    cum_pen = 0
+    for m in range(1, overdue_months + 1):
+        m_pen = m * 100
+        cum_pen += m_pen
+        penalty_ladder.append({
+            'month_index': m,
+            'month_penalty': m_pen,
+            'cumulative_penalty': cum_pen
+        })
+
+    return {
+        'flat_no': flat_no,
+        'member_name': member_name,
+        'flat_size': flat_size,
+        'monthly_charge': monthly_charge,
+        'coverage_end': latest_cov.strftime('%Y-%m-%d') if latest_cov else None,
+        'coverage_display': coverage_display,
+        'last_covered_text': last_covered_text,
+        'as_of_date': target_date.strftime('%Y-%m-%d'),
+        'as_of_display': target_date.strftime("%b'%Y"),
+        'as_of_full': target_date.strftime("%B %d, %Y"),
+        'overdue_months': overdue_months,
+        'base_due': base_due,
+        'penalty_amount': penalty_amount,
+        'total_due': total_due,
+        'is_overdue': overdue_months > 0,
+        'penalty_ladder': penalty_ladder,
+        'status': 'Paid Up / Advance' if overdue_months == 0 else (
+            '1 Month Due (₹100)' if overdue_months == 1 else f'{overdue_months} Months Overdue (Penalty ₹{penalty_amount:,})'
+        )
+    }
+
+@app.route('/admin/penalties')
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def admin_penalties():
+    members = query_db("SELECT * FROM tbl_membership ORDER BY flat_no")
+    target_date_str = request.args.get('as_of', '').strip()
+    search_q = request.args.get('q', '').strip()
+    status_filter = request.args.get('status', 'all').strip()
+
+    target_date = None
+    if target_date_str:
+        try:
+            target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+        except Exception:
+            target_date = None
+
+    if not target_date:
+        target_date = datetime.now().date()
+
+    roster = []
+    total_base_due = 0.0
+    total_penalty_due = 0.0
+    total_gross_due = 0.0
+    defaulters_count = 0
+    paid_up_count = 0
+
+    for m in members:
+        calc = calculate_flat_penalty(m['flat_no'], member=m, target_date=target_date)
+        
+        # Apply search filter
+        if search_q:
+            sq = search_q.lower().replace('/', '').replace('-', '').replace(' ', '')
+            f_norm = calc['flat_no'].lower().replace('/', '').replace('-', '').replace(' ', '')
+            n_norm = calc['member_name'].lower().replace(' ', '')
+            if sq not in f_norm and sq not in n_norm:
+                continue
+
+        # Apply status filter
+        if status_filter == 'defaulters' and calc['overdue_months'] == 0:
+            continue
+        elif status_filter == 'paid_up' and calc['overdue_months'] > 0:
+            continue
+
+        roster.append(calc)
+
+        if calc['overdue_months'] > 0:
+            defaulters_count += 1
+            total_base_due += calc['base_due']
+            total_penalty_due += calc['penalty_amount']
+            total_gross_due += calc['total_due']
+        else:
+            paid_up_count += 1
+
+    return render_template(
+        'admin_penalties.html',
+        roster=roster,
+        total_flats=len(members),
+        defaulters_count=defaulters_count,
+        paid_up_count=paid_up_count,
+        total_base_due=total_base_due,
+        total_penalty_due=total_penalty_due,
+        total_gross_due=total_gross_due,
+        target_date=target_date.strftime('%Y-%m-%d'),
+        target_display=target_date.strftime("%B %Y"),
+        search_q=search_q,
+        status_filter=status_filter
+    )
+
+@app.route('/api/penalties/calculate')
+@login_required
+def api_calculate_penalty():
+    flat_no = request.args.get('flat', '').strip()
+    as_of = request.args.get('as_of', '').strip()
+    
+    if not flat_no:
+        return jsonify({'success': False, 'error': 'Missing flat number parameter'}), 400
+        
+    calc = calculate_flat_penalty(flat_no, target_date=as_of if as_of else None)
+    return jsonify({
+        'success': True,
+        'data': calc
     })
 
 # --- Chart Data API ---

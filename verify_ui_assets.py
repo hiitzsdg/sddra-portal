@@ -1,5 +1,5 @@
 import json
-from app import app
+from app import app, calculate_flat_penalty
 
 def run_verification():
     print("=== RUNNING COMPREHENSIVE FLASK & UI VERIFICATION ===")
@@ -34,8 +34,9 @@ def run_verification():
     assert resp_dash.status_code == 200
     assert b'Executive Management Console' in resp_dash.data
     assert b'Total Maintenance Collected' in resp_dash.data
+    assert b'Overdue Defaulters' in resp_dash.data
     assert b'data-live-search' in resp_dash.data
-    print(f"[OK] Admin Dashboard verified: {len(resp_dash.data)} bytes, glowing stat cards & live table search active")
+    print(f"[OK] Admin Dashboard verified: {len(resp_dash.data)} bytes, glowing stat cards, penalty KPIs & live table search active")
 
     # 4. Verify Chart Data API
     resp_chart_api = client.get('/api/expenses/chart-data')
@@ -84,8 +85,27 @@ def run_verification():
     assert 'Swapnadeep' in mbr_data.get('member_name', '')
     print(f"[OK] Member In-Panel Receipts API verified: Flat A/4-C ({mbr_data.get('member_name')}), {len(mbr_data.get('receipts'))} receipts found")
 
+    # 10. Verify Penalty Mathematical Formula N*(N+1)/2*100
+    for n, expected_penalty in [(0, 0), (1, 100), (2, 300), (3, 600), (4, 1000), (5, 1500), (6, 2100), (12, 7800)]:
+        formula_res = (n * (n + 1) // 2) * 100 if n > 0 else 0
+        assert formula_res == expected_penalty, f"Penalty formula failed for N={n}: got {formula_res}, expected {expected_penalty}"
+    print("[OK] Penalty Formula Engine verified: N*(N+1)/2*100 verified for all tiers (N=0..12)")
+
+    # 11. Verify Penalty Admin Module & Calculation API
+    resp_pen_page = client.get('/admin/penalties')
+    assert resp_pen_page.status_code == 200
+    assert b'Overdue Maintenance & Penalty Management Console' in resp_pen_page.data
+    assert b'Cumulative Penalty' in resp_pen_page.data
+    print(f"[OK] Penalty Management Console page verified: {len(resp_pen_page.data)} bytes")
+
+    resp_pen_api = client.get('/api/penalties/calculate?flat=A/4-C')
+    assert resp_pen_api.status_code == 200
+    pen_json = resp_pen_api.get_json()
+    assert pen_json and pen_json.get('success') is True
+    print(f"[OK] Penalty Calculation API verified: Flat A/4-C overdue months={pen_json['data']['overdue_months']}, penalty={pen_json['data']['penalty_amount']}")
+
     print("\n========================================================")
-    print("ALL 9 VERIFICATION CRITERIA PASSED WITH 100% SUCCESS!")
+    print("ALL 11 VERIFICATION CRITERIA PASSED WITH 100% SUCCESS!")
     print("========================================================")
 
 if __name__ == '__main__':

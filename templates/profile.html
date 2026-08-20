@@ -65,6 +65,20 @@
                     {% endif %}
                 </strong>
             </div>
+            {% if penalty_info %}
+            <div style="border-left: 1px solid var(--surface-border); padding-left: 0.75rem;">
+                <span class="text-muted" style="font-size: 0.75rem; display: block;">Covered Through</span>
+                {% if penalty_info.overdue_months == 0 %}
+                <strong class="text-amount-success" style="font-size: 0.95rem;">
+                    ✓ {{ penalty_info.coverage_display }} (Cleared)
+                </strong>
+                {% else %}
+                <strong class="text-amount-danger" style="font-size: 0.95rem;">
+                    {{ penalty_info.coverage_display }} ({{ penalty_info.overdue_months }} mo. due &bull; Penalty ₹ {{ "{:,.0f}".format(penalty_info.penalty_amount) }})
+                </strong>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
 
         <form method="POST" action="{{ url_for('profile') }}">
