@@ -192,6 +192,7 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
             labelId: '#adminExpFilterLabel',
             statId: '#adminExpFilterStat',
             counterId: '#adminExpCountBadge',
+            totalBadgeId: '#adminExpTotalBadge',
             searchId: '#adminExpSearch',
             cardId: '#societyExpenditureOutlaysCard',
             defaultSuffix: 'Vouchers'
@@ -202,6 +203,7 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
             labelId: '#expensesFilterLabel',
             statId: '#expensesFilterStat',
             counterId: '#expensesCountBadge',
+            totalBadgeId: '#expensesTotalBadge',
             searchId: '#q',
             cardId: null,
             defaultSuffix: 'Records'
@@ -212,11 +214,15 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
             labelId: null,
             statId: null,
             counterId: null,
+            totalBadgeId: null,
             searchId: '#memberExpSearch',
             cardId: null,
             defaultSuffix: 'Records'
         }
     ];
+
+    let lastActiveTotalAmount = 0;
+    let lastActiveMatchCount = 0;
 
     tableConfigs.forEach(cfg => {
         const table = document.querySelector(cfg.tableId);
@@ -292,6 +298,24 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
             }
         });
 
+        lastActiveTotalAmount = totalAmount;
+        lastActiveMatchCount = matchCount;
+
+        // Update dynamic aggregated total alongside table
+        if (cfg.totalBadgeId) {
+            const totalBadge = document.querySelector(cfg.totalBadgeId);
+            if (totalBadge) {
+                if (!totalBadge.getAttribute('data-original')) {
+                    totalBadge.setAttribute('data-original', totalBadge.textContent.trim());
+                }
+                if (selectedMonthFilter || rawSearch || selectedCategoryFilter) {
+                    totalBadge.textContent = `Total: ₹ ${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                } else {
+                    totalBadge.textContent = totalBadge.getAttribute('data-original');
+                }
+            }
+        }
+
         // Update active filter banner
         if (cfg.bannerId) {
             const banner = document.querySelector(cfg.bannerId);
@@ -331,6 +355,30 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
             }
         }
     });
+
+    // Update Dashboard Top KPI Stat Card for Society Outlays
+    const dashOutlayVal = document.getElementById('dashboardSocietyOutlaysValue');
+    const dashOutlaySub = document.getElementById('dashboardSocietyOutlaysSub');
+    if (dashOutlayVal) {
+        if (!dashOutlayVal.getAttribute('data-original')) {
+            dashOutlayVal.setAttribute('data-original', dashOutlayVal.textContent.trim());
+        }
+        if (dashOutlaySub && !dashOutlaySub.getAttribute('data-original')) {
+            dashOutlaySub.setAttribute('data-original', dashOutlaySub.textContent.trim());
+        }
+
+        if (selectedMonthFilter || selectedCategoryFilter) {
+            dashOutlayVal.textContent = `₹ ${lastActiveTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            if (dashOutlaySub) {
+                dashOutlaySub.textContent = `${lastActiveMatchCount} vouchers (${selectedMonthFilter || 'Filtered'})`;
+            }
+        } else {
+            dashOutlayVal.textContent = dashOutlayVal.getAttribute('data-original');
+            if (dashOutlaySub) {
+                dashOutlaySub.textContent = dashOutlaySub.getAttribute('data-original');
+            }
+        }
+    }
 }
 
 // Expose globally for HTML onclick handlers

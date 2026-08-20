@@ -107,9 +107,9 @@
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">📋 Incurred Expense Vouchers</h3>
-        <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
             <span id="expensesCountBadge" class="badge badge-info">{{ expenses|length }} Records</span>
-            <span class="text-amount-danger" style="font-size: 1rem;">
+            <span id="expensesTotalBadge" class="text-amount-danger" style="font-size: 1rem; font-weight: 700;" data-original="Total: ₹ {{ "{:,.2f}".format(total_incurred) }}">
                 Total: ₹ {{ "{:,.2f}".format(total_incurred) }}
             </span>
         </div>

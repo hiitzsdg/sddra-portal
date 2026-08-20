@@ -50,8 +50,8 @@
         <div class="stat-icon">🧾</div>
         <div class="stat-info">
             <div class="stat-label">Society Outlays</div>
-            <div class="stat-value">₹ {{ "{:,.2f}".format(total_expenses) }}</div>
-            <div class="stat-sub">{{ total_vouchers_count }} vouchers recorded</div>
+            <div class="stat-value" id="dashboardSocietyOutlaysValue" data-original="₹ {{ "{:,.2f}".format(total_expenses) }}">₹ {{ "{:,.2f}".format(total_expenses) }}</div>
+            <div class="stat-sub" id="dashboardSocietyOutlaysSub" data-original="{{ total_vouchers_count }} vouchers recorded">{{ total_vouchers_count }} vouchers recorded</div>
         </div>
     </div>
 
@@ -166,8 +166,11 @@
     <div class="card" id="societyExpenditureOutlaysCard">
         <div class="card-header">
             <h3 class="card-title">🧾 Society Expenditure Outlays</h3>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
                 <span id="adminExpCountBadge" class="badge badge-info">{{ recent_expenses|length }} Vouchers</span>
+                <span id="adminExpTotalBadge" class="text-amount-danger" style="font-size: 0.95rem; font-weight: 700;" data-original="Total: ₹ {{ "{:,.2f}".format(total_expenses) }}">
+                    Total: ₹ {{ "{:,.2f}".format(total_expenses) }}
+                </span>
                 <a href="{{ url_for('expenses_list') }}" class="btn btn-sm btn-outline-primary">Ledger &rarr;</a>
             </div>
         </div>
