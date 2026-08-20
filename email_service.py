@@ -5,11 +5,12 @@ from email.mime.application import MIMEApplication
 from datetime import datetime
 from config import Config
 from database import query_db, execute_db
+from pdf_service import generate_receipt_pdf_bytes
 
 def generate_official_receipt_document_html(receipt, member_info, contact_info):
     """
     Generate the official, standalone, printable receipt document voucher 
-    to be attached as an official file (HTML/PDF compatible) with the dispatched email.
+    to be displayed in browser view.
     """
     flat_no = receipt.get('flat_no', 'N/A')
     member_name = receipt.get('member_name', 'Resident')
@@ -247,7 +248,7 @@ def generate_official_receipt_document_html(receipt, member_info, contact_info):
 <body>
     <div class="no-print">
         <span style="font-size: 13.5px; color: #475569;">
-            📎 <strong>Official SDDRA Receipt Attachment:</strong> Voucher #{receipt['receipt_no']} (Flat {flat_no})
+            📎 <strong>Official SDDRA Receipt Voucher:</strong> Voucher #{receipt['receipt_no']} (Flat {flat_no})
         </span>
         <button type="button" class="btn btn-print" onclick="window.print()">
             🖨️ Print / Save as PDF
@@ -367,9 +368,12 @@ def generate_receipt_html(receipt, member_info, contact_info, attachment_filenam
     att_badge = ""
     if attachment_filename:
         att_badge = f"""
-        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 10px 14px; margin: 16px 0; font-size: 13px; color: #166534; display: flex; align-items: center; gap: 8px;">
-            <span>📎</span>
-            <span><strong>Attached Official Document:</strong> <code>{attachment_filename}</code> (Printable Voucher)</span>
+        <div style="background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 8px; padding: 12px 16px; margin: 18px 0; font-size: 13.5px; color: #1e3a8a; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">📄</span>
+            <div>
+                <strong>Official PDF Receipt Attached:</strong> <code>{attachment_filename}</code>
+                <div style="font-size: 11.5px; color: #475569; margin-top: 2px;">Vector PDF Money Receipt voucher ready for download, printing, or tax records.</div>
+            </div>
         </div>
         """
 
@@ -401,7 +405,7 @@ def generate_receipt_html(receipt, member_info, contact_info, attachment_filenam
             </div>
             <div class="body">
                 <p class="greeting">Dear <strong>{member_name}</strong> (Flat <strong>{flat_no}</strong>),</p>
-                <p>Thank you for your payment. Your official maintenance receipt has been generated and attached to this email:</p>
+                <p>Thank you for your payment. Your official maintenance receipt has been generated and attached to this email in PDF format:</p>
                 
                 {att_badge}
 
@@ -452,7 +456,7 @@ def generate_receipt_html(receipt, member_info, contact_info, attachment_filenam
                 </div>
 
                 <p style="font-size: 13px; color: #475569; margin-top: 20px;">
-                    Please open or download the attached official receipt file (<code>{attachment_filename or f"Official_Receipt_{receipt['receipt_no']}.html"}</code>) for your personal records or tax documentation.
+                    Please find your official PDF money receipt (<code>{attachment_filename or f"SDDRA_Receipt_{receipt['receipt_no']}.pdf"}</code>) attached to this email. You can download and keep it for your personal records or tax documentation.
                 </p>
             </div>
             <div class="footer">
@@ -466,7 +470,7 @@ def generate_receipt_html(receipt, member_info, contact_info, attachment_filenam
     """
 
 def send_receipt_email(receipt_no, custom_recipient=None):
-    """Send official receipt email from actual tbl_receipts records with attached receipt file."""
+    """Send official receipt email from actual tbl_receipts records with attached PDF voucher."""
     receipt = query_db("SELECT * FROM tbl_receipts WHERE receipt_no = %s", (receipt_no,), one=True)
     if not receipt:
         return {"success": False, "message": f"Receipt #{receipt_no} not found in sddra_billing."}
@@ -482,12 +486,14 @@ def send_receipt_email(receipt_no, custom_recipient=None):
     if not recipient:
         recipient = f"{flat_no.replace('/', '_').lower()}@sddra.org"
     
-    clean_flat = flat_no.replace('/', '_').replace(' ', '')
-    attachment_filename = f"Official_Receipt_{receipt['receipt_no']}_{clean_flat}.html"
+    clean_flat = str(flat_no).replace('/', '_').replace(' ', '')
+    attachment_filename = f"Official_Receipt_{receipt['receipt_no']}_{clean_flat}.pdf"
     
     subject = f"Official Maintenance Receipt #{receipt['receipt_no']} (Flat {flat_no}) - {Config.ASSOCIATION_NAME}"
     html_body = generate_receipt_html(receipt, member_info, contact_info, attachment_filename=attachment_filename)
-    attachment_doc = generate_official_receipt_document_html(receipt, member_info, contact_info)
+    
+    # Generate official vector PDF binary data
+    pdf_bytes = generate_receipt_pdf_bytes(receipt, member_info, contact_info)
     
     smtp_enabled = bool(Config.SMTP_USERNAME and Config.SMTP_PASSWORD)
     
@@ -501,13 +507,13 @@ def send_receipt_email(receipt_no, custom_recipient=None):
             # Alternative body (text + HTML)
             body_alt = MIMEMultipart('alternative')
             p_date = str(receipt.get('payment_date') or receipt.get('receipt_date') or 'N/A')
-            plain_text = f"Maintenance Receipt #{receipt['receipt_no']}\nFlat: {flat_no}\nAmount: INR {receipt['amount']}\nDate: {p_date}\n\nPlease find your official receipt document attached: {attachment_filename}"
+            plain_text = f"Maintenance Receipt #{receipt['receipt_no']}\nFlat: {flat_no}\nAmount: INR {receipt['amount']}\nDate: {p_date}\n\nPlease find your official PDF receipt attached: {attachment_filename}"
             body_alt.attach(MIMEText(plain_text, 'plain'))
             body_alt.attach(MIMEText(html_body, 'html'))
             msg.attach(body_alt)
             
-            # Official File Attachment
-            att_part = MIMEApplication(attachment_doc.encode('utf-8'), _subtype="html")
+            # Official PDF File Attachment
+            att_part = MIMEApplication(pdf_bytes, _subtype="pdf")
             att_part.add_header('Content-Disposition', 'attachment', filename=attachment_filename)
             msg.attach(att_part)
             
@@ -521,14 +527,14 @@ def send_receipt_email(receipt_no, custom_recipient=None):
             try:
                 execute_db(
                     "INSERT INTO tbl_email_logs (receipt_no, flat_no, recipient_email, status, status_message) VALUES (%s, %s, %s, %s, %s)",
-                    (receipt['receipt_no'], flat_no, recipient, 'SENT', f'Delivered via live SMTP with attached {attachment_filename}')
+                    (receipt['receipt_no'], flat_no, recipient, 'SENT', f'Delivered via live SMTP with attached PDF {attachment_filename}')
                 )
             except Exception:
                 pass
 
             return {
                 "success": True, 
-                "message": f"Receipt #{receipt['receipt_no']} successfully emailed to {recipient} with attached official voucher ({attachment_filename})!",
+                "message": f"Receipt #{receipt['receipt_no']} successfully emailed to {recipient} with attached official PDF ({attachment_filename})!",
                 "status": "SENT",
                 "attachment": attachment_filename
             }
@@ -543,7 +549,7 @@ def send_receipt_email(receipt_no, custom_recipient=None):
 
             return {
                 "success": True, 
-                "message": f"Receipt #{receipt['receipt_no']} prepared with attached voucher ({attachment_filename}) for {recipient} (SMTP Note: {str(e)}).",
+                "message": f"Receipt #{receipt['receipt_no']} prepared with attached PDF voucher ({attachment_filename}) for {recipient} (SMTP Note: {str(e)}).",
                 "status": "SIMULATED",
                 "preview_html": html_body,
                 "attachment": attachment_filename
@@ -552,16 +558,17 @@ def send_receipt_email(receipt_no, custom_recipient=None):
         try:
             execute_db(
                 "INSERT INTO tbl_email_logs (receipt_no, flat_no, recipient_email, status, status_message) VALUES (%s, %s, %s, %s, %s)",
-                (receipt['receipt_no'], flat_no, recipient, 'SIMULATED', f'Simulated dispatch with attached {attachment_filename}')
+                (receipt['receipt_no'], flat_no, recipient, 'SIMULATED', f'Simulated dispatch with attached PDF {attachment_filename}')
             )
         except Exception:
             pass
 
         return {
             "success": True, 
-            "message": f"Receipt #{receipt['receipt_no']} successfully emailed to {recipient} with attached official voucher ({attachment_filename}) (Simulated Dispatch).",
+            "message": f"Receipt #{receipt['receipt_no']} successfully emailed to {recipient} with attached official PDF voucher ({attachment_filename}) (Simulated Dispatch).",
             "status": "SIMULATED",
             "preview_html": html_body,
             "attachment": attachment_filename
         }
+
 

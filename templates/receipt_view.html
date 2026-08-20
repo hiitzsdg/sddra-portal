@@ -9,11 +9,14 @@
     </a>
     
     <div style="display: flex; gap: 0.75rem;">
+        <a href="{{ url_for('download_receipt_pdf', receipt_no=receipt.receipt_no) }}" class="btn btn-outline-primary" target="_blank" download>
+            📄 Download Official PDF
+        </a>
         <button type="button" class="btn btn-primary" onclick="emailReceiptAjax({{ receipt.receipt_no }}, this)">
             ✉️ Email Receipt
         </button>
         <button type="button" class="btn btn-success" onclick="window.print()">
-            🖨️ Print / Save as PDF
+            🖨️ Print
         </button>
     </div>
 </div>

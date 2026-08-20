@@ -5,10 +5,12 @@ import traceback
 from functools import wraps
 from datetime import datetime, date
 from decimal import Decimal
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort, Response
 from config import Config
 from database import init_db, query_db, execute_db, verify_password, hash_password
 from email_service import send_receipt_email
+from pdf_service import generate_receipt_pdf_bytes
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 template_dir = os.path.join(BASE_DIR, 'templates')
@@ -402,6 +404,40 @@ def view_receipt(receipt_no):
     contact_info = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (receipt['flat_no'],), one=True)
     
     return render_template('receipt_view.html', receipt=receipt, member=member_info or {}, contact=contact_info or {})
+
+@app.route('/receipts/<int:receipt_no>/pdf')
+@login_required
+def download_receipt_pdf(receipt_no):
+    user = session.get('user', {})
+    is_admin = bool(user.get('is_admin') or user.get('role') in ADMIN_ROLES)
+    
+    receipt = query_db("SELECT * FROM tbl_receipts WHERE receipt_no = %s", (receipt_no,), one=True)
+    if not receipt:
+        abort(404, description="Receipt not found")
+        
+    if not is_admin and str(receipt.get('flat_no')).strip().lower() != str(user.get('flat_no')).strip().lower():
+        flash('Access Denied: You are not authorized to view another resident\'s receipt.', 'danger')
+        return redirect(url_for('dashboard'))
+        
+    member_info = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (receipt['flat_no'],), one=True)
+    contact_info = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (receipt['flat_no'],), one=True)
+    
+    pdf_bytes = generate_receipt_pdf_bytes(receipt, member_info or {}, contact_info or {})
+    clean_flat = str(receipt.get('flat_no', '')).replace('/', '_').replace(' ', '')
+    filename = f"Official_Receipt_{receipt_no}_{clean_flat}.pdf"
+    
+    as_attachment = request.args.get('download', '0') == '1'
+    disposition = 'attachment' if as_attachment else 'inline'
+    
+    return Response(
+        pdf_bytes,
+        mimetype='application/pdf',
+        headers={
+            'Content-Disposition': f'{disposition}; filename="{filename}"',
+            'Content-Length': str(len(pdf_bytes)),
+            'Cache-Control': 'private, max-age=0, must-revalidate'
+        }
+    )
 
 @app.route('/receipts/<int:receipt_no>/email', methods=['POST'])
 @login_required

@@ -29,7 +29,7 @@ def run_verification():
     print(f"[OK] Login Page verified: {len(resp_login.data)} bytes")
 
     # 3. Verify Admin Dashboard & Live Data
-    client.get('/login?demo=treasurer', follow_redirects=True)
+    client.post('/login', data={'username': 'treasurer', 'password': 'sdera@123'}, follow_redirects=True)
     resp_dash = client.get('/dashboard')
     assert resp_dash.status_code == 200
     assert b'Executive Management Console' in resp_dash.data

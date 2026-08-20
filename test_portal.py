@@ -78,7 +78,7 @@ class TestSDDRABillingPortal(unittest.TestCase):
         self.assertTrue(len(json_data['categories']) > 0)
 
     def test_07_email_receipt_dispatch(self):
-        """Email receipt dispatch endpoint returns structured JSON and logs dispatch"""
+        """Email receipt dispatch endpoint returns structured JSON and logs dispatch with PDF attachment"""
         self.client.get('/login?demo=A/4-C', follow_redirects=True)
         
         my_receipt = query_db("SELECT receipt_no FROM tbl_receipts WHERE flat_no = 'A/4-C' LIMIT 1", one=True)
@@ -92,6 +92,38 @@ class TestSDDRABillingPortal(unittest.TestCase):
         data = resp.get_json()
         self.assertTrue(data['success'])
         self.assertIn('emailed', data['message'].lower())
+        self.assertTrue(data.get('attachment', '').endswith('.pdf'), f"Expected PDF attachment, got: {data.get('attachment')}")
+
+    def test_08_pdf_receipt_download(self):
+        """Resident can directly view/download own official PDF receipt with application/pdf Content-Type"""
+        self.client.get('/login?demo=A/4-C', follow_redirects=True)
+        
+        my_receipt = query_db("SELECT receipt_no FROM tbl_receipts WHERE flat_no = 'A/4-C' LIMIT 1", one=True)
+        self.assertIsNotNone(my_receipt)
+        
+        # Test inline viewing
+        resp = self.client.get(f'/receipts/{my_receipt["receipt_no"]}/pdf')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.content_type, 'application/pdf')
+        self.assertTrue(resp.data.startswith(b'%PDF-'), "Response data is not a valid PDF file")
+        self.assertIn('filename=', resp.headers.get('Content-Disposition', ''))
+        
+        # Test direct attachment download
+        resp_dl = self.client.get(f'/receipts/{my_receipt["receipt_no"]}/pdf?download=1')
+        self.assertEqual(resp_dl.status_code, 200)
+        self.assertEqual(resp_dl.content_type, 'application/pdf')
+        self.assertIn('attachment', resp_dl.headers.get('Content-Disposition', ''))
+
+    def test_09_resident_cannot_download_others_pdf(self):
+        """Resident cannot download another flat's PDF receipt"""
+        other_receipt = query_db("SELECT receipt_no FROM tbl_receipts WHERE flat_no = 'A/1-A' LIMIT 1", one=True)
+        self.assertIsNotNone(other_receipt)
+        
+        self.client.get('/login?demo=A/4-C', follow_redirects=True)
+        
+        resp = self.client.get(f'/receipts/{other_receipt["receipt_no"]}/pdf', follow_redirects=True)
+        self.assertIn(b'Access Denied', resp.data)
 
 if __name__ == '__main__':
     unittest.main()
+
