@@ -41,7 +41,7 @@ def get_mysql_connection():
         'charset': 'utf8mb4',
         'cursorclass': pymysql.cursors.DictCursor,
         'autocommit': True,
-        'connect_timeout': 5
+        'connect_timeout': 1.5
     }
     if Config.DB_SSL:
         conn_params['ssl'] = {'check_hostname': False}
@@ -62,8 +62,13 @@ def determine_engine():
         return _ENGINE_MODE
 
     # Auto mode:
-    # If on Vercel or cloud and DB_HOST is still default localhost, use SQLite immediately
-    is_cloud = os.environ.get('VERCEL') == '1' or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
+    # If in cloud environment (Vercel / Lambda) and DB_HOST is still default localhost, use SQLite immediately (0ms delay)
+    is_cloud = bool(
+        os.environ.get('VERCEL') or 
+        os.environ.get('VERCEL_ENV') or 
+        os.environ.get('AWS_LAMBDA_FUNCTION_NAME') or 
+        os.environ.get('NOW_REGION')
+    )
     if is_cloud and Config.DB_HOST in ('localhost', '127.0.0.1'):
         _ENGINE_MODE = 'sqlite'
         return _ENGINE_MODE

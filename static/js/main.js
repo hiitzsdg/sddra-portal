@@ -1,10 +1,73 @@
-// Main UI Interactivity & AJAX Handlers for SDERA Portal
+// ==========================================================================
+// South Dumdum Enclave Residents' Association (SDDRA)
+// Master Interactivity, Real-time Live Search & Dynamic Component Handlers
+// ==========================================================================
 
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Initialize Mobile Navigation Menu Toggle
+    const mobileBtn = document.getElementById('mobileMenuBtn');
+    const mobileDrawer = document.getElementById('mobileNavDrawer');
+    const mobileIcon = document.getElementById('mobileMenuIcon');
+
+    if (mobileBtn && mobileDrawer) {
+        mobileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = mobileDrawer.classList.toggle('active');
+            if (mobileIcon) {
+                mobileIcon.textContent = isOpen ? '✕' : '☰';
+            }
+        });
+
+        // Close mobile drawer when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!mobileDrawer.contains(e.target) && !mobileBtn.contains(e.target)) {
+                if (mobileDrawer.classList.contains('active')) {
+                    mobileDrawer.classList.remove('active');
+                    if (mobileIcon) mobileIcon.textContent = '☰';
+                }
+            }
+        });
+    }
+
+    // 2. Auto-dismiss flash alerts after 6 seconds
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+        setTimeout(() => {
+            alert.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+            alert.style.opacity = '0';
+            alert.style.transform = 'translateY(-10px)';
+            setTimeout(() => alert.remove(), 400);
+        }, 6000);
+    });
+
+    // 3. Escape key listener for Modals & Drawers
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal-backdrop.active').forEach(m => {
+                m.classList.remove('active');
+            });
+            if (mobileDrawer && mobileDrawer.classList.contains('active')) {
+                mobileDrawer.classList.remove('active');
+                if (mobileIcon) mobileIcon.textContent = '☰';
+            }
+            document.body.style.overflow = 'auto';
+        }
+    });
+
+    // 4. Initialize Live Instant Tables Search if present
+    initGenericLiveSearch();
+});
+
+// ================= Modal Dialog Controller =================
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
+        const firstInput = modal.querySelector('input, select, textarea');
+        if (firstInput) {
+            setTimeout(() => firstInput.focus(), 100);
+        }
     }
 }
 
@@ -16,7 +79,6 @@ function closeModal(modalId) {
     }
 }
 
-// Close modal when clicking outside
 window.addEventListener('click', function(e) {
     if (e.target.classList.contains('modal-backdrop')) {
         e.target.classList.remove('active');
@@ -24,19 +86,69 @@ window.addEventListener('click', function(e) {
     }
 });
 
-// Auto-dismiss flash alerts
-document.addEventListener('DOMContentLoaded', () => {
-    const alerts = document.querySelectorAll('.alert');
-    alerts.forEach(alert => {
-        setTimeout(() => {
-            alert.style.transition = 'opacity 0.5s ease';
-            alert.style.opacity = '0';
-            setTimeout(() => alert.remove(), 500);
-        }, 6000);
-    });
-});
+// ================= Client-Side Live Instant Search =================
+function initGenericLiveSearch() {
+    const searchInputs = document.querySelectorAll('[data-live-search]');
+    searchInputs.forEach(input => {
+        const targetTableSelector = input.getAttribute('data-live-search');
+        const counterTarget = input.getAttribute('data-search-counter');
+        const clearBtnId = input.getAttribute('data-clear-btn');
+        const clearBtn = clearBtnId ? document.getElementById(clearBtnId) : null;
+        const table = document.querySelector(targetTableSelector);
 
-// Send Receipt Email via AJAX
+        if (!table) return;
+
+        const rows = table.querySelectorAll('tbody tr');
+        const totalRows = rows.length;
+
+        function performFilter() {
+            const query = input.value.trim().toLowerCase();
+            let matchCount = 0;
+
+            if (clearBtn) {
+                clearBtn.style.display = query.length > 0 ? 'block' : 'none';
+            }
+
+            rows.forEach(row => {
+                // Ignore empty-state rows
+                if (row.children.length === 1 && row.children[0].getAttribute('colspan')) {
+                    return;
+                }
+
+                const text = row.textContent.toLowerCase();
+                if (!query || text.includes(query)) {
+                    row.style.display = '';
+                    matchCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            if (counterTarget) {
+                const counterEl = document.querySelector(counterTarget);
+                if (counterEl) {
+                    if (query) {
+                        counterEl.textContent = `${matchCount} of ${totalRows} Shown`;
+                    } else {
+                        counterEl.textContent = `${totalRows} Total Records`;
+                    }
+                }
+            }
+        }
+
+        input.addEventListener('input', performFilter);
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                input.value = '';
+                performFilter();
+                input.focus();
+            });
+        }
+    });
+}
+
+// ================= AJAX Receipt Dispatcher =================
 async function emailReceiptAjax(receiptId, btnElement) {
     if (!btnElement) return;
     
@@ -68,7 +180,7 @@ async function emailReceiptAjax(receiptId, btnElement) {
         } else {
             btnElement.innerHTML = originalText;
             btnElement.disabled = false;
-            showToast(data.message || 'Failed to dispatch email.', 'danger');
+            showToast(data.message || 'Failed to dispatch receipt email.', 'danger');
         }
     } catch (err) {
         btnElement.innerHTML = originalText;
@@ -77,7 +189,7 @@ async function emailReceiptAjax(receiptId, btnElement) {
     }
 }
 
-// Dynamically inject floating toast notification
+// ================= Toast Notifications =================
 function showToast(message, type = 'info') {
     let container = document.querySelector('.alerts-container');
     if (!container) {
@@ -98,22 +210,23 @@ function showToast(message, type = 'info') {
     container.appendChild(alert);
     
     setTimeout(() => {
-        alert.style.transition = 'opacity 0.5s ease';
+        alert.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
         alert.style.opacity = '0';
-        setTimeout(() => alert.remove(), 500);
+        alert.style.transform = 'translateY(-10px)';
+        setTimeout(() => alert.remove(), 400);
     }, 5000);
 }
 
-// Edit Member Modal population
+// ================= Modal Edit Member Helper =================
 function populateEditMember(id, name, email, phone, role, sqFeet) {
     const form = document.getElementById('editMemberForm');
     if (form) {
         form.action = `/admin/members/${id}/edit`;
-        document.getElementById('edit_name').value = name;
-        document.getElementById('edit_email').value = email;
-        document.getElementById('edit_phone').value = phone;
-        document.getElementById('edit_role').value = role;
-        document.getElementById('edit_sq_feet').value = sqFeet;
+        if (document.getElementById('edit_name')) document.getElementById('edit_name').value = name;
+        if (document.getElementById('edit_email')) document.getElementById('edit_email').value = email;
+        if (document.getElementById('edit_phone')) document.getElementById('edit_phone').value = phone;
+        if (document.getElementById('edit_role')) document.getElementById('edit_role').value = role;
+        if (document.getElementById('edit_sq_feet')) document.getElementById('edit_sq_feet').value = sqFeet;
         openModal('editMemberModal');
     }
 }

@@ -5,8 +5,8 @@
 {% block content %}
 <div class="page-header">
     <div class="page-header-title">
-        <h2>💳 Maintenance Receipts Ledger (190 Receipts)</h2>
-        <p>Master collection registry of all maintenance payments recorded in <code>tbl_receipts</code>.</p>
+        <h2>💳 Maintenance Receipts Ledger</h2>
+        <p>Master collection registry of all maintenance payments recorded across the society.</p>
     </div>
 
     <div class="page-header-actions">
@@ -17,9 +17,18 @@
 </div>
 
 <!-- Filter Bar -->
-<div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+<div class="card" style="margin-bottom: 1.5rem; padding: 1.35rem;">
     <form method="GET" action="{{ url_for('admin_receipts') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-        <div style="width: 220px;">
+        <div style="flex: 1; min-width: 220px;">
+            <label class="form-label" for="liveReceiptSearch">Live Instant Search</label>
+            <div class="live-search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="liveReceiptSearch" class="form-control" placeholder="Filter by flat, name, receipt #, or remarks..." data-live-search="#adminReceiptsTable" data-search-counter="#rcptCountBadge" data-clear-btn="clearRcptSearch">
+                <button type="button" id="clearRcptSearch" class="clear-btn" title="Clear search">&times;</button>
+            </div>
+        </div>
+
+        <div style="width: 200px;">
             <label class="form-label" for="flat">Filter by Flat</label>
             <select id="flat" name="flat" class="form-select">
                 <option value="">All Flats (44)</option>
@@ -31,7 +40,7 @@
             </select>
         </div>
 
-        <div style="width: 180px;">
+        <div style="width: 170px;">
             <label class="form-label" for="month">Filter by Month</label>
             <select id="month" name="month" class="form-select">
                 <option value="">All Months</option>
@@ -42,7 +51,7 @@
         </div>
 
         <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn-primary">🔍 Apply Filter</button>
+            <button type="submit" class="btn btn-primary">🔍 Query</button>
             <a href="{{ url_for('admin_receipts') }}" class="btn btn-secondary">Reset</a>
         </div>
     </form>
@@ -52,11 +61,11 @@
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">📜 Receipts Collection Registry</h3>
-        <span class="badge badge-success">{{ receipts|length }} Receipts Found</span>
+        <span id="rcptCountBadge" class="badge badge-success">{{ receipts|length }} Receipts Found</span>
     </div>
 
     <div class="table-container">
-        <table class="custom-table">
+        <table class="custom-table" id="adminReceiptsTable">
             <thead>
                 <tr>
                     <th>Receipt No</th>
@@ -73,26 +82,26 @@
                 {% for r in receipts %}
                 <tr>
                     <td>
-                        <strong style="color: var(--primary-700);">#{{ r.receipt_no }}</strong>
+                        <strong style="color: #60a5fa; font-size: 0.95rem;">#{{ r.receipt_no }}</strong>
                     </td>
                     <td>
                         <span class="badge badge-info">Flat {{ r.flat_no }}</span>
                     </td>
                     <td>
-                        <strong>{{ r.member_name }}</strong>
+                        <strong style="color: #ffffff;">{{ r.member_name }}</strong>
                     </td>
                     <td>
                         <span class="badge badge-warning">{{ r.remarks or 'Monthly' }}</span>
                     </td>
-                    <td>{{ r.payment_date or r.receipt_date }}</td>
+                    <td style="color: var(--slate-300);">{{ r.payment_date or r.receipt_date }}</td>
                     <td>
                         <span class="badge badge-info">{{ r.pymnt_mode }}</span>
                     </td>
                     <td>
-                        <strong style="color: var(--emerald-700); font-size: 0.95rem;">₹ {{ "{:,.2f}".format(r.amount) }}</strong>
+                        <strong style="color: #34d399; font-size: 0.95rem;">₹ {{ "{:,.2f}".format(r.amount) }}</strong>
                     </td>
                     <td>
-                        <div style="display: flex; gap: 0.35rem;">
+                        <div style="display: flex; gap: 0.4rem;">
                             <a href="{{ url_for('view_receipt', receipt_no=r.receipt_no) }}" class="btn btn-sm btn-secondary" title="View & Print Official Receipt">
                                 📄
                             </a>
@@ -104,8 +113,8 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="8" style="text-align: center; color: var(--slate-500); padding: 2rem;">
-                        No receipt records found matching your filters.
+                    <td colspan="8" style="text-align: center; color: var(--slate-400); padding: 2.5rem;">
+                        No receipts match your search or filter criteria.
                     </td>
                 </tr>
                 {% endfor %}
@@ -118,7 +127,9 @@
 <div id="createReceiptModal" class="modal-backdrop">
     <div class="modal-card">
         <div class="modal-header">
-            <h3 style="font-size: 1.15rem; color: var(--slate-900);">➕ Issue Maintenance Payment Receipt</h3>
+            <h3 style="font-size: 1.2rem; color: #ffffff; display: flex; align-items: center; gap: 0.5rem;">
+                ➕ Issue Maintenance Payment Receipt
+            </h3>
             <button type="button" class="close-btn" onclick="closeModal('createReceiptModal')">&times;</button>
         </div>
         <form method="POST" action="{{ url_for('create_receipt') }}">
@@ -164,9 +175,9 @@
                     <input type="text" id="rcpt_sub_type" name="subscription_type" class="form-control" value="Monthly Subscription">
                 </div>
 
-                <div style="background: var(--slate-50); border: 1px solid var(--slate-200); padding: 0.85rem 1rem; border-radius: var(--radius-sm);">
-                    <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.88rem;">
-                        <input type="checkbox" name="auto_email" value="1" checked style="width: 16px; height: 16px;">
+                <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.12); padding: 0.85rem 1rem; border-radius: var(--radius-md);">
+                    <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.88rem; color: #cbd5e1;">
+                        <input type="checkbox" name="auto_email" value="1" checked style="width: 16px; height: 16px; accent-color: #2563eb;">
                         <span><strong>Dispatch official email receipt</strong> to the resident immediately upon generation</span>
                     </label>
                 </div>

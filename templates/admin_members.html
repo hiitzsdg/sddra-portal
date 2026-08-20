@@ -13,11 +13,20 @@
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">🏢 Registered Flats Roster</h3>
-        <span class="badge badge-info">{{ members|length }} Registered Units</span>
+        <span id="memberCountBadge" class="badge badge-info">{{ members|length }} Registered Units</span>
+    </div>
+
+    <!-- Live Search Bar -->
+    <div style="margin-bottom: 1.25rem;">
+        <div class="live-search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="memberSearch" class="form-control" placeholder="Type to filter by flat number (e.g. A/4-C), resident name, phone, or email..." data-live-search="#membersTable" data-search-counter="#memberCountBadge" data-clear-btn="clearMemberSearch">
+            <button type="button" id="clearMemberSearch" class="clear-btn" title="Clear search">&times;</button>
+        </div>
     </div>
 
     <div class="table-container">
-        <table class="custom-table">
+        <table class="custom-table" id="membersTable">
             <thead>
                 <tr>
                     <th>Flat Number</th>
@@ -35,30 +44,30 @@
                 {% for m in members %}
                 <tr>
                     <td>
-                        <strong style="color: var(--primary-800); font-size: 1rem;">Flat {{ m.flat_no }}</strong>
+                        <strong style="color: #60a5fa; font-size: 0.95rem;">Flat {{ m.flat_no }}</strong>
                     </td>
                     <td>
-                        <strong>{{ m.member_name }}</strong>
+                        <strong style="color: #ffffff;">{{ m.member_name }}</strong>
                     </td>
-                    <td>{{ m.RvsdFlatSize or '-' }} sq. ft.</td>
+                    <td style="color: var(--slate-300);">{{ m.RvsdFlatSize or '-' }} sq. ft.</td>
                     <td>
                         {% if m.cps_owner %}
                         <span class="badge badge-info">CPS: {{ m.car_parking_space }}</span>
                         {% else %}
-                        <span style="color: var(--slate-400);">-</span>
+                        <span style="color: var(--slate-500);">-</span>
                         {% endif %}
                     </td>
                     <td>
-                        <strong style="color: var(--slate-800);">₹ {{ "{:,.2f}".format(m.monthly_charge or 0) }}</strong>
+                        <strong style="color: #cbd5e1;">₹ {{ "{:,.2f}".format(m.monthly_charge or 0) }}</strong>
                     </td>
-                    <td>
+                    <td style="color: var(--slate-300);">
                         {{ m.mobile_num_1 or m.mobile_num_2 or '-' }}
                     </td>
                     <td>
-                        <span style="font-size: 0.8rem; color: var(--slate-600);">{{ m.email_1 or m.email_2 or '-' }}</span>
+                        <span style="font-size: 0.82rem; color: #93c5fd;">{{ m.email_1 or m.email_2 or '-' }}</span>
                     </td>
                     <td>
-                        <strong style="color: var(--emerald-700);">₹ {{ "{:,.2f}".format(m.total_paid) }}</strong>
+                        <strong style="color: #34d399; font-size: 0.95rem;">₹ {{ "{:,.2f}".format(m.total_paid) }}</strong>
                     </td>
                     <td>
                         <span class="badge badge-success">{{ m.receipts_count }} receipts</span>

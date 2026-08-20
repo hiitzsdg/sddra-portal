@@ -19,12 +19,12 @@
         </div>
 
         <div style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
-            <div style="width: 56px; height: 56px; border-radius: 12px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.8rem;">
+            <div style="width: 56px; height: 56px; border-radius: 12px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);">
                 🏢
             </div>
             <div>
-                <h3 style="font-size: 1.25rem; color: var(--slate-900);">{{ member.name }}</h3>
-                <p style="font-size: 0.85rem; color: var(--slate-500);">
+                <h3 style="font-size: 1.25rem; color: #ffffff; margin-bottom: 0.15rem;">{{ member.name }}</h3>
+                <p style="font-size: 0.85rem; color: var(--slate-400);">
                     Flat <strong>{{ member.flat_number }}</strong> (Block {{ member.block }}) &bull; {{ member.sq_feet or 1200 }} sq. ft.
                 </p>
             </div>
@@ -35,8 +35,8 @@
             
             <div class="form-group">
                 <label class="form-label" for="prof_username">Portal Username</label>
-                <input type="text" id="prof_username" class="form-control" value="{{ member.username }}" disabled style="background: var(--slate-100);">
-                <small style="color: var(--slate-500); font-size: 0.75rem;">Usernames are permanent and managed by the Association Secretary.</small>
+                <input type="text" id="prof_username" class="form-control" value="{{ member.username }}" disabled style="background: rgba(255, 255, 255, 0.05); color: var(--slate-400); border-color: rgba(255, 255, 255, 0.08);">
+                <small style="color: var(--slate-500); font-size: 0.75rem; margin-top: 0.3rem; display: block;">Usernames are permanent and managed by the Association Secretary.</small>
             </div>
 
             <div class="form-group">
@@ -49,7 +49,7 @@
                 <input type="text" id="prof_phone" name="phone" class="form-control" value="{{ member.phone }}" required>
             </div>
 
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem;">
                 💾 Save Contact Details
             </button>
         </form>
@@ -79,7 +79,7 @@
                 <input type="password" id="confirm_password" name="confirm_password" class="form-control" placeholder="Re-type new password" required>
             </div>
 
-            <button type="submit" class="btn btn-secondary">
+            <button type="submit" class="btn btn-secondary" style="margin-top: 0.5rem;">
                 🔑 Update Password
             </button>
         </form>

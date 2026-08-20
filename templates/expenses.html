@@ -24,9 +24,9 @@
     <div class="card">
         <div class="card-header">
             <h3 class="card-title">📊 Expense Distribution by Head</h3>
-            <span class="badge badge-info">Actual Vouchers</span>
+            <span class="badge badge-info">Audited Outlays</span>
         </div>
-        <div style="position: relative; height: 260px;">
+        <div style="position: relative; height: 270px;">
             <canvas id="expenseCategoryChart"></canvas>
         </div>
     </div>
@@ -37,18 +37,22 @@
             <h3 class="card-title">📅 Monthly Expenditure Trend</h3>
             <span class="badge badge-success">Year 2026</span>
         </div>
-        <div style="position: relative; height: 260px;">
+        <div style="position: relative; height: 270px;">
             <canvas id="expenseMonthlyChart"></canvas>
         </div>
     </div>
 </div>
 
 <!-- Expense Filter and Search -->
-<div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+<div class="card" style="margin-bottom: 1.5rem; padding: 1.35rem;">
     <form method="GET" action="{{ url_for('expenses_list') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 220px;">
-            <label class="form-label" for="q">Search Description / Particulars / Voucher #</label>
-            <input type="text" id="q" name="q" class="form-control" placeholder="e.g. Security, Sweeper, Electricity, AMC..." value="{{ search_q }}">
+        <div style="flex: 1; min-width: 240px;">
+            <label class="form-label" for="q">Live Instant Search / Filter</label>
+            <div class="live-search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="q" name="q" class="form-control" placeholder="Type to filter Security, Sweeper, Electricity, AMC, Voucher #..." value="{{ search_q }}" data-live-search="#expensesTable" data-search-counter="#expensesCountBadge" data-clear-btn="clearExpSearch">
+                <button type="button" id="clearExpSearch" class="clear-btn" title="Clear search">&times;</button>
+            </div>
         </div>
 
         <div style="width: 200px;">
@@ -76,7 +80,7 @@
         </div>
 
         <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn-primary">🔍 Filter</button>
+            <button type="submit" class="btn btn-primary">🔍 Query</button>
             <a href="{{ url_for('expenses_list') }}" class="btn btn-secondary">Reset</a>
         </div>
     </form>
@@ -86,13 +90,16 @@
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">📋 Incurred Expense Vouchers</h3>
-        <span style="font-size: 0.95rem; font-weight: 800; color: var(--rose-600);">
-            Total Incurred: ₹ {{ "{:,.2f}".format(total_incurred) }}
-        </span>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span id="expensesCountBadge" class="badge badge-info">{{ expenses|length }} Records</span>
+            <span style="font-size: 1rem; font-weight: 800; color: #fda4af;">
+                Total: ₹ {{ "{:,.2f}".format(total_incurred) }}
+            </span>
+        </div>
     </div>
 
     <div class="table-container">
-        <table class="custom-table">
+        <table class="custom-table" id="expensesTable">
             <thead>
                 <tr>
                     <th>Voucher #</th>
@@ -110,25 +117,25 @@
             <tbody>
                 {% for e in expenses %}
                 <tr>
-                    <td><strong style="color: var(--primary-700);">#{{ e.voucher_no }}</strong></td>
-                    <td>{{ e.voucher_date }}</td>
-                    <td><strong>{{ e.expense_description }}</strong></td>
+                    <td><strong style="color: #60a5fa;">#{{ e.voucher_no }}</strong></td>
+                    <td style="color: var(--slate-300);">{{ e.voucher_date }}</td>
+                    <td><strong style="color: #ffffff;">{{ e.expense_description }}</strong></td>
                     <td><span class="badge badge-warning">{{ e.particulars }}</span></td>
                     <td>
                         {% if e.spl_head %}
                         <span class="badge badge-info">{{ e.spl_head }}</span>
                         {% else %}
-                        <span style="color: var(--slate-400); font-size: 0.8rem;">-</span>
+                        <span style="color: var(--slate-500); font-size: 0.8rem;">-</span>
                         {% endif %}
                     </td>
                     <td><span class="badge badge-info">{{ e.payment_by }}</span></td>
                     <td>
-                        <strong style="color: var(--rose-600); font-size: 0.95rem;">₹ {{ "{:,.2f}".format(e.amount) }}</strong>
+                        <strong style="color: #fda4af; font-size: 0.95rem;">₹ {{ "{:,.2f}".format(e.amount) }}</strong>
                     </td>
                     {% if is_executive %}
                     <td>
                         <form method="POST" action="{{ url_for('delete_expense', voucher_no=e.voucher_no) }}" onsubmit="return confirm('Are you sure you want to delete voucher #{{ e.voucher_no }}?');" style="display: inline;">
-                            <button type="submit" class="btn btn-sm btn-secondary" style="color: var(--rose-600); padding: 0.25rem 0.5rem;" title="Delete Record">
+                            <button type="submit" class="btn btn-sm btn-secondary" style="color: #fda4af; padding: 0.25rem 0.5rem;" title="Delete Record">
                                 🗑️
                             </button>
                         </form>
@@ -137,7 +144,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="8" style="text-align: center; color: var(--slate-500); padding: 2rem;">
+                    <td colspan="8" style="text-align: center; color: var(--slate-400); padding: 2.5rem;">
                         No expense records match your filter criteria.
                     </td>
                 </tr>
@@ -152,14 +159,16 @@
 <div id="addExpenseModal" class="modal-backdrop">
     <div class="modal-card">
         <div class="modal-header">
-            <h3 style="font-size: 1.15rem; color: var(--slate-900);">➕ Record Incurred Society Expense</h3>
+            <h3 style="font-size: 1.2rem; color: #ffffff; display: flex; align-items: center; gap: 0.5rem;">
+                ➕ Record Incurred Society Expense
+            </h3>
             <button type="button" class="close-btn" onclick="closeModal('addExpenseModal')">&times;</button>
         </div>
         <form method="POST" action="{{ url_for('add_expense') }}">
             <div class="modal-body">
                 <div class="form-group">
                     <label class="form-label" for="exp_desc">Expense Description *</label>
-                    <input type="text" id="exp_desc" name="expense_description" class="form-control" placeholder="e.g. Security Bill for Aug'2026" required>
+                    <input type="text" id="exp_desc" name="expense_description" class="form-control" placeholder="e.g. Security Agency Guard Bill for Aug'2026" required>
                 </div>
 
                 <div class="grid-2">
