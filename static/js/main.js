@@ -307,3 +307,147 @@ function populateEditMember(id, name, email, phone, role, sqFeet) {
         openModal('editMemberModal');
     }
 }
+
+// ================= In-Panel Member Receipts Modal =================
+function getOrCreateMemberReceiptsModal() {
+    let modal = document.getElementById('memberReceiptsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'memberReceiptsModal';
+        modal.className = 'modal-overlay';
+        modal.style.display = 'none';
+        modal.innerHTML = `
+            <div class="modal-container">
+                <div class="modal-header">
+                    <div>
+                        <h3 class="card-title" id="modalFlatTitle" style="margin: 0; font-size: 1.2rem;">📄 Flat Maintenance Receipts</h3>
+                        <p id="modalFlatSubtitle" class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.85rem;"></p>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="closeMemberReceiptsModal()" style="font-size: 1.2rem; padding: 0.2rem 0.6rem; line-height: 1;">&times;</button>
+                </div>
+                <div class="modal-body" id="modalReceiptsBody">
+                    <div style="text-align: center; padding: 2.5rem;" class="text-muted">
+                        <div class="spinner" style="display: inline-block; width: 2rem; height: 2rem; border: 3px solid rgba(59, 130, 246, 0.2); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+                        <p style="margin-top: 0.75rem;">Loading member receipts...</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <span id="modalTotalPaidBadge" class="badge badge-success" style="font-size: 0.9rem;"></span>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a id="modalFullLedgerLink" href="#" class="btn btn-sm btn-outline-primary">Open in Full Ledger &rarr;</a>
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="closeMemberReceiptsModal()">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeMemberReceiptsModal();
+        });
+        document.body.appendChild(modal);
+    }
+    return modal;
+}
+
+async function openMemberReceiptsModal(flatNo, memberName) {
+    if (!flatNo) return;
+    const modal = getOrCreateMemberReceiptsModal();
+
+    document.getElementById('modalFlatTitle').innerHTML = `📄 Maintenance Receipts: <strong class="text-highlight-blue">Flat ${flatNo}</strong>`;
+    document.getElementById('modalFlatSubtitle').textContent = `Official Registered Member: ${memberName || 'Resident'}`;
+    document.getElementById('modalFullLedgerLink').href = `/admin/receipts?flat=${encodeURIComponent(flatNo)}`;
+    document.getElementById('modalTotalPaidBadge').textContent = 'Calculating...';
+    
+    const bodyEl = document.getElementById('modalReceiptsBody');
+    bodyEl.innerHTML = `
+        <div style="text-align: center; padding: 2.5rem;" class="text-muted">
+            <div class="spinner" style="display: inline-block; width: 2rem; height: 2rem; border: 3px solid rgba(59, 130, 246, 0.2); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+            <p style="margin-top: 0.75rem;">Fetching official receipts for Flat ${flatNo} from database...</p>
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    try {
+        const res = await fetch(`/api/members/${encodeURIComponent(flatNo)}/receipts`);
+        const data = await res.json();
+
+        if (!data.success || !data.receipts || data.receipts.length === 0) {
+            bodyEl.innerHTML = `
+                <div style="text-align: center; padding: 2.5rem;" class="text-muted">
+                    <p style="font-size: 1.05rem; margin-bottom: 0.5rem;">No payment receipts recorded yet for Flat ${flatNo}.</p>
+                    <a href="/admin/receipts?flat=${encodeURIComponent(flatNo)}" class="btn btn-sm btn-primary">➕ Issue First Receipt</a>
+                </div>
+            `;
+            document.getElementById('modalTotalPaidBadge').textContent = '₹ 0.00 Total Paid';
+            return;
+        }
+
+        document.getElementById('modalTotalPaidBadge').textContent = `Total Paid: ₹ ${Number(data.total_paid || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+
+        let rowsHtml = data.receipts.map(r => `
+            <tr>
+                <td><strong class="text-highlight-blue">#${r.receipt_no}</strong></td>
+                <td class="text-secondary">${r.payment_date || r.receipt_date || '-'}</td>
+                <td><span class="badge badge-warning">${r.remarks || 'Monthly'}</span></td>
+                <td><span class="badge badge-info">${r.pymnt_mode || 'Online'}</span></td>
+                <td><strong class="text-amount-success">₹ ${parseFloat(r.amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></td>
+                <td>
+                    <div style="display: flex; gap: 0.35rem;">
+                        <a href="/receipts/${r.receipt_no}" class="btn btn-sm btn-secondary" title="View & Print Official Voucher">📄 View</a>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="emailReceiptAjax(${r.receipt_no}, this)" title="Email Receipt">✉️</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        bodyEl.innerHTML = `
+            <div class="table-container" style="max-height: 420px; overflow-y: auto;">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Receipt #</th>
+                            <th>Date</th>
+                            <th>Coverage / Period</th>
+                            <th>Mode</th>
+                            <th>Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (err) {
+        bodyEl.innerHTML = `
+            <div class="alert alert-danger" style="margin: 1rem 0;">
+                Failed to load receipts: ${err.message}. <a href="/admin/receipts?flat=${encodeURIComponent(flatNo)}" class="text-highlight-blue">Open in Ledger instead &rarr;</a>
+            </div>
+        `;
+    }
+}
+
+function closeMemberReceiptsModal() {
+    const modal = document.getElementById('memberReceiptsModal');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// Global click event delegation for member receipt buttons
+document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.btn-view-member-receipts');
+    if (trigger) {
+        e.preventDefault();
+        const flatNo = trigger.getAttribute('data-flat-no');
+        const memberName = trigger.getAttribute('data-member-name');
+        openMemberReceiptsModal(flatNo, memberName);
+    }
+});
+
+// Escape key closes modal
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMemberReceiptsModal();
+});
+

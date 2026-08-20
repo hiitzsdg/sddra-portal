@@ -14,8 +14,8 @@ def run_verification():
 
     resp_js = client.get('/static/js/main.js')
     assert resp_js.status_code == 200
-    assert b'initGenericLiveSearch' in resp_js.data and b'mobileMenuBtn' in resp_js.data and b'emailReceiptAjax' in resp_js.data
-    print(f"[OK] Master JS verified: {len(resp_js.data)} bytes, Live Search & Resilient Email AJAX active")
+    assert b'initGenericLiveSearch' in resp_js.data and b'openMemberReceiptsModal' in resp_js.data and b'emailReceiptAjax' in resp_js.data
+    print(f"[OK] Master JS verified: {len(resp_js.data)} bytes, Live Search, In-Panel Modal & Resilient Email AJAX active")
 
     resp_charts = client.get('/static/js/charts.js')
     assert resp_charts.status_code == 200
@@ -56,9 +56,9 @@ def run_verification():
     resp_members = client.get('/admin/members')
     assert resp_members.status_code == 200
     assert b'Resident Roster & Flat Directory' in resp_members.data
-    assert b'openMemberReceiptsModal' in resp_members.data
+    assert b'btn-view-member-receipts' in resp_members.data
     assert b'Flat A/4-C' in resp_members.data
-    print(f"[OK] Resident Directory verified: {len(resp_members.data)} bytes, interactive modal connected")
+    print(f"[OK] Resident Directory verified: {len(resp_members.data)} bytes, interactive modal trigger connected")
 
     # 7. Verify Receipts Ledger
     resp_rcpts = client.get('/admin/receipts')
