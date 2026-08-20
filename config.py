@@ -22,12 +22,12 @@ class Config:
     SMTP_USE_TLS = os.environ.get('SMTP_USE_TLS', 'True').lower() in ('true', '1', 't')
     SMTP_USERNAME = os.environ.get('SMTP_USERNAME', '')
     SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
-    SMTP_FROM_EMAIL = os.environ.get('SMTP_FROM_EMAIL', 'sddra.billing@gmail.com')
+    SMTP_FROM_EMAIL = os.environ.get('SMTP_FROM_EMAIL', 'sddenclave@gmail.com')
     SMTP_FROM_NAME = os.environ.get('SMTP_FROM_NAME', "South Dumdum Enclave Residents' Association")
     
     # Association Information
     ASSOCIATION_NAME = "South Dumdum Enclave Residents' Association"
-    ASSOCIATION_REG_NO = "WB/IV/2021/04589"
-    ASSOCIATION_ADDRESS = "142/A, P.K. Guha Road, South Dumdum, Kolkata - 700028, West Bengal"
-    ASSOCIATION_EMAIL = "contact@southdumdumenclave.org"
-    ASSOCIATION_PHONE = "+91 33 2551 8900"
+    ASSOCIATION_REG_NO = "08A, Dated: 12.04.2016"
+    ASSOCIATION_ADDRESS = "62 RN Guha Road, Dumdum Kolkata 700028"
+    ASSOCIATION_EMAIL = "sddenclave@gmail.com"
+    ASSOCIATION_PHONE = "+91-801-725-0621"
