@@ -138,6 +138,9 @@
 }
 
 /* ================= LIGHT MODE OVERRIDES ================= */
+html[data-theme="light"], 
+body[data-theme="light"], 
+:root[data-theme="light"],
 [data-theme="light"] {
   --theme-mode: 'light';
   --text-main: #0f172a;
@@ -147,23 +150,23 @@
 
   --bg-body: #f8fafc;
   --bg-gradient: 
-    radial-gradient(circle at 15% 15%, rgba(219, 234, 254, 0.65) 0%, transparent 45%),
-    radial-gradient(circle at 85% 25%, rgba(237, 233, 254, 0.65) 0%, transparent 45%),
+    radial-gradient(circle at 15% 15%, rgba(219, 234, 254, 0.75) 0%, transparent 45%),
+    radial-gradient(circle at 85% 25%, rgba(237, 233, 254, 0.75) 0%, transparent 45%),
     linear-gradient(180deg, #f8fafc 0%, #edf2f7 50%, #e2e8f0 100%);
-  --orb-1: rgba(59, 130, 246, 0.12);
-  --orb-2: rgba(139, 92, 246, 0.1);
+  --orb-1: rgba(59, 130, 246, 0.15);
+  --orb-2: rgba(139, 92, 246, 0.12);
 
-  --navbar-bg: rgba(255, 255, 255, 0.92);
-  --navbar-border: rgba(203, 213, 225, 0.8);
-  --surface-card: rgba(255, 255, 255, 0.94);
+  --navbar-bg: rgba(255, 255, 255, 0.94);
+  --navbar-border: rgba(203, 213, 225, 0.9);
+  --surface-card: #ffffff;
   --surface-card-hover: #ffffff;
-  --surface-border: rgba(203, 213, 225, 0.8);
-  --surface-border-hover: rgba(37, 99, 235, 0.5);
-  --surface-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --surface-border: #cbd5e1;
+  --surface-border-hover: #2563eb;
+  --surface-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
 
   --table-th-bg: #f1f5f9;
-  --table-th-color: #475569;
-  --table-td-color: #1e293b;
+  --table-th-color: #334155;
+  --table-td-color: #0f172a;
   --table-td-border: #e2e8f0;
   --table-row-hover: #f8fafc;
 
@@ -183,10 +186,10 @@
   --amount-danger: #e11d48;
   --highlight-blue: #2563eb;
 
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.08);
-  --shadow-xl: 0 24px 60px rgba(0, 0, 0, 0.12);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 24px 60px rgba(0, 0, 0, 0.14);
   --shadow-glow-blue: 0 0 20px rgba(37, 99, 235, 0.2);
 }
 
