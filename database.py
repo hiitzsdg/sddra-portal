@@ -8,7 +8,10 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from config import Config
 
+import shutil
+
 _ENGINE_MODE = None # 'mysql' or 'sqlite'
+_WRITABLE_SQLITE_PATH = None
 
 def sqlite_date_format(val, fmt):
     """Custom SQLite function to support MySQL DATE_FORMAT(voucher_date, '%b %Y')."""
@@ -22,21 +25,62 @@ def sqlite_date_format(val, fmt):
     except Exception:
         return str(val)
 
+def get_writable_sqlite_path():
+    """Ensure SQLite database is placed in writable /tmp directory if in cloud / serverless environment."""
+    global _WRITABLE_SQLITE_PATH
+    if _WRITABLE_SQLITE_PATH and os.path.exists(_WRITABLE_SQLITE_PATH):
+        return _WRITABLE_SQLITE_PATH
+
+    is_cloud = bool(
+        os.environ.get('VERCEL') or 
+        os.environ.get('VERCEL_ENV') or 
+        os.environ.get('AWS_LAMBDA_FUNCTION_NAME') or 
+        os.environ.get('NOW_REGION')
+    )
+
+    if is_cloud:
+        tmp_db = '/tmp/sddra.db'
+        if not os.path.exists(tmp_db):
+            # Locate source database in bundle
+            src_candidates = [
+                Config.SQLITE_PATH,
+                os.path.join(os.getcwd(), 'sddra.db'),
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sddra.db'),
+                '/var/task/sddra.db'
+            ]
+            for c in src_candidates:
+                if c and os.path.exists(c):
+                    try:
+                        shutil.copy2(c, tmp_db)
+                        print(f"[DB Init] Copied SQLite database to writable serverless storage at {tmp_db}")
+                        break
+                    except Exception as e:
+                        print(f"[DB Warning] Could not copy SQLite to /tmp: {e}")
+        if os.path.exists(tmp_db):
+            _WRITABLE_SQLITE_PATH = tmp_db
+            return tmp_db
+
+    # Local development fallbacks
+    if os.path.exists(Config.SQLITE_PATH):
+        _WRITABLE_SQLITE_PATH = Config.SQLITE_PATH
+        return _WRITABLE_SQLITE_PATH
+
+    candidates = [
+        os.path.join(os.getcwd(), 'sddra.db'),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sddra.db'),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sddra.db')
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            _WRITABLE_SQLITE_PATH = p
+            return p
+
+    _WRITABLE_SQLITE_PATH = Config.SQLITE_PATH
+    return _WRITABLE_SQLITE_PATH
+
 def get_sqlite_connection():
-    """Establish connection to local SQLite database with Row factory, custom functions, and path fallbacks."""
-    db_path = Config.SQLITE_PATH
-    if not os.path.exists(db_path):
-        candidates = [
-            os.path.join(os.getcwd(), 'sddra.db'),
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sddra.db'),
-            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sddra.db'),
-            '/var/task/sddra.db',
-            '/tmp/sddra.db'
-        ]
-        for p in candidates:
-            if os.path.exists(p):
-                db_path = p
-                break
+    """Establish connection to local/serverless SQLite database with Row factory, custom functions, and path fallbacks."""
+    db_path = get_writable_sqlite_path()
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.create_function('DATE_FORMAT', 2, sqlite_date_format)

@@ -275,24 +275,28 @@ def profile():
             new_pwd = request.form.get('new_password', '')
             confirm_pwd = request.form.get('confirm_password', '')
             
-            current_hash = admin['password_hash'] if is_admin else (member.get('password_hash') if member else None)
+            current_hash = (admin.get('password_hash') if (is_admin and admin) else None) or (member.get('password_hash') if member else None)
             
-            if not verify_password(current_pwd, current_hash):
-                flash('Current password does not match.', 'danger')
+            if not current_hash or not verify_password(current_pwd, current_hash):
+                flash('Current password does not match. Please verify your existing password.', 'danger')
             elif len(new_pwd) < 6:
-                flash('New password must be at least 6 characters.', 'danger')
+                flash('New password must be at least 6 characters long.', 'danger')
             elif new_pwd != confirm_pwd:
-                flash('New password confirmation does not match.', 'danger')
+                flash('New password and confirmation password do not match.', 'danger')
             else:
-                new_h = hash_password(new_pwd)
-                if is_admin:
-                    execute_db("UPDATE tbl_admins SET password_hash = %s WHERE username = %s", (new_h, user['username']))
-                else:
-                    execute_db("UPDATE tbl_membership SET password_hash = %s WHERE flat_no = %s", (new_h, flat_no))
-                flash('Password updated successfully!', 'success')
-                return redirect(url_for('profile'))
+                try:
+                    new_h = hash_password(new_pwd)
+                    if is_admin:
+                        execute_db("UPDATE tbl_admins SET password_hash = %s WHERE username = %s", (new_h, user.get('username')))
+                    else:
+                        execute_db("UPDATE tbl_membership SET password_hash = %s WHERE flat_no = %s", (new_h, flat_no))
+                    flash('Your password has been updated successfully!', 'success')
+                    return redirect(url_for('profile'))
+                except Exception as e:
+                    flash(f"Could not persist password update ({e}). If on read-only serverless, please use standard credentials.", 'warning')
+                    return redirect(url_for('profile'))
 
-    penalty_info = calculate_flat_penalty(flat_no, member=member) if flat_no else None
+    penalty_info = calculate_flat_penalty(flat_no, member=member) if (flat_no and flat_no != 'Office') else None
     return render_template('profile.html', member=member or user, contact=contact, penalty_info=penalty_info)
 
 # --- Dashboard ---
