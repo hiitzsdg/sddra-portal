@@ -425,8 +425,20 @@ def expenses_list():
     
     expenses = query_db(query, params)
     
-    particulars_list = query_db("SELECT DISTINCT particulars, COUNT(*) as cnt, SUM(amount) as total FROM tbl_expenses GROUP BY particulars ORDER BY total DESC")
-    spl_heads_list = query_db("SELECT DISTINCT spl_head, COUNT(*) as cnt, SUM(amount) as total FROM tbl_expenses WHERE spl_head != '' GROUP BY spl_head ORDER BY total DESC")
+    particulars_list = query_db("""
+        SELECT DISTINCT particulars, COUNT(*) as cnt, SUM(amount) as total 
+        FROM tbl_expenses 
+        WHERE particulars IS NOT NULL AND TRIM(particulars) != '' 
+        GROUP BY particulars 
+        ORDER BY particulars ASC
+    """)
+    spl_heads_list = query_db("""
+        SELECT DISTINCT spl_head, COUNT(*) as cnt, SUM(amount) as total 
+        FROM tbl_expenses 
+        WHERE spl_head IS NOT NULL AND TRIM(spl_head) != '' 
+        GROUP BY spl_head 
+        ORDER BY spl_head ASC
+    """)
     
     total_incurred_row = query_db("SELECT COALESCE(SUM(amount), 0) as total FROM tbl_expenses", one=True)
     total_incurred = float(total_incurred_row['total']) if total_incurred_row else 0.0

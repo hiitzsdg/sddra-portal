@@ -55,8 +55,8 @@
             </div>
         </div>
 
-        <div style="width: 200px;">
-            <label class="form-label" for="particulars">Filter by Particulars</label>
+        <div style="width: 210px;">
+            <label class="form-label" for="particulars">Particulars (A-Z)</label>
             <select id="particulars" name="particulars" class="form-select">
                 <option value="">All Particulars</option>
                 {% for p in particulars_list %}
@@ -67,13 +67,13 @@
             </select>
         </div>
 
-        <div style="width: 180px;">
-            <label class="form-label" for="spl_head">Filter by Special Head</label>
+        <div style="width: 210px;">
+            <label class="form-label" for="spl_head">Special Head (Sorted A-Z)</label>
             <select id="spl_head" name="spl_head" class="form-select">
                 <option value="">All Special Heads</option>
                 {% for s in spl_heads_list %}
                 <option value="{{ s.spl_head }}" {% if current_spl_head == s.spl_head %}selected{% endif %}>
-                    {{ s.spl_head }}
+                    {{ s.spl_head }} ({{ s.cnt }})
                 </option>
                 {% endfor %}
             </select>
@@ -92,7 +92,7 @@
         <h3 class="card-title">📋 Incurred Expense Vouchers</h3>
         <div style="display: flex; align-items: center; gap: 0.75rem;">
             <span id="expensesCountBadge" class="badge badge-info">{{ expenses|length }} Records</span>
-            <span style="font-size: 1rem; font-weight: 800; color: #fda4af;">
+            <span class="text-amount-danger" style="font-size: 1rem;">
                 Total: ₹ {{ "{:,.2f}".format(total_incurred) }}
             </span>
         </div>
@@ -117,25 +117,25 @@
             <tbody>
                 {% for e in expenses %}
                 <tr>
-                    <td><strong style="color: #60a5fa;">#{{ e.voucher_no }}</strong></td>
-                    <td style="color: var(--slate-300);">{{ e.voucher_date }}</td>
-                    <td><strong style="color: #ffffff;">{{ e.expense_description }}</strong></td>
+                    <td><strong class="text-highlight-blue">#{{ e.voucher_no }}</strong></td>
+                    <td class="text-secondary">{{ e.voucher_date }}</td>
+                    <td><strong class="text-main">{{ e.expense_description }}</strong></td>
                     <td><span class="badge badge-warning">{{ e.particulars }}</span></td>
                     <td>
                         {% if e.spl_head %}
                         <span class="badge badge-info">{{ e.spl_head }}</span>
                         {% else %}
-                        <span style="color: var(--slate-500); font-size: 0.8rem;">-</span>
+                        <span class="text-muted" style="font-size: 0.8rem;">-</span>
                         {% endif %}
                     </td>
                     <td><span class="badge badge-info">{{ e.payment_by }}</span></td>
                     <td>
-                        <strong style="color: #fda4af; font-size: 0.95rem;">₹ {{ "{:,.2f}".format(e.amount) }}</strong>
+                        <strong class="text-amount-danger" style="font-size: 0.95rem;">₹ {{ "{:,.2f}".format(e.amount) }}</strong>
                     </td>
                     {% if is_executive %}
                     <td>
                         <form method="POST" action="{{ url_for('delete_expense', voucher_no=e.voucher_no) }}" onsubmit="return confirm('Are you sure you want to delete voucher #{{ e.voucher_no }}?');" style="display: inline;">
-                            <button type="submit" class="btn btn-sm btn-secondary" style="color: #fda4af; padding: 0.25rem 0.5rem;" title="Delete Record">
+                            <button type="submit" class="btn btn-sm btn-secondary" style="color: var(--amount-danger); padding: 0.25rem 0.5rem;" title="Delete Record">
                                 🗑️
                             </button>
                         </form>
@@ -144,7 +144,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="8" style="text-align: center; color: var(--slate-400); padding: 2.5rem;">
+                    <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
                         No expense records match your filter criteria.
                     </td>
                 </tr>
@@ -159,7 +159,7 @@
 <div id="addExpenseModal" class="modal-backdrop">
     <div class="modal-card">
         <div class="modal-header">
-            <h3 style="font-size: 1.2rem; color: #ffffff; display: flex; align-items: center; gap: 0.5rem;">
+            <h3 class="card-title" style="font-size: 1.2rem;">
                 ➕ Record Incurred Society Expense
             </h3>
             <button type="button" class="close-btn" onclick="closeModal('addExpenseModal')">&times;</button>
@@ -175,21 +175,26 @@
                     <div class="form-group">
                         <label class="form-label" for="exp_part">Particulars *</label>
                         <select id="exp_part" name="particulars" class="form-select" required>
-                            <option value="Service Charges">Service Charges</option>
-                            <option value="Electricity Charges">Electricity Charges</option>
-                            <option value="Repair & Maintenance">Repair & Maintenance</option>
-                            <option value="Stationary">Stationary</option>
-                            <option value="AMC Lift">AMC Lift</option>
                             <option value="Accounting Charges">Accounting Charges</option>
-                            <option value="Misc & Other Expenses">Misc & Other Expenses</option>
                             <option value="AGM">AGM</option>
+                            <option value="AMC Lift">AMC Lift</option>
                             <option value="Cultural Program & Milonotsav">Cultural Program & Milonotsav</option>
+                            <option value="Electricity Charges">Electricity Charges</option>
+                            <option value="Misc & Other Expenses">Misc & Other Expenses</option>
+                            <option value="Repair & Maintenance">Repair & Maintenance</option>
+                            <option value="Service Charges">Service Charges</option>
+                            <option value="Stationary">Stationary</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="exp_spl">Special Head</label>
-                        <input type="text" id="exp_spl" name="spl_head" class="form-control" placeholder="e.g. Security, Lift, Caretaker, Water, Electric">
+                        <label class="form-label" for="exp_spl">Special Head (Sorted A-Z)</label>
+                        <input type="text" id="exp_spl" name="spl_head" class="form-control" list="splHeadSuggestions" placeholder="e.g. Security, Caretaker, Lift, Water">
+                        <datalist id="splHeadSuggestions">
+                            {% for s in spl_heads_list %}
+                            <option value="{{ s.spl_head }}">
+                            {% endfor %}
+                        </datalist>
                     </div>
                 </div>
 

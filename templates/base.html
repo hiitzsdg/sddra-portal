@@ -63,6 +63,11 @@
             </nav>
 
             <div class="navbar-right">
+                <!-- Theme Switcher Button -->
+                <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle Light/Dark Theme" title="Toggle Theme">
+                    <span id="themeToggleIcon">☀️</span>
+                </button>
+
                 <div class="user-nav-badge navbar-nav-desktop">
                     <div class="user-nav-details">
                         <span class="user-name">{{ current_user.name }}</span>
@@ -75,6 +80,13 @@
                 <!-- Mobile Hamburger Toggle Button -->
                 <button type="button" class="mobile-toggle-btn" id="mobileMenuBtn" aria-label="Toggle navigation menu">
                     <span id="mobileMenuIcon">☰</span>
+                </button>
+            </div>
+            {% else %}
+            <div class="navbar-right">
+                <!-- Theme Switcher Button on Login Page -->
+                <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle Light/Dark Theme" title="Toggle Theme">
+                    <span id="themeToggleIcon">☀️</span>
                 </button>
             </div>
             {% endif %}
@@ -129,12 +141,12 @@
     <footer class="footer no-print">
         <div class="footer-container">
             <div>
-                <strong style="color: #ffffff; font-size: 0.95rem;">{{ config.ASSOCIATION_NAME }}</strong>
-                <p style="font-size: 0.78rem; margin-top: 4px; color: var(--slate-400);">Reg No: {{ config.ASSOCIATION_REG_NO }} &bull; {{ config.ASSOCIATION_ADDRESS }}</p>
+                <strong class="text-main" style="font-size: 0.95rem;">{{ config.ASSOCIATION_NAME }}</strong>
+                <p style="font-size: 0.78rem; margin-top: 4px; color: var(--text-muted);">Reg No: {{ config.ASSOCIATION_REG_NO }} &bull; {{ config.ASSOCIATION_ADDRESS }}</p>
             </div>
-            <div style="text-align: right; font-size: 0.82rem; color: var(--slate-400);">
-                <p>Support Helpline: <strong style="color: var(--primary-400);">{{ config.ASSOCIATION_PHONE }}</strong> &bull; {{ config.ASSOCIATION_EMAIL }}</p>
-                <p style="margin-top: 4px; color: var(--slate-500);">&copy; {{ now.year }} SDERA. Secured Role-Based Residential Portal.</p>
+            <div style="text-align: right; font-size: 0.82rem; color: var(--text-muted);">
+                <p>Support Helpline: <strong class="text-highlight-blue">{{ config.ASSOCIATION_PHONE }}</strong> &bull; {{ config.ASSOCIATION_EMAIL }}</p>
+                <p style="margin-top: 4px; color: var(--text-muted);">&copy; {{ now.year }} SDERA. Secured Role-Based Residential Portal.</p>
             </div>
         </div>
     </footer>

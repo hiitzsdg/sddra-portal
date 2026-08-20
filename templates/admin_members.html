@@ -44,30 +44,30 @@
                 {% for m in members %}
                 <tr>
                     <td>
-                        <strong style="color: #60a5fa; font-size: 0.95rem;">Flat {{ m.flat_no }}</strong>
+                        <strong class="text-highlight-blue" style="font-size: 0.95rem;">Flat {{ m.flat_no }}</strong>
                     </td>
                     <td>
-                        <strong style="color: #ffffff;">{{ m.member_name }}</strong>
+                        <strong class="text-main">{{ m.member_name }}</strong>
                     </td>
-                    <td style="color: var(--slate-300);">{{ m.RvsdFlatSize or '-' }} sq. ft.</td>
+                    <td class="text-secondary">{{ m.RvsdFlatSize or '-' }} sq. ft.</td>
                     <td>
                         {% if m.cps_owner %}
                         <span class="badge badge-info">CPS: {{ m.car_parking_space }}</span>
                         {% else %}
-                        <span style="color: var(--slate-500);">-</span>
+                        <span class="text-muted">-</span>
                         {% endif %}
                     </td>
                     <td>
-                        <strong style="color: #cbd5e1;">₹ {{ "{:,.2f}".format(m.monthly_charge or 0) }}</strong>
+                        <strong class="text-secondary">₹ {{ "{:,.2f}".format(m.monthly_charge or 0) }}</strong>
                     </td>
-                    <td style="color: var(--slate-300);">
+                    <td class="text-secondary">
                         {{ m.mobile_num_1 or m.mobile_num_2 or '-' }}
                     </td>
                     <td>
-                        <span style="font-size: 0.82rem; color: #93c5fd;">{{ m.email_1 or m.email_2 or '-' }}</span>
+                        <span class="text-highlight-blue" style="font-size: 0.82rem;">{{ m.email_1 or m.email_2 or '-' }}</span>
                     </td>
                     <td>
-                        <strong style="color: #34d399; font-size: 0.95rem;">₹ {{ "{:,.2f}".format(m.total_paid) }}</strong>
+                        <strong class="text-amount-success" style="font-size: 0.95rem;">₹ {{ "{:,.2f}".format(m.total_paid) }}</strong>
                     </td>
                     <td>
                         <span class="badge badge-success">{{ m.receipts_count }} receipts</span>

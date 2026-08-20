@@ -82,23 +82,23 @@
                 {% for r in receipts %}
                 <tr>
                     <td>
-                        <strong style="color: #60a5fa; font-size: 0.95rem;">#{{ r.receipt_no }}</strong>
+                        <strong class="text-highlight-blue" style="font-size: 0.95rem;">#{{ r.receipt_no }}</strong>
                     </td>
                     <td>
                         <span class="badge badge-info">Flat {{ r.flat_no }}</span>
                     </td>
                     <td>
-                        <strong style="color: #ffffff;">{{ r.member_name }}</strong>
+                        <strong class="text-main">{{ r.member_name }}</strong>
                     </td>
                     <td>
                         <span class="badge badge-warning">{{ r.remarks or 'Monthly' }}</span>
                     </td>
-                    <td style="color: var(--slate-300);">{{ r.payment_date or r.receipt_date }}</td>
+                    <td class="text-secondary">{{ r.payment_date or r.receipt_date }}</td>
                     <td>
                         <span class="badge badge-info">{{ r.pymnt_mode }}</span>
                     </td>
                     <td>
-                        <strong style="color: #34d399; font-size: 0.95rem;">₹ {{ "{:,.2f}".format(r.amount) }}</strong>
+                        <strong class="text-amount-success" style="font-size: 0.95rem;">₹ {{ "{:,.2f}".format(r.amount) }}</strong>
                     </td>
                     <td>
                         <div style="display: flex; gap: 0.4rem;">
@@ -113,7 +113,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="8" style="text-align: center; color: var(--slate-400); padding: 2.5rem;">
+                    <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
                         No receipts match your search or filter criteria.
                     </td>
                 </tr>
@@ -127,7 +127,7 @@
 <div id="createReceiptModal" class="modal-backdrop">
     <div class="modal-card">
         <div class="modal-header">
-            <h3 style="font-size: 1.2rem; color: #ffffff; display: flex; align-items: center; gap: 0.5rem;">
+            <h3 class="card-title" style="font-size: 1.2rem;">
                 ➕ Issue Maintenance Payment Receipt
             </h3>
             <button type="button" class="close-btn" onclick="closeModal('createReceiptModal')">&times;</button>
@@ -175,8 +175,8 @@
                     <input type="text" id="rcpt_sub_type" name="subscription_type" class="form-control" value="Monthly Subscription">
                 </div>
 
-                <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.12); padding: 0.85rem 1rem; border-radius: var(--radius-md);">
-                    <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.88rem; color: #cbd5e1;">
+                <div style="background: var(--surface-card); border: 1px solid var(--surface-border); padding: 0.85rem 1rem; border-radius: var(--radius-md);">
+                    <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.88rem; color: var(--text-secondary);">
                         <input type="checkbox" name="auto_email" value="1" checked style="width: 16px; height: 16px; accent-color: #2563eb;">
                         <span><strong>Dispatch official email receipt</strong> to the resident immediately upon generation</span>
                     </label>

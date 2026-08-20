@@ -16,7 +16,7 @@
             {% if is_admin %}
             South Dumdum Enclave Residents' Association (SDDRA) &bull; Billing & Financial Console
             {% else %}
-            Resident Portal for Flat <strong>{{ current_user.flat_no }}</strong> &bull; {{ current_user.sq_feet or 1200 }} sq. ft.
+            Resident Portal for Flat <strong class="text-main">{{ current_user.flat_no }}</strong> &bull; {{ current_user.sq_feet or 1200 }} sq. ft.
             {% endif %}
         </p>
     </div>
@@ -40,7 +40,7 @@
 {% if is_admin %}
 <!-- ================= ADMIN / COMMITTEE DASHBOARD ================= -->
 <div class="grid-4" style="margin-bottom: 2rem;">
-    <div class="stat-card" style="--stat-accent: #3b82f6; --stat-icon-bg: rgba(59, 130, 246, 0.18); --stat-icon-border: rgba(59, 130, 246, 0.35); --stat-icon-color: #60a5fa;">
+    <div class="stat-card" style="--stat-accent: #3b82f6; --stat-icon-bg: rgba(59, 130, 246, 0.18); --stat-icon-border: rgba(59, 130, 246, 0.35); --stat-icon-color: #3b82f6;">
         <div class="stat-icon">💰</div>
         <div class="stat-info">
             <div class="stat-label">Total Maintenance Collected</div>
@@ -49,7 +49,7 @@
         </div>
     </div>
 
-    <div class="stat-card" style="--stat-accent: #f43f5e; --stat-icon-bg: rgba(244, 63, 94, 0.18); --stat-icon-border: rgba(244, 63, 94, 0.35); --stat-icon-color: #fb7185;">
+    <div class="stat-card" style="--stat-accent: #f43f5e; --stat-icon-bg: rgba(244, 63, 94, 0.18); --stat-icon-border: rgba(244, 63, 94, 0.35); --stat-icon-color: #f43f5e;">
         <div class="stat-icon">🧾</div>
         <div class="stat-info">
             <div class="stat-label">Total Incurred Expenses</div>
@@ -58,7 +58,7 @@
         </div>
     </div>
 
-    <div class="stat-card" style="--stat-accent: {% if net_balance >= 0 %}#10b981{% else %}#f59e0b{% endif %}; --stat-icon-bg: {% if net_balance >= 0 %}rgba(16, 185, 129, 0.18){% else %}rgba(245, 158, 11, 0.18){% endif %}; --stat-icon-border: {% if net_balance >= 0 %}rgba(52, 211, 153, 0.35){% else %}rgba(251, 191, 36, 0.35){% endif %}; --stat-icon-color: {% if net_balance >= 0 %}#34d399{% else %}#fbbf24{% endif %};">
+    <div class="stat-card" style="--stat-accent: {% if net_balance >= 0 %}#10b981{% else %}#f59e0b{% endif %}; --stat-icon-bg: {% if net_balance >= 0 %}rgba(16, 185, 129, 0.18){% else %}rgba(245, 158, 11, 0.18){% endif %}; --stat-icon-border: {% if net_balance >= 0 %}rgba(52, 211, 153, 0.35){% else %}rgba(251, 191, 36, 0.35){% endif %}; --stat-icon-color: {% if net_balance >= 0 %}#10b981{% else %}#f59e0b{% endif %};">
         <div class="stat-icon">📈</div>
         <div class="stat-info">
             <div class="stat-label">Association Reserve</div>
@@ -67,7 +67,7 @@
         </div>
     </div>
 
-    <div class="stat-card" style="--stat-accent: #8b5cf6; --stat-icon-bg: rgba(139, 92, 246, 0.18); --stat-icon-border: rgba(168, 85, 247, 0.35); --stat-icon-color: #c084fc;">
+    <div class="stat-card" style="--stat-accent: #8b5cf6; --stat-icon-bg: rgba(139, 92, 246, 0.18); --stat-icon-border: rgba(168, 85, 247, 0.35); --stat-icon-color: #8b5cf6;">
         <div class="stat-icon">🏘️</div>
         <div class="stat-info">
             <div class="stat-label">Enclave Flats</div>
@@ -107,17 +107,17 @@
                     {% for r in recent_receipts %}
                     <tr>
                         <td>
-                            <strong style="color: #60a5fa;">#{{ r.receipt_no }}</strong><br>
-                            <span style="font-size: 0.75rem; color: var(--slate-400);">{{ r.payment_date or r.receipt_date }}</span>
+                            <strong class="text-highlight-blue">#{{ r.receipt_no }}</strong><br>
+                            <span class="text-muted" style="font-size: 0.75rem;">{{ r.payment_date or r.receipt_date }}</span>
                         </td>
                         <td>
-                            <strong style="color: #ffffff;">{{ r.member_name }}</strong><br>
+                            <strong class="text-main">{{ r.member_name }}</strong><br>
                             <span class="badge badge-info">Flat {{ r.flat_no }}</span>
                         </td>
                         <td>
                             <span class="badge badge-warning">{{ r.remarks or 'Monthly' }}</span>
                         </td>
-                        <td><strong style="color: #34d399; font-size: 0.95rem;">₹ {{ "{:,.2f}".format(r.amount) }}</strong></td>
+                        <td><strong class="text-amount-success" style="font-size: 0.95rem;">₹ {{ "{:,.2f}".format(r.amount) }}</strong></td>
                         <td>
                             <div style="display: flex; gap: 0.35rem;">
                                 <a href="{{ url_for('view_receipt', receipt_no=r.receipt_no) }}" class="btn btn-sm btn-secondary" title="View & Print Official Voucher">📄</a>
@@ -159,19 +159,19 @@
                     {% for e in recent_expenses %}
                     <tr>
                         <td>
-                            <strong style="color: #cbd5e1;">#{{ e.voucher_no }}</strong><br>
-                            <span style="font-size: 0.75rem; color: var(--slate-400);">{{ e.voucher_date }}</span>
+                            <strong class="text-secondary">#{{ e.voucher_no }}</strong><br>
+                            <span class="text-muted" style="font-size: 0.75rem;">{{ e.voucher_date }}</span>
                         </td>
                         <td>
-                            <strong style="color: #ffffff;">{{ e.expense_description }}</strong>
+                            <strong class="text-main">{{ e.expense_description }}</strong>
                             {% if e.spl_head %}
-                            <div style="font-size: 0.75rem; color: var(--slate-400);">Head: {{ e.spl_head }}</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Head: {{ e.spl_head }}</div>
                             {% endif %}
                         </td>
                         <td>
                             <span class="badge badge-warning">{{ e.particulars }}</span>
                         </td>
-                        <td><strong style="color: #fda4af; font-size: 0.95rem;">₹ {{ "{:,.2f}".format(e.amount) }}</strong></td>
+                        <td><strong class="text-amount-danger" style="font-size: 0.95rem;">₹ {{ "{:,.2f}".format(e.amount) }}</strong></td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -183,7 +183,7 @@
 {% else %}
 <!-- ================= REGULAR RESIDENT DASHBOARD ================= -->
 <div class="grid-3" style="margin-bottom: 2rem;">
-    <div class="stat-card" style="--stat-accent: #10b981; --stat-icon-bg: rgba(16, 185, 129, 0.18); --stat-icon-border: rgba(52, 211, 153, 0.35); --stat-icon-color: #34d399;">
+    <div class="stat-card" style="--stat-accent: #10b981; --stat-icon-bg: rgba(16, 185, 129, 0.18); --stat-icon-border: rgba(52, 211, 153, 0.35); --stat-icon-color: #10b981;">
         <div class="stat-icon">✅</div>
         <div class="stat-info">
             <div class="stat-label">Total Maintenance Paid</div>
@@ -192,7 +192,7 @@
         </div>
     </div>
 
-    <div class="stat-card" style="--stat-accent: {% if outstanding == 0 %}#10b981{% else %}#f59e0b{% endif %}; --stat-icon-bg: {% if outstanding == 0 %}rgba(16, 185, 129, 0.18){% else %}rgba(245, 158, 11, 0.18){% endif %}; --stat-icon-border: {% if outstanding == 0 %}rgba(52, 211, 153, 0.35){% else %}rgba(251, 191, 36, 0.35){% endif %}; --stat-icon-color: {% if outstanding == 0 %}#34d399{% else %}#fbbf24{% endif %};">
+    <div class="stat-card" style="--stat-accent: {% if outstanding == 0 %}#10b981{% else %}#f59e0b{% endif %}; --stat-icon-bg: {% if outstanding == 0 %}rgba(16, 185, 129, 0.18){% else %}rgba(245, 158, 11, 0.18){% endif %}; --stat-icon-border: {% if outstanding == 0 %}rgba(52, 211, 153, 0.35){% else %}rgba(251, 191, 36, 0.35){% endif %}; --stat-icon-color: {% if outstanding == 0 %}#10b981{% else %}#f59e0b{% endif %};">
         <div class="stat-icon">⚖️</div>
         <div class="stat-info">
             <div class="stat-label">Monthly Rate / Status</div>
@@ -201,12 +201,12 @@
         </div>
     </div>
 
-    <div class="stat-card" style="--stat-accent: #3b82f6; --stat-icon-bg: rgba(59, 130, 246, 0.18); --stat-icon-border: rgba(59, 130, 246, 0.35); --stat-icon-color: #60a5fa;">
+    <div class="stat-card" style="--stat-accent: #3b82f6; --stat-icon-bg: rgba(59, 130, 246, 0.18); --stat-icon-border: rgba(59, 130, 246, 0.35); --stat-icon-color: #3b82f6;">
         <div class="stat-icon">🏛️</div>
         <div class="stat-info">
             <div class="stat-label">Total Society Expenses</div>
             <div class="stat-value">₹ {{ "{:,.2f}".format(total_expenses) }}</div>
-            <div class="stat-sub"><a href="{{ url_for('expenses_list') }}" style="color: var(--primary-400); font-weight: 600;">View full audit ledger &rarr;</a></div>
+            <div class="stat-sub"><a href="{{ url_for('expenses_list') }}" class="text-highlight-blue">View full audit ledger &rarr;</a></div>
         </div>
     </div>
 </div>
@@ -235,18 +235,18 @@
                 {% for r in my_receipts %}
                 <tr>
                     <td>
-                        <strong style="color: #60a5fa; font-size: 0.95rem;">#{{ r.receipt_no }}</strong>
+                        <strong class="text-highlight-blue" style="font-size: 0.95rem;">#{{ r.receipt_no }}</strong>
                     </td>
                     <td>
                         <span class="badge badge-warning">{{ r.remarks or 'Monthly' }}</span>
                     </td>
-                    <td>{{ r.payment_date or r.receipt_date }}</td>
+                    <td class="text-secondary">{{ r.payment_date or r.receipt_date }}</td>
                     <td>
                         <span class="badge badge-info">{{ r.pymnt_mode }}</span>
                     </td>
-                    <td>{{ r.subscription_type or 'Monthly Subscription' }}</td>
+                    <td class="text-secondary">{{ r.subscription_type or 'Monthly Subscription' }}</td>
                     <td>
-                        <strong style="color: #34d399; font-size: 1rem;">₹ {{ "{:,.2f}".format(r.amount) }}</strong>
+                        <strong class="text-amount-success" style="font-size: 1rem;">₹ {{ "{:,.2f}".format(r.amount) }}</strong>
                     </td>
                     <td>
                         <div style="display: flex; gap: 0.5rem;">
@@ -261,7 +261,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" style="text-align: center; color: var(--slate-400); padding: 2.5rem;">
+                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
                         No maintenance receipts found for Flat {{ current_user.flat_no }}.
                     </td>
                 </tr>
@@ -292,17 +292,17 @@
             <tbody>
                 {% for e in recent_expenses %}
                 <tr>
-                    <td><strong style="color: #cbd5e1;">#{{ e.voucher_no }}</strong></td>
+                    <td><strong class="text-secondary">#{{ e.voucher_no }}</strong></td>
                     <td>
-                        <strong style="color: #ffffff;">{{ e.expense_description }}</strong>
+                        <strong class="text-main">{{ e.expense_description }}</strong>
                         {% if e.spl_head %}
-                        <span style="font-size: 0.75rem; color: var(--slate-400); margin-left: 4px;">({{ e.spl_head }})</span>
+                        <span class="text-muted" style="font-size: 0.75rem; margin-left: 4px;">({{ e.spl_head }})</span>
                         {% endif %}
                     </td>
                     <td><span class="badge badge-warning">{{ e.particulars }}</span></td>
-                    <td>{{ e.voucher_date }}</td>
+                    <td class="text-secondary">{{ e.voucher_date }}</td>
                     <td><span class="badge badge-info">{{ e.payment_by }}</span></td>
-                    <td><strong style="color: #fda4af;">₹ {{ "{:,.2f}".format(e.amount) }}</strong></td>
+                    <td><strong class="text-amount-danger">₹ {{ "{:,.2f}".format(e.amount) }}</strong></td>
                 </tr>
                 {% endfor %}
             </tbody>

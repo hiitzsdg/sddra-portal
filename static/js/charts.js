@@ -1,27 +1,53 @@
 // ==========================================================================
 // South Dumdum Enclave Residents' Association (SDDRA)
-// Interactive Visualizations & Dark-Mode Analytics Engine (Chart.js)
+// Dual-Theme Interactive Visualizations & Analytics Engine (Chart.js)
 // ==========================================================================
 
+let categoryChartInstance = null;
+let monthlyChartInstance = null;
+let cachedChartData = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
+    await renderAllCharts();
+
+    window.addEventListener('themeChanged', (e) => {
+        if (cachedChartData) {
+            renderAllCharts(cachedChartData);
+        }
+    });
+});
+
+async function renderAllCharts(existingData = null) {
     const expenseChartCanvas = document.getElementById('expenseCategoryChart');
     const monthlyTrendCanvas = document.getElementById('expenseMonthlyChart');
     
     if (!expenseChartCanvas && !monthlyTrendCanvas) return;
     
-    // Set Chart.js global typography and defaults
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const textColor = isLight ? '#475569' : '#cbd5e1';
+    const gridColor = isLight ? 'rgba(0, 0, 0, 0.07)' : 'rgba(255, 255, 255, 0.08)';
+    const chartCardBg = isLight ? '#ffffff' : '#0f172a';
+    
     if (typeof Chart !== 'undefined') {
         Chart.defaults.font.family = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif";
-        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.color = isLight ? '#64748b' : '#94a3b8';
     }
     
     try {
-        const response = await fetch('/api/expenses/chart-data');
-        if (!response.ok) return;
-        const data = await response.json();
+        let data = existingData;
+        if (!data) {
+            const response = await fetch('/api/expenses/chart-data');
+            if (!response.ok) return;
+            data = await response.json();
+            cachedChartData = data;
+        }
         
         // 1. Doughnut Chart: Category Outlays Breakdown
         if (expenseChartCanvas && data.categories && data.categories.length > 0) {
+            if (categoryChartInstance) {
+                categoryChartInstance.destroy();
+            }
+
             const labels = data.categories.map(c => c.category);
             const values = data.categories.map(c => c.total);
             
@@ -36,7 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 '#64748b'  // Slate
             ];
             
-            new Chart(expenseChartCanvas, {
+            categoryChartInstance = new Chart(expenseChartCanvas, {
                 type: 'doughnut',
                 data: {
                     labels: labels,
@@ -44,7 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         data: values,
                         backgroundColor: vibrantPalette.slice(0, labels.length),
                         borderWidth: 3,
-                        borderColor: '#0f172a',
+                        borderColor: chartCardBg,
                         hoverOffset: 6
                     }]
                 },
@@ -60,15 +86,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 borderRadius: 3,
                                 useBorderRadius: true,
                                 padding: 14,
-                                color: '#cbd5e1',
+                                color: textColor,
                                 font: { size: 12, weight: 600 }
                             }
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#60a5fa',
-                            borderColor: 'rgba(59, 130, 246, 0.4)',
+                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(15, 23, 42, 0.95)',
+                            titleColor: isLight ? '#0f172a' : '#ffffff',
+                            bodyColor: isLight ? '#2563eb' : '#60a5fa',
+                            borderColor: isLight ? '#cbd5e1' : 'rgba(59, 130, 246, 0.4)',
                             borderWidth: 1,
                             padding: 12,
                             boxPadding: 6,
@@ -88,18 +114,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // 2. Bar Chart: Monthly Expenditure Trend
         if (monthlyTrendCanvas && data.monthly && data.monthly.length > 0) {
+            if (monthlyChartInstance) {
+                monthlyChartInstance.destroy();
+            }
+
             const labels = data.monthly.map(m => m.month);
             const values = data.monthly.map(m => m.total);
             
-            new Chart(monthlyTrendCanvas, {
+            monthlyChartInstance = new Chart(monthlyTrendCanvas, {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
                         label: 'Expenditure (₹)',
                         data: values,
-                        backgroundColor: 'rgba(59, 130, 246, 0.85)',
-                        hoverBackgroundColor: '#2563eb',
+                        backgroundColor: isLight ? 'rgba(37, 99, 235, 0.85)' : 'rgba(59, 130, 246, 0.85)',
+                        hoverBackgroundColor: '#1d4ed8',
                         borderRadius: 6,
                         borderSkipped: false
                     }]
@@ -110,10 +140,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#34d399',
-                            borderColor: 'rgba(16, 185, 129, 0.4)',
+                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(15, 23, 42, 0.95)',
+                            titleColor: isLight ? '#0f172a' : '#ffffff',
+                            bodyColor: isLight ? '#059669' : '#34d399',
+                            borderColor: isLight ? '#cbd5e1' : 'rgba(16, 185, 129, 0.4)',
                             borderWidth: 1,
                             padding: 12,
                             cornerRadius: 8,
@@ -129,11 +159,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         y: {
                             beginAtZero: true,
                             grid: {
-                                color: 'rgba(255, 255, 255, 0.07)',
+                                color: gridColor,
                                 drawBorder: false
                             },
                             ticks: {
-                                color: '#94a3b8',
+                                color: isLight ? '#64748b' : '#94a3b8',
                                 font: { size: 11 },
                                 callback: function(val) {
                                     return '₹' + (val / 1000) + 'k';
@@ -143,7 +173,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         x: {
                             grid: { display: false },
                             ticks: {
-                                color: '#cbd5e1',
+                                color: textColor,
                                 font: { size: 11, weight: 600 }
                             }
                         }
@@ -154,4 +184,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {
         console.warn('Note: Chart visualizer skipped or offline data mode active:', e);
     }
-});
+}

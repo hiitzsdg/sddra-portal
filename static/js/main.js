@@ -4,7 +4,10 @@
 // ==========================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Initialize Mobile Navigation Menu Toggle
+    // 1. Initialize Light / Dark Theme Switcher
+    initThemeSwitcher();
+
+    // 2. Initialize Mobile Navigation Menu Toggle
     const mobileBtn = document.getElementById('mobileMenuBtn');
     const mobileDrawer = document.getElementById('mobileNavDrawer');
     const mobileIcon = document.getElementById('mobileMenuIcon');
@@ -29,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. Auto-dismiss flash alerts after 6 seconds
+    // 3. Auto-dismiss flash alerts after 6 seconds
     const alerts = document.querySelectorAll('.alert');
     alerts.forEach(alert => {
         setTimeout(() => {
@@ -40,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 6000);
     });
 
-    // 3. Escape key listener for Modals & Drawers
+    // 4. Escape key listener for Modals & Drawers
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             document.querySelectorAll('.modal-backdrop.active').forEach(m => {
@@ -54,9 +57,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 4. Initialize Live Instant Tables Search if present
+    // 5. Initialize Live Instant Tables Search if present
     initGenericLiveSearch();
 });
+
+// ================= Theme Switcher (Light / Dark Mode) =================
+function initThemeSwitcher() {
+    const themeBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = document.getElementById('themeToggleIcon');
+    const savedTheme = localStorage.getItem('sddra_theme') || 
+        (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    
+    applyTheme(savedTheme);
+
+    if (themeBtn) {
+        themeBtn.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            applyTheme(newTheme);
+            localStorage.setItem('sddra_theme', newTheme);
+        });
+    }
+
+    function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (themeIcon) {
+            themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+        if (themeBtn) {
+            themeBtn.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        }
+        window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme } }));
+    }
+}
 
 // ================= Modal Dialog Controller =================
 function openModal(modalId) {
@@ -130,7 +163,7 @@ function initGenericLiveSearch() {
                     if (query) {
                         counterEl.textContent = `${matchCount} of ${totalRows} Shown`;
                     } else {
-                        counterEl.textContent = `${totalRows} Total Records`;
+                        counterEl.textContent = `${totalRows} Records`;
                     }
                 }
             }

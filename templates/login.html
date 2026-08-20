@@ -11,11 +11,11 @@
             <div style="display: inline-flex; width: 72px; height: 72px; border-radius: 20px; background: linear-gradient(135deg, #2563eb, #1e3a8a); color: #ffffff; align-items: center; justify-content: center; font-size: 2.2rem; margin-bottom: 1.25rem; box-shadow: 0 10px 25px rgba(37, 99, 235, 0.45); border: 1px solid rgba(255, 255, 255, 0.2);">
                 🏢
             </div>
-            <h2 style="font-size: 1.75rem; color: #ffffff; letter-spacing: -0.02em;">Resident & Committee Portal</h2>
-            <p style="font-size: 0.88rem; color: #94a3b8; margin-top: 0.35rem;">
+            <h2 class="text-heading" style="font-size: 1.75rem; letter-spacing: -0.02em;">Resident & Committee Portal</h2>
+            <p class="text-muted" style="font-size: 0.88rem; margin-top: 0.35rem;">
                 South Dumdum Enclave Residents' Association (SDDRA)
             </p>
-            <div style="display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(52, 211, 153, 0.35); padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; color: #34d399; font-weight: 600; margin-top: 0.75rem;">
+            <div style="display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(52, 211, 153, 0.35); padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; color: #10b981; font-weight: 600; margin-top: 0.75rem;">
                 <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
                 Live Database Active &bull; 44 Units Registered
             </div>
@@ -25,7 +25,7 @@
             <div class="form-group">
                 <label class="form-label" for="username">Flat Number or Admin Username</label>
                 <input type="text" id="username" name="username" class="form-control" placeholder="e.g. A/4-C, A/1-A, B/1-B or admin" required autofocus>
-                <small style="color: #64748b; font-size: 0.76rem; margin-top: 0.35rem; display: block;">
+                <small class="text-muted" style="font-size: 0.76rem; margin-top: 0.35rem; display: block;">
                     Residents enter Flat No (e.g. <code>A/4-C</code>) &bull; Admins enter username
                 </small>
             </div>
@@ -42,18 +42,18 @@
             </button>
         </form>
 
-        <div style="margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid rgba(255, 255, 255, 0.08); text-align: center; font-size: 0.8rem; color: #94a3b8;">
-            <p>Default Resident Password: <code style="color: #60a5fa; background: rgba(59, 130, 246, 0.15); padding: 2px 6px; border-radius: 4px;">sdera@123</code> &bull; Admin: <code style="color: #60a5fa; background: rgba(59, 130, 246, 0.15); padding: 2px 6px; border-radius: 4px;">passwd</code></p>
+        <div style="margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--surface-border); text-align: center; font-size: 0.8rem;" class="text-muted">
+            <p>Default Resident Password: <code class="text-highlight-blue">sdera@123</code> &bull; Admin: <code class="text-highlight-blue">passwd</code></p>
         </div>
     </div>
 
     <!-- Right: 1-Click Instant Demo Command Deck -->
     <div style="display: flex; flex-direction: column; gap: 1.5rem;">
         <div class="demo-hub-card">
-            <h3 style="color: #ffffff; font-size: 1.25rem; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.6rem;">
+            <h3 class="card-title" style="font-size: 1.25rem; margin-bottom: 0.35rem;">
                 ⚡ 1-Click Instant Login Hub
             </h3>
-            <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1.4rem;">
+            <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1.4rem;">
                 Select any verified profile to test immediate role-based views:
             </p>
 
@@ -62,7 +62,7 @@
                 <a href="{{ url_for('login', demo='treasurer') }}" class="demo-btn">
                     <span style="display: flex; align-items: center; gap: 0.6rem;">
                         <span style="font-size: 1.2rem;">💰</span>
-                        <span>Association Treasurer</span>
+                        <span class="text-main">Association Treasurer</span>
                     </span>
                     <span class="badge badge-treasurer">Master Admin</span>
                 </a>
@@ -70,13 +70,13 @@
                 <a href="{{ url_for('login', demo='admin') }}" class="demo-btn">
                     <span style="display: flex; align-items: center; gap: 0.6rem;">
                         <span style="font-size: 1.2rem;">📝</span>
-                        <span>Billing Administrator</span>
+                        <span class="text-main">Billing Administrator</span>
                     </span>
                     <span class="badge badge-billing_admin">Admin</span>
                 </a>
             </div>
 
-            <div style="margin: 1.25rem 0 0.75rem; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 1rem; font-size: 0.82rem; color: #94a3b8; font-weight: 600;">
+            <div style="margin: 1.25rem 0 0.75rem; border-top: 1px solid var(--surface-border); padding-top: 1rem; font-size: 0.82rem; font-weight: 600;" class="text-muted">
                 🏢 Verified Enclave Residents (Real Association Records):
             </div>
 
@@ -85,7 +85,7 @@
                 <a href="{{ url_for('login', demo='A/4-C') }}" class="demo-btn">
                     <span style="display: flex; align-items: center; gap: 0.6rem;">
                         <span style="font-size: 1.2rem;">🏠</span>
-                        <span>Mr. Swapnadeep Ganguly</span>
+                        <span class="text-main">Mr. Swapnadeep Ganguly</span>
                     </span>
                     <span class="badge badge-member">Flat A/4-C</span>
                 </a>
@@ -93,7 +93,7 @@
                 <a href="{{ url_for('login', demo='A/1-B') }}" class="demo-btn">
                     <span style="display: flex; align-items: center; gap: 0.6rem;">
                         <span style="font-size: 1.2rem;">🏠</span>
-                        <span>Mrs. Kripa Ghosal</span>
+                        <span class="text-main">Mrs. Kripa Ghosal</span>
                     </span>
                     <span class="badge badge-member">Flat A/1-B</span>
                 </a>
@@ -101,7 +101,7 @@
                 <a href="{{ url_for('login', demo='A/1-A') }}" class="demo-btn">
                     <span style="display: flex; align-items: center; gap: 0.6rem;">
                         <span style="font-size: 1.2rem;">🏠</span>
-                        <span>Mr. Biswajit Manna</span>
+                        <span class="text-main">Mr. Biswajit Manna</span>
                     </span>
                     <span class="badge badge-member">Flat A/1-A</span>
                 </a>
@@ -109,18 +109,18 @@
                 <a href="{{ url_for('login', demo='A/Gr-B') }}" class="demo-btn">
                     <span style="display: flex; align-items: center; gap: 0.6rem;">
                         <span style="font-size: 1.2rem;">🏠</span>
-                        <span>Mrs. Sunanda Paul</span>
+                        <span class="text-main">Mrs. Sunanda Paul</span>
                     </span>
                     <span class="badge badge-member">Flat A/Gr-B</span>
                 </a>
             </div>
         </div>
 
-        <div class="card" style="padding: 1.25rem 1.5rem; font-size: 0.85rem; background: rgba(30, 58, 138, 0.25); border-color: rgba(59, 130, 246, 0.35);">
-            <strong style="color: #93c5fd; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
+        <div class="card" style="padding: 1.25rem 1.5rem; font-size: 0.85rem;">
+            <strong class="text-highlight-blue" style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
                 🔒 Strict Resident Privacy Architecture:
             </strong>
-            <p style="color: #cbd5e1; margin: 0;">
+            <p class="text-secondary" style="margin: 0;">
                 Every member is isolated to their own unit's maintenance receipts and charges. Full society expenses and financial vouchers are openly accessible to all residents for governance transparency.
             </p>
         </div>
