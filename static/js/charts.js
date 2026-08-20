@@ -7,6 +7,10 @@ let categoryChartInstance = null;
 let monthlyChartInstance = null;
 let cachedChartData = null;
 
+// Global filter states
+let selectedMonthFilter = null;
+let selectedCategoryFilter = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
     await renderAllCharts();
 
@@ -16,6 +20,254 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 });
+
+// Helper: Parse date string to year-month variations
+function parseVoucherMonthYear(dateStr) {
+    if (!dateStr) return { short: '', full: '', ym: '' };
+    const str = String(dateStr).trim();
+    const match = str.match(/^(\d{4})-(\d{2})/);
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const fullNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    if (match) {
+        const year = match[1];
+        const mIdx = parseInt(match[2], 10) - 1;
+        if (mIdx >= 0 && mIdx < 12) {
+            return {
+                short: `${monthNames[mIdx]} ${year}`,
+                full: `${fullNames[mIdx]} ${year}`,
+                ym: `${year}-${match[2]}`
+            };
+        }
+    }
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+        return {
+            short: `${monthNames[d.getMonth()]} ${d.getFullYear()}`,
+            full: `${fullNames[d.getMonth()]} ${d.getFullYear()}`,
+            ym: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        };
+    }
+    return { short: '', full: '', ym: '' };
+}
+
+// Generate bar dataset colors based on current active selection
+function getBarColors(labels, isLight) {
+    const defaultColor = isLight ? 'rgba(37, 99, 235, 0.85)' : 'rgba(59, 130, 246, 0.85)';
+    const dimmedColor = isLight ? 'rgba(37, 99, 235, 0.22)' : 'rgba(59, 130, 246, 0.20)';
+    const activeColor = isLight ? '#1d4ed8' : '#38bdf8';
+    const activeBorder = isLight ? '#1e3a8a' : '#ffffff';
+
+    if (!selectedMonthFilter) {
+        return {
+            bg: labels.map(() => defaultColor),
+            border: labels.map(() => 'transparent'),
+            borderWidth: labels.map(() => 0)
+        };
+    }
+
+    return {
+        bg: labels.map(label => label === selectedMonthFilter ? activeColor : dimmedColor),
+        border: labels.map(label => label === selectedMonthFilter ? activeBorder : 'transparent'),
+        borderWidth: labels.map(label => label === selectedMonthFilter ? 2 : 0)
+    };
+}
+
+// Update chart visual styles when a filter is toggled
+function updateChartVisualSelection() {
+    if (!monthlyChartInstance) return;
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const labels = monthlyChartInstance.data.labels;
+    const colors = getBarColors(labels, isLight);
+
+    monthlyChartInstance.data.datasets[0].backgroundColor = colors.bg;
+    monthlyChartInstance.data.datasets[0].borderColor = colors.border;
+    monthlyChartInstance.data.datasets[0].borderWidth = colors.borderWidth;
+    monthlyChartInstance.update('none');
+}
+
+// Toggle month filter when bar is clicked
+function toggleMonthExpenditureFilter(clickedMonth) {
+    if (selectedMonthFilter === clickedMonth) {
+        selectedMonthFilter = null;
+    } else {
+        selectedMonthFilter = clickedMonth;
+    }
+    updateChartVisualSelection();
+    applyExpenditureFilters(true);
+}
+
+// Clear active month filter
+function clearMonthlyChartFilter() {
+    selectedMonthFilter = null;
+    updateChartVisualSelection();
+    applyExpenditureFilters(false);
+}
+
+// Toggle category filter when doughnut slice is clicked
+function toggleCategoryExpenditureFilter(clickedCategory) {
+    if (selectedCategoryFilter === clickedCategory) {
+        selectedCategoryFilter = null;
+    } else {
+        selectedCategoryFilter = clickedCategory;
+    }
+    applyExpenditureFilters(true);
+}
+
+// Apply active filters across all expense tables
+function applyExpenditureFilters(shouldAnimateCard = false) {
+    const tableConfigs = [
+        {
+            tableId: '#adminRecentExpensesTable',
+            bannerId: '#adminExpFilterBanner',
+            labelId: '#adminExpFilterLabel',
+            statId: '#adminExpFilterStat',
+            counterId: '#adminExpCountBadge',
+            searchId: '#adminExpSearch',
+            cardId: '#societyExpenditureOutlaysCard',
+            defaultSuffix: 'Vouchers'
+        },
+        {
+            tableId: '#expensesTable',
+            bannerId: '#expensesFilterBanner',
+            labelId: '#expensesFilterLabel',
+            statId: '#expensesFilterStat',
+            counterId: '#expensesCountBadge',
+            searchId: '#q',
+            cardId: null,
+            defaultSuffix: 'Records'
+        },
+        {
+            tableId: '#memberExpensesTable',
+            bannerId: null,
+            labelId: null,
+            statId: null,
+            counterId: null,
+            searchId: '#memberExpSearch',
+            cardId: null,
+            defaultSuffix: 'Records'
+        }
+    ];
+
+    tableConfigs.forEach(cfg => {
+        const table = document.querySelector(cfg.tableId);
+        if (!table) return;
+
+        const searchInput = cfg.searchId ? document.querySelector(cfg.searchId) : null;
+        const rawSearch = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        const cleanSearch = rawSearch.replace(/[\/\-\s_,\.]/g, '');
+        const tokens = rawSearch.split(/\s+/).filter(t => t.length > 0);
+
+        const rows = table.querySelectorAll('tbody tr');
+        let matchCount = 0;
+        let totalRows = 0;
+        let totalAmount = 0;
+
+        rows.forEach(row => {
+            if (row.children.length === 1 && row.children[0].getAttribute('colspan')) {
+                return;
+            }
+            totalRows++;
+
+            // 1. Month match
+            let matchesMonth = true;
+            if (selectedMonthFilter) {
+                const dateVal = row.getAttribute('data-voucher-date') || row.querySelector('td:nth-child(1) span, td:nth-child(2)')?.textContent || '';
+                const myInfo = parseVoucherMonthYear(dateVal);
+                const targetClean = selectedMonthFilter.trim().toLowerCase();
+
+                matchesMonth = (
+                    myInfo.short.toLowerCase() === targetClean ||
+                    myInfo.full.toLowerCase() === targetClean ||
+                    myInfo.ym.toLowerCase() === targetClean ||
+                    dateVal.toLowerCase().includes(targetClean)
+                );
+            }
+
+            // 2. Category match
+            let matchesCategory = true;
+            if (selectedCategoryFilter) {
+                const partVal = (row.getAttribute('data-particulars') || row.textContent).toLowerCase();
+                matchesCategory = partVal.includes(selectedCategoryFilter.toLowerCase());
+            }
+
+            // 3. Search query match
+            let matchesSearch = true;
+            if (rawSearch) {
+                const rowRawText = row.textContent.toLowerCase();
+                const rowCleanText = rowRawText.replace(/[\/\-\s_,\.]/g, '');
+
+                const rawSubstringMatch = rowRawText.includes(rawSearch);
+                const cleanMatch = cleanSearch.length > 0 && rowCleanText.includes(cleanSearch);
+                const allTokensMatch = tokens.length > 0 && tokens.every(token => {
+                    const cleanToken = token.replace(/[\/\-\s_,\.]/g, '');
+                    return rowRawText.includes(token) || (cleanToken.length > 0 && rowCleanText.includes(cleanToken));
+                });
+
+                matchesSearch = rawSubstringMatch || cleanMatch || allTokensMatch;
+            }
+
+            if (matchesMonth && matchesCategory && matchesSearch) {
+                row.style.display = '';
+                matchCount++;
+
+                // Sum up amounts
+                const amtEl = row.querySelector('.text-amount-danger, td:nth-child(4), td:last-child');
+                if (amtEl) {
+                    const num = parseFloat(amtEl.textContent.replace(/[^0-9.]/g, ''));
+                    if (!isNaN(num)) totalAmount += num;
+                }
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Update active filter banner
+        if (cfg.bannerId) {
+            const banner = document.querySelector(cfg.bannerId);
+            const label = document.querySelector(cfg.labelId);
+            const stat = document.querySelector(cfg.statId);
+
+            if (banner) {
+                if (selectedMonthFilter) {
+                    banner.style.display = 'block';
+                    if (label) label.textContent = selectedMonthFilter;
+                    if (stat) stat.textContent = `${matchCount} Vouchers • ₹ ${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                } else {
+                    banner.style.display = 'none';
+                }
+            }
+        }
+
+        // Update counter badge
+        if (cfg.counterId) {
+            const counter = document.querySelector(cfg.counterId);
+            if (counter) {
+                if (selectedMonthFilter || rawSearch) {
+                    counter.textContent = `${matchCount} of ${totalRows} Shown`;
+                } else {
+                    counter.textContent = `${totalRows} ${cfg.defaultSuffix}`;
+                }
+            }
+        }
+
+        // Pulse animation feedback on card
+        if (shouldAnimateCard && cfg.cardId && selectedMonthFilter) {
+            const card = document.querySelector(cfg.cardId);
+            if (card) {
+                card.classList.remove('card-highlight-pulse');
+                void card.offsetWidth; // Trigger reflow
+                card.classList.add('card-highlight-pulse');
+            }
+        }
+    });
+}
+
+// Expose globally for HTML onclick handlers
+window.toggleMonthExpenditureFilter = toggleMonthExpenditureFilter;
+window.clearMonthlyChartFilter = clearMonthlyChartFilter;
+window.toggleCategoryExpenditureFilter = toggleCategoryExpenditureFilter;
+window.applyExpenditureFilters = applyExpenditureFilters;
 
 async function renderAllCharts(existingData = null) {
     const expenseChartCanvas = document.getElementById('expenseCategoryChart');
@@ -71,12 +323,26 @@ async function renderAllCharts(existingData = null) {
                         backgroundColor: vibrantPalette.slice(0, labels.length),
                         borderWidth: 3,
                         borderColor: chartCardBg,
-                        hoverOffset: 6
+                        hoverOffset: 8
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    onHover: (event, chartElement) => {
+                        const canvas = event.native ? event.native.target : (categoryChartInstance ? categoryChartInstance.canvas : null);
+                        if (canvas) {
+                            canvas.style.cursor = chartElement && chartElement.length ? 'pointer' : 'default';
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (!elements || elements.length === 0) return;
+                        const index = elements[0].index;
+                        if (categoryChartInstance && categoryChartInstance.data.labels[index]) {
+                            const clickedCategory = categoryChartInstance.data.labels[index];
+                            toggleCategoryExpenditureFilter(clickedCategory);
+                        }
+                    },
                     plugins: {
                         legend: {
                             position: 'bottom',
@@ -120,6 +386,7 @@ async function renderAllCharts(existingData = null) {
 
             const labels = data.monthly.map(m => m.month);
             const values = data.monthly.map(m => m.total);
+            const barColors = getBarColors(labels, isLight);
             
             monthlyChartInstance = new Chart(monthlyTrendCanvas, {
                 type: 'bar',
@@ -128,7 +395,9 @@ async function renderAllCharts(existingData = null) {
                     datasets: [{
                         label: 'Expenditure (₹)',
                         data: values,
-                        backgroundColor: isLight ? 'rgba(37, 99, 235, 0.85)' : 'rgba(59, 130, 246, 0.85)',
+                        backgroundColor: barColors.bg,
+                        borderColor: barColors.border,
+                        borderWidth: barColors.borderWidth,
                         hoverBackgroundColor: '#1d4ed8',
                         borderRadius: 6,
                         borderSkipped: false
@@ -137,6 +406,20 @@ async function renderAllCharts(existingData = null) {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    onHover: (event, chartElement) => {
+                        const canvas = event.native ? event.native.target : (monthlyChartInstance ? monthlyChartInstance.canvas : null);
+                        if (canvas) {
+                            canvas.style.cursor = chartElement && chartElement.length ? 'pointer' : 'default';
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (!elements || elements.length === 0) return;
+                        const index = elements[0].index;
+                        if (monthlyChartInstance && monthlyChartInstance.data.labels[index]) {
+                            const clickedMonth = monthlyChartInstance.data.labels[index];
+                            toggleMonthExpenditureFilter(clickedMonth);
+                        }
+                    },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
@@ -150,7 +433,8 @@ async function renderAllCharts(existingData = null) {
                             callbacks: {
                                 label: function(context) {
                                     const val = context.raw || 0;
-                                    return ` Incurred: ₹ ${val.toLocaleString('en-IN')}`;
+                                    const isSelected = labels[context.dataIndex] === selectedMonthFilter;
+                                    return ` Incurred: ₹ ${val.toLocaleString('en-IN')}${isSelected ? ' (Active Filter)' : ' • Click to filter'}`;
                                 }
                             }
                         }
@@ -181,7 +465,13 @@ async function renderAllCharts(existingData = null) {
                 }
             });
         }
+
+        // Re-apply any active filters
+        if (selectedMonthFilter || selectedCategoryFilter) {
+            applyExpenditureFilters(false);
+        }
     } catch (e) {
         console.warn('Note: Chart visualizer skipped or offline data mode active:', e);
     }
 }
+
