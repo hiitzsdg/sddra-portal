@@ -311,8 +311,15 @@ def dashboard():
         total_members_row = query_db("SELECT COUNT(*) as count FROM tbl_membership", one=True)
         total_members = total_members_row['count'] if total_members_row else 0
         
-        recent_receipts = query_db("SELECT * FROM tbl_receipts ORDER BY receipt_no DESC LIMIT 8")
-        recent_expenses = query_db("SELECT * FROM tbl_expenses ORDER BY voucher_no DESC LIMIT 5")
+        search_q = request.args.get('q', '').strip()
+        rcpt_query = "SELECT * FROM tbl_receipts"
+        rcpt_params = []
+        if search_q:
+            rcpt_query += " WHERE flat_no LIKE %s OR member_name LIKE %s OR remarks LIKE %s OR receipt_no = %s"
+            rcpt_params.extend([f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", search_q if search_q.isdigit() else 0])
+        rcpt_query += " ORDER BY receipt_no DESC"
+        recent_receipts = query_db(rcpt_query, rcpt_params)
+        recent_expenses = query_db("SELECT * FROM tbl_expenses ORDER BY voucher_no DESC")
         
         return render_template(
             'dashboard.html',
@@ -325,6 +332,7 @@ def dashboard():
             net_balance=total_collected - total_expenses,
             recent_receipts=recent_receipts,
             recent_expenses=recent_expenses,
+            search_q=search_q,
             current_year=2026
         )
     else:

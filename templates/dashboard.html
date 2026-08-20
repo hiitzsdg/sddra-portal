@@ -1,99 +1,115 @@
 {% extends 'base.html' %}
 
-{% block title %}Dashboard - SDDRA Residents' Association Portal{% endblock %}
+{% block title %}Dashboard - SDDRA Portal{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div class="page-header-title">
-        <h2>
-            {% if is_admin %}
-            🏢 Executive Management Console
-            {% else %}
-            👋 Welcome, {{ current_user.name }}
-            {% endif %}
-        </h2>
-        <p>
-            {% if is_admin %}
-            South Dumdum Enclave Residents' Association (SDDRA) &bull; Billing & Financial Console
-            {% else %}
-            Resident Portal for Flat <strong class="text-main">{{ current_user.flat_no }}</strong> &bull; {{ current_user.sq_feet or 1200 }} sq. ft.
-            {% endif %}
-        </p>
-    </div>
-
-    <div class="page-header-actions">
         {% if is_admin %}
-        <a href="{{ url_for('admin_receipts') }}" class="btn btn-primary">
-            ➕ Issue New Receipt
-        </a>
-        <a href="{{ url_for('admin_members') }}" class="btn btn-secondary">
-            👥 Resident Directory (44 Flats)
-        </a>
+        <h2>📊 Executive Management Console</h2>
+        <p>Real-time financial status, audit trails, and member maintenance registry of South Dumdum Enclave.</p>
         {% else %}
-        <a href="{{ url_for('expenses_list') }}" class="btn btn-secondary">
-            📊 View Society Expenses (81 Vouchers)
-        </a>
+        <h2>🏠 Resident Dashboard & Payment Portal</h2>
+        <p>Welcome, <strong>{{ member.member_name or current_user.name }}</strong> (Flat <strong>{{ current_user.flat_no }}</strong>). Official maintenance status and bills.</p>
+        {% endif %}
+    </div>
+    <div>
+        {% if is_admin %}
+        <a href="{{ url_for('expenses_list') }}" class="btn btn-primary">➕ Record Society Expense</a>
+        {% else %}
+        <a href="{{ url_for('profile') }}" class="btn btn-secondary">⚙️ Account Settings</a>
         {% endif %}
     </div>
 </div>
 
 {% if is_admin %}
-<!-- ================= ADMIN / COMMITTEE DASHBOARD ================= -->
+<!-- ================= SUPERADMIN / COMMITTEE DASHBOARD ================= -->
+
+<!-- Executive Stats Grid -->
 <div class="grid-4" style="margin-bottom: 2rem;">
     <div class="stat-card" style="--stat-accent: #3b82f6; --stat-icon-bg: rgba(59, 130, 246, 0.18); --stat-icon-border: rgba(59, 130, 246, 0.35); --stat-icon-color: #3b82f6;">
+        <div class="stat-icon">🏢</div>
+        <div class="stat-info">
+            <div class="stat-label">Total Flats</div>
+            <div class="stat-value">{{ total_members }}</div>
+            <div class="stat-sub">100% Units Registered</div>
+        </div>
+    </div>
+
+    <div class="stat-card" style="--stat-accent: #10b981; --stat-icon-bg: rgba(16, 185, 129, 0.18); --stat-icon-border: rgba(52, 211, 153, 0.35); --stat-icon-color: #10b981;">
         <div class="stat-icon">💰</div>
         <div class="stat-info">
             <div class="stat-label">Total Maintenance Collected</div>
             <div class="stat-value">₹ {{ "{:,.2f}".format(total_collected) }}</div>
-            <div class="stat-sub">{{ total_receipts_count }} receipts issued</div>
+            <div class="stat-sub">{{ total_receipts_count }} receipts recorded</div>
         </div>
     </div>
 
-    <div class="stat-card" style="--stat-accent: #f43f5e; --stat-icon-bg: rgba(244, 63, 94, 0.18); --stat-icon-border: rgba(244, 63, 94, 0.35); --stat-icon-color: #f43f5e;">
+    <div class="stat-card" style="--stat-accent: #ef4444; --stat-icon-bg: rgba(239, 68, 68, 0.18); --stat-icon-border: rgba(248, 113, 113, 0.35); --stat-icon-color: #ef4444;">
         <div class="stat-icon">🧾</div>
         <div class="stat-info">
-            <div class="stat-label">Total Incurred Expenses</div>
+            <div class="stat-label">Total Society Outlays</div>
             <div class="stat-value">₹ {{ "{:,.2f}".format(total_expenses) }}</div>
-            <div class="stat-sub">{{ total_vouchers_count }} payment vouchers</div>
+            <div class="stat-sub">{{ total_vouchers_count }} vouchers recorded</div>
         </div>
     </div>
 
-    <div class="stat-card" style="--stat-accent: {% if net_balance >= 0 %}#10b981{% else %}#f59e0b{% endif %}; --stat-icon-bg: {% if net_balance >= 0 %}rgba(16, 185, 129, 0.18){% else %}rgba(245, 158, 11, 0.18){% endif %}; --stat-icon-border: {% if net_balance >= 0 %}rgba(52, 211, 153, 0.35){% else %}rgba(251, 191, 36, 0.35){% endif %}; --stat-icon-color: {% if net_balance >= 0 %}#10b981{% else %}#f59e0b{% endif %};">
-        <div class="stat-icon">📈</div>
+    <div class="stat-card" style="--stat-accent: {% if net_balance >= 0 %}#10b981{% else %}#ef4444{% endif %}; --stat-icon-bg: {% if net_balance >= 0 %}rgba(16, 185, 129, 0.18){% else %}rgba(239, 68, 68, 0.18){% endif %}; --stat-icon-border: {% if net_balance >= 0 %}rgba(52, 211, 153, 0.35){% else %}rgba(248, 113, 113, 0.35){% endif %}; --stat-icon-color: {% if net_balance >= 0 %}#10b981{% else %}#ef4444{% endif %};">
+        <div class="stat-icon">⚖️</div>
         <div class="stat-info">
-            <div class="stat-label">Association Reserve</div>
+            <div class="stat-label">Society Net Treasury</div>
             <div class="stat-value">₹ {{ "{:,.2f}".format(net_balance) }}</div>
-            <div class="stat-sub">{% if net_balance >= 0 %}Net Operating Reserve{% else %}Deficit{% endif %}</div>
-        </div>
-    </div>
-
-    <div class="stat-card" style="--stat-accent: #8b5cf6; --stat-icon-bg: rgba(139, 92, 246, 0.18); --stat-icon-border: rgba(168, 85, 247, 0.35); --stat-icon-color: #8b5cf6;">
-        <div class="stat-icon">🏘️</div>
-        <div class="stat-info">
-            <div class="stat-label">Enclave Flats</div>
-            <div class="stat-value">{{ total_members }}</div>
-            <div class="stat-sub">Registered residential units</div>
+            <div class="stat-sub">Audited Bank & Cash Balance</div>
         </div>
     </div>
 </div>
 
-<div class="grid-2">
-    <!-- Recent Receipts from tbl_receipts -->
+<!-- Charts Row -->
+<div class="grid-2" style="margin-bottom: 2rem;">
     <div class="card">
         <div class="card-header">
-            <h3 class="card-title">💳 Recent Collections</h3>
-            <a href="{{ url_for('admin_receipts') }}" class="btn btn-sm btn-outline-primary">All {{ total_receipts_count }} Receipts &rarr;</a>
+            <h3 class="card-title">📊 Expense Distribution by Head</h3>
+            <a href="{{ url_for('expenses_list') }}" class="btn btn-sm btn-outline-primary">Audit Outlays &rarr;</a>
+        </div>
+        <div style="position: relative; height: 270px;">
+            <canvas id="expenseCategoryChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📅 Monthly Expenditure Trajectory (2026)</h3>
+            <span class="badge badge-success">Audited Records</span>
+        </div>
+        <div style="position: relative; height: 270px;">
+            <canvas id="expenseMonthlyChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Records Tables -->
+<div class="grid-2">
+    <!-- Collections from tbl_receipts -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">💳 Maintenance Collections</h3>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span id="adminRcptCountBadge" class="badge badge-info">{{ recent_receipts|length }} Receipts</span>
+                <a href="{{ url_for('admin_receipts') }}" class="btn btn-sm btn-outline-primary">Ledger &rarr;</a>
+            </div>
         </div>
         
         <div style="margin-bottom: 1rem;">
-            <div class="live-search-box">
-                <span class="search-icon">🔍</span>
-                <input type="text" id="adminRcptSearch" class="form-control" placeholder="Quick filter flat (e.g. A/4-C), member name, receipt #, or remarks..." data-live-search="#adminRecentReceiptsTable" data-clear-btn="clearAdminRcptSearch">
-                <button type="button" id="clearAdminRcptSearch" class="clear-btn" title="Clear search">&times;</button>
-            </div>
+            <form method="GET" action="{{ url_for('dashboard') }}">
+                <div class="live-search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="adminRcptSearch" name="q" value="{{ search_q or '' }}" class="form-control" placeholder="Quick filter flat (e.g. A/4-C), member name, receipt #, or remarks..." data-live-search="#adminRecentReceiptsTable" data-search-counter="#adminRcptCountBadge" data-clear-btn="clearAdminRcptSearch">
+                    <button type="button" id="clearAdminRcptSearch" class="clear-btn" title="Clear search">&times;</button>
+                </div>
+            </form>
         </div>
 
-        <div class="table-container">
+        <div class="table-container" style="max-height: 480px; overflow-y: auto;">
             <table class="custom-table" id="adminRecentReceiptsTable">
                 <thead>
                     <tr>
@@ -126,28 +142,37 @@
                             </div>
                         </td>
                     </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                            No collections match your filter criteria.
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- Recent Expenses from tbl_expenses -->
+    <!-- Society Outlays from tbl_expenses -->
     <div class="card">
         <div class="card-header">
-            <h3 class="card-title">🧾 Recent Society Outlays</h3>
-            <a href="{{ url_for('expenses_list') }}" class="btn btn-sm btn-outline-primary">All {{ total_vouchers_count }} Vouchers &rarr;</a>
+            <h3 class="card-title">🧾 Society Expenditure Outlays</h3>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span id="adminExpCountBadge" class="badge badge-info">{{ recent_expenses|length }} Vouchers</span>
+                <a href="{{ url_for('expenses_list') }}" class="btn btn-sm btn-outline-primary">Ledger &rarr;</a>
+            </div>
         </div>
 
         <div style="margin-bottom: 1rem;">
             <div class="live-search-box">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="adminExpSearch" class="form-control" placeholder="Quick filter expense particulars, description, or voucher #..." data-live-search="#adminRecentExpensesTable" data-clear-btn="clearAdminExpSearch">
+                <input type="text" id="adminExpSearch" class="form-control" placeholder="Quick filter expense particulars, description, head, or voucher #..." data-live-search="#adminRecentExpensesTable" data-search-counter="#adminExpCountBadge" data-clear-btn="clearAdminExpSearch">
                 <button type="button" id="clearAdminExpSearch" class="clear-btn" title="Clear search">&times;</button>
             </div>
         </div>
 
-        <div class="table-container">
+        <div class="table-container" style="max-height: 480px; overflow-y: auto;">
             <table class="custom-table" id="adminRecentExpensesTable">
                 <thead>
                     <tr>
@@ -174,6 +199,12 @@
                             <span class="badge badge-warning">{{ e.particulars }}</span>
                         </td>
                         <td><strong class="text-amount-danger" style="font-size: 0.95rem;">₹ {{ "{:,.2f}".format(e.amount) }}</strong></td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                            No expense vouchers found.
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -217,11 +248,19 @@
 <div class="card" style="margin-bottom: 2rem;">
     <div class="card-header">
         <h3 class="card-title">📄 My Flat Maintenance Receipts (Flat {{ current_user.flat_no }})</h3>
-        <span class="badge badge-success">Personal Records Only</span>
+        <span id="memberRcptCountBadge" class="badge badge-success">{{ my_receipts|length }} Receipts</span>
+    </div>
+    
+    <div style="margin-bottom: 1rem;">
+        <div class="live-search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="memberRcptSearch" class="form-control" placeholder="Quick filter remarks, month, or receipt #..." data-live-search="#memberReceiptsTable" data-search-counter="#memberRcptCountBadge" data-clear-btn="clearMemberRcptSearch">
+            <button type="button" id="clearMemberRcptSearch" class="clear-btn" title="Clear search">&times;</button>
+        </div>
     </div>
     
     <div class="table-container">
-        <table class="custom-table">
+        <table class="custom-table" id="memberReceiptsTable">
             <thead>
                 <tr>
                     <th>Receipt No</th>
@@ -276,11 +315,20 @@
 <!-- Society Expenditure Highlight for Transparency -->
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">🔍 Association Expenditure Transparency (Recent Bills)</h3>
+        <h3 class="card-title">🔍 Association Expenditure Transparency</h3>
         <a href="{{ url_for('expenses_list') }}" class="btn btn-sm btn-outline-primary">Full Financial Ledger (81 Vouchers) &rarr;</a>
     </div>
-    <div class="table-container">
-        <table class="custom-table">
+
+    <div style="margin-bottom: 1rem;">
+        <div class="live-search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="memberExpSearch" class="form-control" placeholder="Quick filter expense description, head, or particulars..." data-live-search="#memberExpensesTable" data-clear-btn="clearMemberExpSearch">
+            <button type="button" id="clearMemberExpSearch" class="clear-btn" title="Clear search">&times;</button>
+        </div>
+    </div>
+
+    <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+        <table class="custom-table" id="memberExpensesTable">
             <thead>
                 <tr>
                     <th>Voucher #</th>
