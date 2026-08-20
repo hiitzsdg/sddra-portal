@@ -449,6 +449,168 @@ document.addEventListener('click', (e) => {
 
 // Escape key closes modal
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeMemberReceiptsModal();
+    if (e.key === 'Escape') {
+        closeMemberReceiptsModal();
+        if (typeof window.closeBreakdownModal === 'function') window.closeBreakdownModal();
+        if (typeof window.closePenaltySimulatorModal === 'function') window.closePenaltySimulatorModal();
+    }
 });
+
+// ================= Penalty Breakdown Modal Controller =================
+function getOrCreateBreakdownModal() {
+    let modal = document.getElementById('breakdownModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'breakdownModal';
+        modal.className = 'modal-overlay';
+        modal.style.display = 'none';
+        modal.innerHTML = `
+            <div class="modal-container">
+                <div class="modal-header">
+                    <div>
+                        <h3 class="card-title" id="bdFlatTitle" style="margin: 0; font-size: 1.2rem;">🧮 Penalty Calculation Breakdown</h3>
+                        <p id="bdFlatSubtitle" class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.85rem;"></p>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="closeBreakdownModal()" style="font-size: 1.2rem; padding: 0.2rem 0.6rem; line-height: 1;">&times;</button>
+                </div>
+                <div class="modal-body" id="bdModalBody"></div>
+                <div class="modal-footer">
+                    <a id="bdReceiptLink" href="#" class="btn btn-sm btn-primary">➕ Issue Receipt with Penalty &rarr;</a>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="closeBreakdownModal()">Close</button>
+                </div>
+            </div>
+        `;
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeBreakdownModal();
+        });
+        document.body.appendChild(modal);
+    }
+    return modal;
+}
+
+window.openBreakdownModal = function(flatNo, memberName, monthlyRate, lastCovered, overdueMonths, baseDue, penaltyAmount, totalDue) {
+    const modal = getOrCreateBreakdownModal();
+    if (!modal) return;
+
+    flatNo = flatNo || '-';
+    memberName = memberName || 'Resident';
+    monthlyRate = parseFloat(monthlyRate) || 0;
+    lastCovered = lastCovered || 'None';
+    overdueMonths = parseInt(overdueMonths) || 0;
+    baseDue = parseFloat(baseDue) || 0;
+    penaltyAmount = parseFloat(penaltyAmount) || 0;
+    totalDue = parseFloat(totalDue) || 0;
+
+    const titleEl = document.getElementById('bdFlatTitle');
+    if (titleEl) titleEl.innerHTML = `🧮 Penalty Breakdown: <strong class="text-highlight-blue">Flat ${flatNo}</strong>`;
+    
+    const subEl = document.getElementById('bdFlatSubtitle');
+    if (subEl) subEl.textContent = `Member: ${memberName} • Monthly Rate: ₹ ${Number(monthlyRate).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    
+    const rcptLink = document.getElementById('bdReceiptLink');
+    if (rcptLink) rcptLink.href = `/admin/receipts?flat=${encodeURIComponent(flatNo)}`;
+
+    let ladderHtml = '';
+    let cumPen = 0;
+    let runningTotal = 0;
+
+    for (let i = 1; i <= overdueMonths; i++) {
+        const mPen = i * 100;
+        cumPen += mPen;
+        runningTotal = (i * monthlyRate) + cumPen;
+        ladderHtml += `
+            <tr>
+                <td><strong>Month ${i}</strong></td>
+                <td>₹ ${Number(monthlyRate).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                <td><span class="badge badge-warning">+ ₹ ${mPen}</span></td>
+                <td><strong class="text-amount-danger">₹ ${cumPen.toLocaleString('en-IN')}</strong></td>
+                <td><strong class="text-main">₹ ${runningTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></td>
+            </tr>
+        `;
+    }
+
+    if (overdueMonths === 0) {
+        ladderHtml = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 2rem;" class="text-muted">
+                    🟢 This flat is currently fully up to date or in advance. No overdue penalties accrued.
+                </td>
+            </tr>
+        `;
+    }
+
+    const bodyEl = document.getElementById('bdModalBody');
+    if (bodyEl) {
+        bodyEl.innerHTML = `
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; background: var(--surface-hover); padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border);">
+                <div style="flex: 1; min-width: 140px;">
+                    <span class="text-muted" style="font-size: 0.75rem;">Last Covered Month</span>
+                    <strong class="text-main" style="display: block; font-size: 1rem;">${lastCovered}</strong>
+                </div>
+                <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
+                    <span class="text-muted" style="font-size: 0.75rem;">Overdue Months (N)</span>
+                    <strong class="text-warning" style="display: block; font-size: 1.1rem; color: #f59e0b;">${overdueMonths} Months</strong>
+                </div>
+                <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
+                    <span class="text-muted" style="font-size: 0.75rem;">Base Maintenance</span>
+                    <strong class="text-main" style="display: block; font-size: 1rem;">₹ ${Number(baseDue).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+                <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
+                    <span class="text-muted" style="font-size: 0.75rem;">Cumulative Penalty</span>
+                    <strong class="text-amount-danger" style="display: block; font-size: 1.1rem;">+ ₹ ${Number(penaltyAmount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+                <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
+                    <span class="text-muted" style="font-size: 0.75rem;">Total Payable Dues</span>
+                    <strong class="text-amount-danger" style="display: block; font-size: 1.25rem; font-weight: 800;">₹ ${Number(totalDue).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+            </div>
+
+            <h4 class="text-main" style="font-size: 1rem; margin-bottom: 0.75rem;">🪜 Step-by-Step Penalty Accrual Schedule</h4>
+            <div class="table-container" style="max-height: 250px; overflow-y: auto;">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Overdue Step</th>
+                            <th>Base Rate</th>
+                            <th>Month Penalty</th>
+                            <th>Cumulative Penalty</th>
+                            <th>Running Total Due</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${ladderHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+};
+
+window.closeBreakdownModal = function() {
+    const modal = document.getElementById('breakdownModal');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+};
+
+// Global click event delegation for breakdown buttons
+document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.btn-breakdown-modal');
+    if (trigger) {
+        e.preventDefault();
+        window.openBreakdownModal(
+            trigger.getAttribute('data-flat'),
+            trigger.getAttribute('data-name'),
+            trigger.getAttribute('data-rate'),
+            trigger.getAttribute('data-last-covered'),
+            trigger.getAttribute('data-overdue'),
+            trigger.getAttribute('data-base-due'),
+            trigger.getAttribute('data-penalty'),
+            trigger.getAttribute('data-total-due')
+        );
+    }
+});
+
 

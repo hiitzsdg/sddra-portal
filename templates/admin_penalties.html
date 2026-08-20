@@ -258,7 +258,17 @@
                     </td>
                     <td>
                         <div style="display: flex; gap: 0.35rem;">
-                            <button type="button" class="btn btn-sm btn-secondary" onclick="openBreakdownModal('{{ row.flat_no }}', '{{ row.member_name|replace("'", "\\'") }}', {{ row.monthly_charge }}, '{{ row.last_covered_text }}', {{ row.overdue_months }}, {{ row.base_due }}, {{ row.penalty_amount }}, {{ row.total_due }})" title="View step-by-step calculation breakdown">
+                            <button type="button" class="btn btn-sm btn-secondary btn-breakdown-modal"
+                                data-flat="{{ row.flat_no }}"
+                                data-name="{{ row.member_name|e }}"
+                                data-rate="{{ row.monthly_charge }}"
+                                data-last-covered="{{ row.last_covered_text|e }}"
+                                data-overdue="{{ row.overdue_months }}"
+                                data-base-due="{{ row.base_due }}"
+                                data-penalty="{{ row.penalty_amount }}"
+                                data-total-due="{{ row.total_due }}"
+                                onclick="window.openBreakdownModal && window.openBreakdownModal(this.getAttribute('data-flat'), this.getAttribute('data-name'), parseFloat(this.getAttribute('data-rate')), this.getAttribute('data-last-covered'), parseInt(this.getAttribute('data-overdue')), parseFloat(this.getAttribute('data-base-due')), parseFloat(this.getAttribute('data-penalty')), parseFloat(this.getAttribute('data-total-due')))"
+                                title="View step-by-step calculation breakdown">
                                 🧮 Breakdown
                             </button>
                             <a href="{{ url_for('admin_receipts', flat=row.flat_no) }}" class="btn btn-sm btn-outline-primary" title="Issue new receipt for this flat">
@@ -364,13 +374,27 @@
 
 <script>
 // ================= Breakdown Modal Handler =================
-function openBreakdownModal(flatNo, memberName, monthlyRate, lastCovered, overdueMonths, baseDue, penaltyAmount, totalDue) {
+window.openBreakdownModal = function(flatNo, memberName, monthlyRate, lastCovered, overdueMonths, baseDue, penaltyAmount, totalDue) {
     const modal = document.getElementById('breakdownModal');
     if (!modal) return;
 
-    document.getElementById('bdFlatTitle').innerHTML = `🧮 Penalty Breakdown: <strong class="text-highlight-blue">Flat ${flatNo}</strong>`;
-    document.getElementById('bdFlatSubtitle').textContent = `Member: ${memberName} • Monthly Rate: ₹ ${Number(monthlyRate).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-    document.getElementById('bdReceiptLink').href = `/admin/receipts?flat=${encodeURIComponent(flatNo)}`;
+    flatNo = flatNo || '-';
+    memberName = memberName || 'Resident';
+    monthlyRate = parseFloat(monthlyRate) || 0;
+    lastCovered = lastCovered || 'None';
+    overdueMonths = parseInt(overdueMonths) || 0;
+    baseDue = parseFloat(baseDue) || 0;
+    penaltyAmount = parseFloat(penaltyAmount) || 0;
+    totalDue = parseFloat(totalDue) || 0;
+
+    const titleEl = document.getElementById('bdFlatTitle');
+    if (titleEl) titleEl.innerHTML = `🧮 Penalty Breakdown: <strong class="text-highlight-blue">Flat ${flatNo}</strong>`;
+    
+    const subEl = document.getElementById('bdFlatSubtitle');
+    if (subEl) subEl.textContent = `Member: ${memberName} • Monthly Rate: ₹ ${Number(monthlyRate).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    
+    const rcptLink = document.getElementById('bdReceiptLink');
+    if (rcptLink) rcptLink.href = `/admin/receipts?flat=${encodeURIComponent(flatNo)}`;
 
     let ladderHtml = '';
     let cumPen = 0;
@@ -402,76 +426,78 @@ function openBreakdownModal(flatNo, memberName, monthlyRate, lastCovered, overdu
     }
 
     const bodyEl = document.getElementById('bdModalBody');
-    bodyEl.innerHTML = `
-        <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; background: var(--surface-hover); padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border);">
-            <div style="flex: 1; min-width: 140px;">
-                <span class="text-muted" style="font-size: 0.75rem;">Last Covered Month</span>
-                <strong class="text-main" style="display: block; font-size: 1rem;">${lastCovered}</strong>
+    if (bodyEl) {
+        bodyEl.innerHTML = `
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; background: var(--surface-hover); padding: 1rem 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border);">
+                <div style="flex: 1; min-width: 140px;">
+                    <span class="text-muted" style="font-size: 0.75rem;">Last Covered Month</span>
+                    <strong class="text-main" style="display: block; font-size: 1rem;">${lastCovered}</strong>
+                </div>
+                <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
+                    <span class="text-muted" style="font-size: 0.75rem;">Overdue Months (N)</span>
+                    <strong class="text-warning" style="display: block; font-size: 1.1rem; color: #f59e0b;">${overdueMonths} Months</strong>
+                </div>
+                <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
+                    <span class="text-muted" style="font-size: 0.75rem;">Base Maintenance</span>
+                    <strong class="text-main" style="display: block; font-size: 1rem;">₹ ${Number(baseDue).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+                <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
+                    <span class="text-muted" style="font-size: 0.75rem;">Cumulative Penalty</span>
+                    <strong class="text-amount-danger" style="display: block; font-size: 1.1rem;">+ ₹ ${Number(penaltyAmount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+                <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
+                    <span class="text-muted" style="font-size: 0.75rem;">Total Payable Dues</span>
+                    <strong class="text-amount-danger" style="display: block; font-size: 1.25rem; font-weight: 800;">₹ ${Number(totalDue).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
             </div>
-            <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
-                <span class="text-muted" style="font-size: 0.75rem;">Overdue Months (N)</span>
-                <strong class="text-warning" style="display: block; font-size: 1.1rem; color: #f59e0b;">${overdueMonths} Months</strong>
-            </div>
-            <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
-                <span class="text-muted" style="font-size: 0.75rem;">Base Maintenance</span>
-                <strong class="text-main" style="display: block; font-size: 1rem;">₹ ${Number(baseDue).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-            </div>
-            <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
-                <span class="text-muted" style="font-size: 0.75rem;">Cumulative Penalty</span>
-                <strong class="text-amount-danger" style="display: block; font-size: 1.1rem;">+ ₹ ${Number(penaltyAmount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-            </div>
-            <div style="flex: 1; min-width: 140px; border-left: 1px solid var(--surface-border); padding-left: 1rem;">
-                <span class="text-muted" style="font-size: 0.75rem;">Total Payable Dues</span>
-                <strong class="text-amount-danger" style="display: block; font-size: 1.25rem; font-weight: 800;">₹ ${Number(totalDue).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-            </div>
-        </div>
 
-        <h4 class="text-main" style="font-size: 1rem; margin-bottom: 0.75rem;">🪜 Step-by-Step Penalty Accrual Schedule</h4>
-        <div class="table-container" style="max-height: 250px; overflow-y: auto;">
-            <table class="custom-table">
-                <thead>
-                    <tr>
-                        <th>Overdue Step</th>
-                        <th>Base Rate</th>
-                        <th>Month Penalty</th>
-                        <th>Cumulative Penalty</th>
-                        <th>Running Total Due</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${ladderHtml}
-                </tbody>
-            </table>
-        </div>
-    `;
+            <h4 class="text-main" style="font-size: 1rem; margin-bottom: 0.75rem;">🪜 Step-by-Step Penalty Accrual Schedule</h4>
+            <div class="table-container" style="max-height: 250px; overflow-y: auto;">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Overdue Step</th>
+                            <th>Base Rate</th>
+                            <th>Month Penalty</th>
+                            <th>Cumulative Penalty</th>
+                            <th>Running Total Due</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${ladderHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
 
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-}
+};
 
-function closeBreakdownModal() {
+window.closeBreakdownModal = function() {
     const modal = document.getElementById('breakdownModal');
     if (modal) modal.style.display = 'none';
     document.body.style.overflow = '';
-}
+};
 
 // ================= Penalty Simulator Modal =================
-function openPenaltySimulatorModal() {
+window.openPenaltySimulatorModal = function() {
     const modal = document.getElementById('simulatorModal');
     if (modal) {
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
-        runPenaltySimulation();
+        window.runPenaltySimulation();
     }
-}
+};
 
-function closePenaltySimulatorModal() {
+window.closePenaltySimulatorModal = function() {
     const modal = document.getElementById('simulatorModal');
     if (modal) modal.style.display = 'none';
     document.body.style.overflow = '';
-}
+};
 
-function runPenaltySimulation() {
+window.runPenaltySimulation = function() {
     const n = Math.max(0, parseInt(document.getElementById('sim_months').value) || 0);
     const rate = Math.max(0, parseFloat(document.getElementById('sim_rate').value) || 0);
 
@@ -511,12 +537,30 @@ function runPenaltySimulation() {
     }
 
     document.getElementById('sim_ladder_body').innerHTML = ladderHtml;
-}
+};
+
+// Global click event delegation for breakdown buttons
+document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.btn-breakdown-modal');
+    if (trigger) {
+        e.preventDefault();
+        window.openBreakdownModal(
+            trigger.getAttribute('data-flat'),
+            trigger.getAttribute('data-name'),
+            trigger.getAttribute('data-rate'),
+            trigger.getAttribute('data-last-covered'),
+            trigger.getAttribute('data-overdue'),
+            trigger.getAttribute('data-base-due'),
+            trigger.getAttribute('data-penalty'),
+            trigger.getAttribute('data-total-due')
+        );
+    }
+});
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        closeBreakdownModal();
-        closePenaltySimulatorModal();
+        window.closeBreakdownModal();
+        window.closePenaltySimulatorModal();
     }
 });
 </script>
