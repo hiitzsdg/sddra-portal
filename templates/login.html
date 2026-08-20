@@ -21,10 +21,18 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ url_for('login') }}">
+        <form method="POST" action="{{ url_for('login') }}" id="loginForm">
+            <!-- Dynamic Admin Auth Banner -->
+            <div id="adminPromptBanner" style="{% if not admin_auth_prompt %}display: none;{% endif %} background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: var(--radius-md); padding: 0.75rem 0.95rem; margin-bottom: 1.25rem; font-size: 0.84rem; color: var(--primary);">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                    <span id="adminPromptText">🔒 <strong>Admin Authentication:</strong> Enter password for <code id="adminPromptUser" class="text-highlight-blue">{{ prefill_username or 'admin' }}</code></span>
+                    <button type="button" onclick="clearAdminPrompt()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size: 1rem; padding: 0 4px;" title="Dismiss">✕</button>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label class="form-label" for="username">Flat Number or Admin Username</label>
-                <input type="text" id="username" name="username" class="form-control" placeholder="e.g. A/4-C, A/1-A, B/1-B or admin" required autofocus>
+                <input type="text" id="username" name="username" class="form-control" value="{{ prefill_username or '' }}" placeholder="e.g. A/4-C, A/1-A, B/1-B or admin" required {% if not prefill_username %}autofocus{% endif %}>
                 <small class="text-muted" style="font-size: 0.76rem; margin-top: 0.35rem; display: block;">
                     Residents enter Flat No (e.g. <code>A/4-C</code>) &bull; Admins enter username
                 </small>
@@ -35,7 +43,7 @@
                     <label class="form-label" for="password">Password</label>
                 </div>
                 <div class="password-input-group">
-                    <input type="password" id="password" name="password" class="form-control" placeholder="Enter portal password" required>
+                    <input type="password" id="password" name="password" class="form-control" placeholder="Enter portal password" required {% if prefill_username %}autofocus{% endif %}>
                     <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('password', this)" title="Show password" aria-label="Toggle Password visibility">
                         <span class="eye-icon">👁️</span>
                     </button>
@@ -62,23 +70,27 @@
                 Select any verified profile to test immediate role-based views:
             </p>
 
-            <!-- Committee Roles -->
+            <!-- Committee Roles (Password Prompt Required) -->
             <div style="display: flex; flex-direction: column; gap: 0.65rem;">
-                <a href="{{ url_for('login', demo='treasurer') }}" class="demo-btn">
+                <button type="button" onclick="selectAdminLogin('treasurer', 'Association Treasurer (Master Admin)')" class="demo-btn" style="width: 100%; text-align: left; background: var(--surface-card); border: 1px solid var(--surface-border); cursor: pointer;">
                     <span style="display: flex; align-items: center; gap: 0.6rem;">
                         <span style="font-size: 1.2rem;">💰</span>
                         <span class="text-main">Association Treasurer</span>
                     </span>
-                    <span class="badge badge-treasurer">Master Admin</span>
-                </a>
+                    <span class="badge badge-treasurer" style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                        <span>🔒</span> Password Required
+                    </span>
+                </button>
 
-                <a href="{{ url_for('login', demo='admin') }}" class="demo-btn">
+                <button type="button" onclick="selectAdminLogin('admin', 'Billing Administrator (Admin)')" class="demo-btn" style="width: 100%; text-align: left; background: var(--surface-card); border: 1px solid var(--surface-border); cursor: pointer;">
                     <span style="display: flex; align-items: center; gap: 0.6rem;">
                         <span style="font-size: 1.2rem;">📝</span>
                         <span class="text-main">Billing Administrator</span>
                     </span>
-                    <span class="badge badge-billing_admin">Admin</span>
-                </a>
+                    <span class="badge badge-billing_admin" style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                        <span>🔒</span> Password Required
+                    </span>
+                </button>
             </div>
 
             <div style="margin: 1.25rem 0 0.75rem; border-top: 1px solid var(--surface-border); padding-top: 1rem; font-size: 0.82rem; font-weight: 600;" class="text-muted">
@@ -129,7 +141,39 @@
                 Every member is isolated to their own unit's maintenance receipts and charges. Full society expenses and financial vouchers are openly accessible to all residents for governance transparency.
             </p>
         </div>
-    </div>
-
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function selectAdminLogin(username, roleTitle) {
+    const userField = document.getElementById('username');
+    const pwdField = document.getElementById('password');
+    const banner = document.getElementById('adminPromptBanner');
+    const promptText = document.getElementById('adminPromptText');
+    const promptUser = document.getElementById('adminPromptUser');
+
+    if (userField) userField.value = username;
+    if (promptUser) promptUser.textContent = username;
+    if (promptText) {
+        promptText.innerHTML = `🔒 <strong>Admin Authentication:</strong> Enter password for <code class="text-highlight-blue">${username}</code> (${roleTitle})`;
+    }
+    if (banner) {
+        banner.style.display = 'block';
+    }
+    if (pwdField) {
+        pwdField.value = '';
+        pwdField.focus();
+        pwdField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        pwdField.classList.remove('card-highlight-pulse');
+        void pwdField.offsetWidth;
+        pwdField.classList.add('card-highlight-pulse');
+    }
+}
+
+function clearAdminPrompt() {
+    const banner = document.getElementById('adminPromptBanner');
+    if (banner) banner.style.display = 'none';
+}
+</script>
 {% endblock %}

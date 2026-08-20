@@ -117,19 +117,11 @@ def login():
     demo_user = request.args.get('demo')
     if demo_user:
         try:
-            # 1. Check if demo is an admin username
-            admin = query_db("SELECT * FROM tbl_admins WHERE username = %s", (demo_user,), one=True)
+            # 1. Admin accounts MUST require explicit password authentication
+            admin = query_db("SELECT * FROM tbl_admins WHERE LOWER(username) = LOWER(%s)", (demo_user,), one=True)
             if admin:
-                session['user'] = {
-                    'id': admin['admin_id'],
-                    'username': admin['username'],
-                    'name': f"{admin['username'].title()} ({admin['role']})",
-                    'role': admin['role'],
-                    'is_admin': True,
-                    'flat_no': 'Office'
-                }
-                flash(f"Welcome back, {admin['username']} ({admin['role']})!", 'success')
-                return redirect(url_for('dashboard'))
+                flash(f"🔒 Administrator account '{admin['username']}' requires password authentication. Please enter your password.", 'info')
+                return render_template('login.html', prefill_username=admin['username'], admin_auth_prompt=True)
                 
             # 2. Check if demo matches a flat_no in tbl_membership
             member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s OR id = %s", (demo_user, demo_user), one=True)

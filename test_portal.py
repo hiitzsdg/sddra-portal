@@ -46,8 +46,8 @@ class TestSDDRABillingPortal(unittest.TestCase):
         self.assertIn(b'Access Denied', resp.data)
 
     def test_05_admin_login_and_access(self):
-        """Treasurer / Admin has full administrative access to all 44 flats and 190 receipts"""
-        resp = self.client.get('/login?demo=treasurer', follow_redirects=True)
+        """Treasurer / Admin has full administrative access to all 44 flats and 190 receipts after password authentication"""
+        resp = self.client.post('/login', data={'username': 'treasurer', 'password': 'sdera@123'}, follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         self.assertIn(b'Executive Management Console', resp.data)
         
