@@ -9,7 +9,7 @@ def run_verification():
     resp_css = client.get('/static/css/style.css')
     assert resp_css.status_code == 200
     assert 'max-age=31536000' in resp_css.headers.get('Cache-Control', '')
-    assert b'--font-heading' in resp_css.data and b'--shadow-glow-blue' in resp_css.data
+    assert b'--font-heading' in resp_css.data and b'--shadow-glow-blue' in resp_css.data and b'modal-overlay' in resp_css.data
     print(f"[OK] Master CSS verified: {len(resp_css.data)} bytes, Cache-Control: {resp_css.headers.get('Cache-Control')}")
 
     resp_js = client.get('/static/js/main.js')
@@ -52,12 +52,13 @@ def run_verification():
     assert b'Special Head (Sorted A-Z)' in resp_exp.data
     print(f"[OK] Society Expenses Page verified: {len(resp_exp.data)} bytes, sorted special heads active")
 
-    # 6. Verify Resident Directory
+    # 6. Verify Resident Directory & Interactive Receipts Modal
     resp_members = client.get('/admin/members')
     assert resp_members.status_code == 200
     assert b'Resident Roster & Flat Directory' in resp_members.data
+    assert b'openMemberReceiptsModal' in resp_members.data
     assert b'Flat A/4-C' in resp_members.data
-    print(f"[OK] Resident Directory verified: {len(resp_members.data)} bytes, 44 flats loaded")
+    print(f"[OK] Resident Directory verified: {len(resp_members.data)} bytes, interactive modal connected")
 
     # 7. Verify Receipts Ledger
     resp_rcpts = client.get('/admin/receipts')
@@ -75,8 +76,16 @@ def run_verification():
     assert email_data and email_data.get('success') is True
     print(f"[OK] AJAX Email Dispatch Endpoint verified: Status 200, Result: {email_data.get('message')}")
 
+    # 9. Verify Member In-Panel Receipts API
+    resp_member_rcpts = client.get('/api/members/A/4-C/receipts')
+    assert resp_member_rcpts.status_code == 200
+    mbr_data = resp_member_rcpts.get_json()
+    assert mbr_data and mbr_data.get('success') is True
+    assert 'Swapnadeep' in mbr_data.get('member_name', '')
+    print(f"[OK] Member In-Panel Receipts API verified: Flat A/4-C ({mbr_data.get('member_name')}), {len(mbr_data.get('receipts'))} receipts found")
+
     print("\n========================================================")
-    print("ALL 8 VERIFICATION CRITERIA PASSED WITH 100% SUCCESS!")
+    print("ALL 9 VERIFICATION CRITERIA PASSED WITH 100% SUCCESS!")
     print("========================================================")
 
 if __name__ == '__main__':

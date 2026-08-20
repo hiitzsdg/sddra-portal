@@ -617,6 +617,24 @@ def admin_members():
     
     return render_template('admin_members.html', members=members, search_q=search_q)
 
+@app.route('/api/members/<path:flat_no>/receipts')
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def api_member_receipts(flat_no):
+    receipts = query_db("SELECT * FROM tbl_receipts WHERE flat_no = %s ORDER BY receipt_no DESC", (flat_no,))
+    member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
+    contact = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (flat_no,), one=True)
+    return jsonify({
+        "success": True,
+        "flat_no": flat_no,
+        "member_name": member['member_name'] if member else 'Resident',
+        "monthly_charge": float(member.get('monthly_charge', 0) if member else 0),
+        "total_paid": sum(float(r['amount']) for r in receipts),
+        "receipts_count": len(receipts),
+        "email": (contact.get('email_1') or contact.get('email_2')) if contact else None,
+        "phone": (contact.get('mobile_num_1') or contact.get('mobile_num_2')) if contact else None,
+        "receipts": receipts
+    })
+
 # --- Chart Data API ---
 @app.route('/api/expenses/chart-data')
 @login_required
