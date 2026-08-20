@@ -18,11 +18,13 @@
 
     <!-- Live Search Bar -->
     <div style="margin-bottom: 1.25rem;">
-        <div class="live-search-box">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="memberSearch" class="form-control" placeholder="Type to filter by flat number (e.g. A/4-C), resident name, phone, or email..." data-live-search="#membersTable" data-search-counter="#memberCountBadge" data-clear-btn="clearMemberSearch">
-            <button type="button" id="clearMemberSearch" class="clear-btn" title="Clear search">&times;</button>
-        </div>
+        <form method="GET" action="{{ url_for('admin_members') }}">
+            <div class="live-search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="memberSearch" name="q" value="{{ search_q or '' }}" class="form-control" placeholder="Type to filter by flat number (e.g. A/4-C), resident name, phone, or email..." data-live-search="#membersTable" data-search-counter="#memberCountBadge" data-clear-btn="clearMemberSearch">
+                <button type="button" id="clearMemberSearch" class="clear-btn" title="Clear search">&times;</button>
+            </div>
+        </form>
     </div>
 
     <div class="table-container">

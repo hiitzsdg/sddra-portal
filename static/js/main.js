@@ -119,7 +119,7 @@ window.addEventListener('click', function(e) {
     }
 });
 
-// ================= Client-Side Live Instant Search =================
+// ================= Client-Side Live Instant Search Engine =================
 function initGenericLiveSearch() {
     const searchInputs = document.querySelectorAll('[data-live-search]');
     searchInputs.forEach(input => {
@@ -131,15 +131,17 @@ function initGenericLiveSearch() {
 
         if (!table) return;
 
-        const rows = table.querySelectorAll('tbody tr');
-        const totalRows = rows.length;
-
         function performFilter() {
-            const query = input.value.trim().toLowerCase();
+            const rawQuery = input.value.trim().toLowerCase();
+            const cleanQuery = rawQuery.replace(/[\/\-\s_,\.]/g, '');
+            const tokens = rawQuery.split(/\s+/).filter(t => t.length > 0);
+
+            const rows = table.querySelectorAll('tbody tr');
             let matchCount = 0;
+            let totalRows = 0;
 
             if (clearBtn) {
-                clearBtn.style.display = query.length > 0 ? 'block' : 'none';
+                clearBtn.style.display = rawQuery.length > 0 ? 'block' : 'none';
             }
 
             rows.forEach(row => {
@@ -147,9 +149,30 @@ function initGenericLiveSearch() {
                 if (row.children.length === 1 && row.children[0].getAttribute('colspan')) {
                     return;
                 }
+                totalRows++;
 
-                const text = row.textContent.toLowerCase();
-                if (!query || text.includes(query)) {
+                if (!rawQuery) {
+                    row.style.display = '';
+                    matchCount++;
+                    return;
+                }
+
+                const rowRawText = row.textContent.toLowerCase();
+                const rowCleanText = rowRawText.replace(/[\/\-\s_,\.]/g, '');
+
+                // Match 1: Exact substring in raw text
+                const rawSubstringMatch = rowRawText.includes(rawQuery);
+
+                // Match 2: Punctuation-agnostic match (e.g. 'A4C' or 'A 4 C' matches 'Flat A/4-C')
+                const cleanMatch = cleanQuery.length > 0 && rowCleanText.includes(cleanQuery);
+
+                // Match 3: All search tokens appear anywhere in row
+                const allTokensMatch = tokens.length > 0 && tokens.every(token => {
+                    const cleanToken = token.replace(/[\/\-\s_,\.]/g, '');
+                    return rowRawText.includes(token) || (cleanToken.length > 0 && rowCleanText.includes(cleanToken));
+                });
+
+                if (rawSubstringMatch || cleanMatch || allTokensMatch) {
                     row.style.display = '';
                     matchCount++;
                 } else {
@@ -160,7 +183,7 @@ function initGenericLiveSearch() {
             if (counterTarget) {
                 const counterEl = document.querySelector(counterTarget);
                 if (counterEl) {
-                    if (query) {
+                    if (rawQuery) {
                         counterEl.textContent = `${matchCount} of ${totalRows} Shown`;
                     } else {
                         counterEl.textContent = `${totalRows} Records`;
@@ -169,14 +192,24 @@ function initGenericLiveSearch() {
             }
         }
 
+        // Attach listeners across all input events
         input.addEventListener('input', performFilter);
+        input.addEventListener('keyup', performFilter);
+        input.addEventListener('change', performFilter);
+        input.addEventListener('search', performFilter);
 
         if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
+            clearBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 input.value = '';
                 performFilter();
                 input.focus();
             });
+        }
+
+        // Run immediately if input has pre-filled value
+        if (input.value) {
+            performFilter();
         }
     });
 }

@@ -23,7 +23,7 @@
             <label class="form-label" for="liveReceiptSearch">Live Instant Search</label>
             <div class="live-search-box">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="liveReceiptSearch" class="form-control" placeholder="Filter by flat, name, receipt #, or remarks..." data-live-search="#adminReceiptsTable" data-search-counter="#rcptCountBadge" data-clear-btn="clearRcptSearch">
+                <input type="text" id="liveReceiptSearch" name="q" value="{{ search_q or '' }}" class="form-control" placeholder="Filter by flat (e.g. A/4-C), member name, receipt #, or remarks..." data-live-search="#adminReceiptsTable" data-search-counter="#rcptCountBadge" data-clear-btn="clearRcptSearch">
                 <button type="button" id="clearRcptSearch" class="clear-btn" title="Clear search">&times;</button>
             </div>
         </div>

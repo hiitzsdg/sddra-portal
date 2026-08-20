@@ -88,7 +88,8 @@
         <div style="margin-bottom: 1rem;">
             <div class="live-search-box">
                 <span class="search-icon">🔍</span>
-                <input type="text" class="form-control" placeholder="Quick filter flat or resident name..." data-live-search="#adminRecentReceiptsTable">
+                <input type="text" id="adminRcptSearch" class="form-control" placeholder="Quick filter flat (e.g. A/4-C), member name, receipt #, or remarks..." data-live-search="#adminRecentReceiptsTable" data-clear-btn="clearAdminRcptSearch">
+                <button type="button" id="clearAdminRcptSearch" class="clear-btn" title="Clear search">&times;</button>
             </div>
         </div>
 
@@ -141,7 +142,8 @@
         <div style="margin-bottom: 1rem;">
             <div class="live-search-box">
                 <span class="search-icon">🔍</span>
-                <input type="text" class="form-control" placeholder="Quick filter expense particulars..." data-live-search="#adminRecentExpensesTable">
+                <input type="text" id="adminExpSearch" class="form-control" placeholder="Quick filter expense particulars, description, or voucher #..." data-live-search="#adminRecentExpensesTable" data-clear-btn="clearAdminExpSearch">
+                <button type="button" id="clearAdminExpSearch" class="clear-btn" title="Clear search">&times;</button>
             </div>
         </div>
 

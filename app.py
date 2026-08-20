@@ -520,6 +520,7 @@ def delete_expense(voucher_no):
 def admin_receipts():
     flat_filter = request.args.get('flat', '').strip()
     month_filter = request.args.get('month', '').strip()
+    search_q = request.args.get('q', '').strip()
     
     query = "SELECT * FROM tbl_receipts WHERE 1=1"
     params = []
@@ -530,6 +531,9 @@ def admin_receipts():
     if month_filter:
         query += " AND remarks LIKE %s"
         params.append(f"%{month_filter}%")
+    if search_q:
+        query += " AND (flat_no LIKE %s OR member_name LIKE %s OR remarks LIKE %s OR receipt_no = %s)"
+        params.extend([f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", search_q if search_q.isdigit() else 0])
         
     query += " ORDER BY receipt_no DESC"
     
@@ -541,7 +545,8 @@ def admin_receipts():
         receipts=receipts,
         all_flats=all_flats,
         flat_filter=flat_filter,
-        month_filter=month_filter
+        month_filter=month_filter,
+        search_q=search_q
     )
 
 @app.route('/admin/receipts/new', methods=['POST'])
@@ -582,7 +587,9 @@ def create_receipt():
 @app.route('/admin/members')
 @roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
 def admin_members():
-    members = query_db("""
+    search_q = request.args.get('q', '').strip()
+    
+    query = """
         SELECT m.*, 
                c.mobile_num_1, c.mobile_num_2, c.email_1, c.email_2,
                COALESCE(SUM(r.amount), 0) as total_paid,
@@ -591,11 +598,16 @@ def admin_members():
         FROM tbl_membership m
         LEFT JOIN tbl_mbr_cntct c ON m.flat_no = c.flat_no
         LEFT JOIN tbl_receipts r ON m.flat_no = r.flat_no
-        GROUP BY m.id
-        ORDER BY m.flat_no
-    """)
+    """
+    params = []
+    if search_q:
+        query += " WHERE m.flat_no LIKE %s OR m.member_name LIKE %s OR c.mobile_num_1 LIKE %s OR c.email_1 LIKE %s"
+        params.extend([f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", f"%{search_q}%"])
+        
+    query += " GROUP BY m.id ORDER BY m.flat_no"
+    members = query_db(query, params)
     
-    return render_template('admin_members.html', members=members)
+    return render_template('admin_members.html', members=members, search_q=search_q)
 
 # --- Chart Data API ---
 @app.route('/api/expenses/chart-data')
