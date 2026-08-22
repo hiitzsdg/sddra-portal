@@ -234,6 +234,16 @@ def login():
                     'caretaker': 'Estate Office',
                     'admin': 'Office'
                 }
+                admin_fno = officer_flats.get(admin_u, 'Office')
+                admin_email = admin.get('email')
+                admin_phone = None
+                if admin_fno and admin_fno != 'Office':
+                    cnt_row = query_db("SELECT email_1, email_2, mobile_num_1, mobile_num_2 FROM tbl_mbr_cntct WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (admin_fno,), one=True)
+                    if cnt_row:
+                        if not admin_email:
+                            admin_email = cnt_row.get('email_1') or cnt_row.get('email_2')
+                        admin_phone = cnt_row.get('mobile_num_1') or cnt_row.get('mobile_num_2')
+
                 session['user'] = {
                     'id': admin['admin_id'],
                     'username': admin['username'],
@@ -241,7 +251,9 @@ def login():
                     'title': officer_titles.get(admin_u, admin['username'].title()),
                     'role': admin.get('role', 'super_admin'),
                     'is_admin': True,
-                    'flat_no': officer_flats.get(admin_u, 'Office')
+                    'flat_no': admin_fno,
+                    'email': admin_email,
+                    'phone': admin_phone
                 }
                 log_activity('LOGIN', f"Administrative sign in ({officer_titles.get(admin_u, admin['username'])})", actor=session['user'])
                 flash(f"Login successful! Welcome, {officer_titles.get(admin_u, admin['username'])}.", 'success')
@@ -286,6 +298,10 @@ def login():
             )
 
             if member and verify_password(password, member.get('password_hash', '')):
+                cnt_row = query_db("SELECT email_1, email_2, mobile_num_1, mobile_num_2 FROM tbl_mbr_cntct WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (member['flat_no'],), one=True)
+                mbr_email = (cnt_row.get('email_1') or cnt_row.get('email_2')) if cnt_row else member.get('email_1')
+                mbr_phone = (cnt_row.get('mobile_num_1') or cnt_row.get('mobile_num_2')) if cnt_row else member.get('mobile_num_1')
+                
                 session['user'] = {
                     'id': member['id'],
                     'username': member['flat_no'],
@@ -293,8 +309,8 @@ def login():
                     'flat_no': member['flat_no'],
                     'role': 'MEMBER',
                     'is_admin': False,
-                    'email': member.get('email_1'),
-                    'phone': member.get('mobile_num_1'),
+                    'email': mbr_email,
+                    'phone': mbr_phone,
                     'monthly_charge': member.get('monthly_charge', 0),
                     'sq_feet': member.get('RvsdFlatSize')
                 }
