@@ -483,12 +483,12 @@ def send_receipt_email(receipt_no, custom_recipient=None):
     raw_rcpt_no = str(receipt.get('receipt_no', 'N/A'))
     formatted_rcpt_no = f"SDERA_{raw_rcpt_no}" if not raw_rcpt_no.startswith('SDERA_') else raw_rcpt_no
     
-    member_info = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
-    contact_info = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (flat_no,), one=True)
+    member_info = query_db("SELECT * FROM tbl_membership WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (flat_no,), one=True)
+    contact_info = query_db("SELECT * FROM tbl_mbr_cntct WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (flat_no,), one=True)
     
-    recipient = custom_recipient
+    recipient = (custom_recipient or '').strip()
     if not recipient and contact_info:
-        recipient = contact_info.get('email_1') or contact_info.get('email_2')
+        recipient = (contact_info.get('email_1') or contact_info.get('email_2') or '').strip()
         
     if not recipient:
         recipient = f"{flat_no.replace('/', '_').lower()}@sddra.org"

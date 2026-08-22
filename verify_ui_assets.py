@@ -25,7 +25,7 @@ def run_verification():
     # 2. Verify Unauthenticated Login Page
     resp_login = client.get('/login')
     assert resp_login.status_code == 200
-    assert b'1-Click Instant Login Hub' in resp_login.data
+    assert b'Administrator Quick Select' in resp_login.data
     print(f"[OK] Login Page verified: {len(resp_login.data)} bytes")
 
     # 3. Verify Admin Dashboard & Live Data

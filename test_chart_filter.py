@@ -7,7 +7,7 @@ class TestChartCrossFilter(unittest.TestCase):
         app.config['TESTING'] = True
 
     def test_dashboard_chart_and_filter_attributes(self):
-        self.client.get('/login?demo=treasurer', follow_redirects=True)
+        self.client.post('/login', data={'username': 'treasurer', 'password': 'sdera@123'}, follow_redirects=True)
         resp = self.client.get('/dashboard')
         self.assertEqual(resp.status_code, 200)
         html = resp.data.decode('utf-8')
@@ -30,7 +30,7 @@ class TestChartCrossFilter(unittest.TestCase):
         print("[OK] Dashboard HTML contains all required chart cross-filtering elements and attributes.")
 
     def test_expenses_page_chart_and_filter_attributes(self):
-        self.client.get('/login?demo=treasurer', follow_redirects=True)
+        self.client.post('/login', data={'username': 'treasurer', 'password': 'sdera@123'}, follow_redirects=True)
         resp = self.client.get('/expenses')
         self.assertEqual(resp.status_code, 200)
         html = resp.data.decode('utf-8')

@@ -97,7 +97,7 @@ def get_mysql_connection():
         'charset': 'utf8mb4',
         'cursorclass': pymysql.cursors.DictCursor,
         'autocommit': True,
-        'connect_timeout': 1.5
+        'connect_timeout': 10.0
     }
     if Config.DB_SSL:
         conn_params['ssl'] = {'check_hostname': False}
@@ -118,14 +118,14 @@ def determine_engine():
         return _ENGINE_MODE
 
     # Auto mode:
-    # If in cloud environment (Vercel / Lambda) and DB_HOST is still default localhost, use SQLite immediately (0ms delay)
+    # If in cloud environment (Vercel / Lambda) and DB_HOST is still default localhost without cloud credentials, use SQLite immediately
     is_cloud = bool(
         os.environ.get('VERCEL') or 
         os.environ.get('VERCEL_ENV') or 
         os.environ.get('AWS_LAMBDA_FUNCTION_NAME') or 
         os.environ.get('NOW_REGION')
     )
-    if is_cloud and Config.DB_HOST in ('localhost', '127.0.0.1'):
+    if is_cloud and Config.DB_HOST in ('localhost', '127.0.0.1') and not os.environ.get('DB_USER_DEFINED'):
         _ENGINE_MODE = 'sqlite'
         return _ENGINE_MODE
 
@@ -134,6 +134,7 @@ def determine_engine():
         conn = get_mysql_connection()
         conn.close()
         _ENGINE_MODE = 'mysql'
+        print(f"[DB Engine] Successfully initialized MySQL engine on {Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}")
     except Exception as e:
         print(f"[DB Auto-Fallback] MySQL unavailable ({e}). Using bundled SQLite database: {Config.SQLITE_PATH}")
         _ENGINE_MODE = 'sqlite'
@@ -174,10 +175,13 @@ def query_db(query, params=None, one=False):
             finally:
                 conn.close()
         except Exception as e:
-            print(f"[DB Query Error] MySQL query failed: {e}. Falling back to SQLite.")
-            global _ENGINE_MODE
-            _ENGINE_MODE = 'sqlite'
-            return query_db(query, params, one)
+            print(f"[DB Query Error] MySQL query failed: {e}.")
+            if Config.DB_TYPE != 'mysql':
+                print("[DB Query Fallback] Retrying query against SQLite fallback.")
+                global _ENGINE_MODE
+                _ENGINE_MODE = 'sqlite'
+                return query_db(query, params, one)
+            raise e
 
 def execute_db(query, params=None):
     """Execute INSERT, UPDATE, or DELETE query and return last insert id or affected rows."""
@@ -193,7 +197,7 @@ def execute_db(query, params=None):
             else:
                 cur.execute(sqlite_query)
             conn.commit()
-            return cur.lastrowid
+            return cur.lastrowid if cur.lastrowid else cur.rowcount
         finally:
             conn.close()
     else:
@@ -205,14 +209,18 @@ def execute_db(query, params=None):
                         cur.execute(query, params)
                     else:
                         cur.execute(query)
-                    return cur.lastrowid
+                    conn.commit()
+                    return cur.lastrowid if cur.lastrowid else cur.rowcount
             finally:
                 conn.close()
         except Exception as e:
-            print(f"[DB Execute Error] MySQL execute failed: {e}. Falling back to SQLite.")
-            global _ENGINE_MODE
-            _ENGINE_MODE = 'sqlite'
-            return execute_db(query, params)
+            print(f"[DB Execute Error] MySQL execute failed: {e}.")
+            if Config.DB_TYPE != 'mysql':
+                print("[DB Execute Fallback] Retrying execute against SQLite fallback.")
+                global _ENGINE_MODE
+                _ENGINE_MODE = 'sqlite'
+                return execute_db(query, params)
+            raise e
 
 def verify_password(plain_password: str, hashed: str) -> bool:
     """Verify password against bcrypt hash ($2b$...) or werkzeug hash."""

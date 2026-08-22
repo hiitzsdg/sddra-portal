@@ -243,8 +243,8 @@ def profile():
     flat_no = user.get('flat_no', '')
     is_admin = bool(user.get('is_admin', False))
     
-    member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True) if flat_no else None
-    contact = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (flat_no,), one=True) if flat_no else None
+    member = query_db("SELECT * FROM tbl_membership WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (flat_no,), one=True) if flat_no else None
+    contact = query_db("SELECT * FROM tbl_mbr_cntct WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (flat_no,), one=True) if flat_no else None
     admin = query_db("SELECT * FROM tbl_admins WHERE username = %s", (user.get('username'),), one=True) if is_admin else None
 
     if request.method == 'POST':
@@ -254,15 +254,32 @@ def profile():
             email1 = request.form.get('email', '').strip()
             phone1 = request.form.get('phone', '').strip()
             
-            if contact:
-                execute_db("UPDATE tbl_mbr_cntct SET email_1 = %s, mobile_num_1 = %s WHERE flat_no = %s", (email1, phone1, flat_no))
-            else:
-                execute_db("INSERT INTO tbl_mbr_cntct (flat_no, email_1, mobile_num_1) VALUES (%s, %s, %s)", (flat_no, email1, phone1))
-                
-            session['user']['email'] = email1
-            session['user']['phone'] = phone1
-            flash('Contact details updated successfully.', 'success')
-            return redirect(url_for('profile'))
+            if not email1:
+                flash('Please provide a valid email address for receipt delivery.', 'danger')
+                return redirect(url_for('profile'))
+            
+            try:
+                if contact:
+                    execute_db(
+                        "UPDATE tbl_mbr_cntct SET email_1 = %s, mobile_num_1 = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", 
+                        (email1, phone1, flat_no)
+                    )
+                else:
+                    execute_db(
+                        "INSERT INTO tbl_mbr_cntct (flat_no, email_1, mobile_num_1) VALUES (%s, %s, %s)", 
+                        (flat_no, email1, phone1)
+                    )
+                    
+                if 'user' in session:
+                    session['user']['email'] = email1
+                    session['user']['phone'] = phone1
+                    session.modified = True
+                    
+                flash('Contact details updated successfully in the official registry.', 'success')
+                return redirect(url_for('profile'))
+            except Exception as e:
+                flash(f"Could not persist contact details update: {e}", 'danger')
+                return redirect(url_for('profile'))
             
         elif action == 'change_password':
             current_pwd = request.form.get('current_password', '')
@@ -283,7 +300,8 @@ def profile():
                     if is_admin:
                         execute_db("UPDATE tbl_admins SET password_hash = %s WHERE username = %s", (new_h, user.get('username')))
                     else:
-                        execute_db("UPDATE tbl_membership SET password_hash = %s WHERE flat_no = %s", (new_h, flat_no))
+                        execute_db("UPDATE tbl_membership SET password_hash = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (new_h, flat_no))
+                    session.modified = True
                     flash('Your password has been updated successfully!', 'success')
                     return redirect(url_for('profile'))
                 except Exception as e:
@@ -468,6 +486,8 @@ def email_receipt(receipt_no):
         custom_email = (request.get_json(silent=True) or {}).get('email')
     if not custom_email:
         custom_email = request.form.get('email')
+    if not custom_email and not is_admin and user.get('email'):
+        custom_email = user.get('email')
         
     try:
         result = send_receipt_email(receipt_no, custom_recipient=custom_email)
