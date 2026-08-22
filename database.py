@@ -333,6 +333,27 @@ def ensure_notices_table_sqlite():
             cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Bikas Mondal', 'Sanjoy Chakraborty');")
             cur.execute("UPDATE tbl_mbr_cntct SET email_1 = 'upekshitsharma@gmail.com' WHERE LOWER(TRIM(flat_no)) = 'a/2-d';")
             
+        # Ensure password hashes in SQLite are valid
+        sdera_h = hash_password('sdera@123')
+        cur.execute("UPDATE tbl_membership SET password_hash = ? WHERE password_hash IS NULL OR password_hash = '' OR password_hash LIKE '$2b$12$HxNkW%';", (sdera_h,))
+        
+        committee_admins = [
+            ('admin', hash_password('passwd'), 'billing_admin'),
+            ('treasurer', sdera_h, 'treasurer'),
+            ('president', sdera_h, 'president'),
+            ('secretary', sdera_h, 'secretary'),
+            ('caretaker', sdera_h, 'caretaker')
+        ]
+        for username, pwd_hash, role in committee_admins:
+            cur.execute("SELECT * FROM tbl_admins WHERE LOWER(username) = LOWER(?);", (username,))
+            existing = cur.fetchone()
+            if not existing:
+                cur.execute("INSERT INTO tbl_admins (username, password_hash, role) VALUES (?, ?, ?);", (username, pwd_hash, role))
+            else:
+                existing_hash = existing['password_hash'] if isinstance(existing, dict) or hasattr(existing, 'keys') else existing[2]
+                if not verify_password('passwd' if username == 'admin' else 'sdera@123', existing_hash):
+                    cur.execute("UPDATE tbl_admins SET password_hash = ?, role = ? WHERE LOWER(username) = LOWER(?);", (pwd_hash, role, username))
+
         try:
             cur.execute("UPDATE members SET name = 'Somenath Halder' WHERE name = 'Debasish Roy';")
             cur.execute("UPDATE members SET name = 'Dr. Asit Kumar Bera' WHERE name = 'Subhashish Mukherjee';")
@@ -459,14 +480,14 @@ def init_db():
                     print("[DB Init] Adding 'password_hash' column to tbl_membership...")
                     cur.execute("ALTER TABLE tbl_membership ADD COLUMN password_hash VARCHAR(255) DEFAULT NULL;")
                 
-                # Ensure all members have an initial hashed password (sdera@123)
+                # Ensure all members have a valid initial hashed password (sdera@123)
                 default_hash = hash_password("sdera@123")
                 cur.execute(
-                    "UPDATE tbl_membership SET password_hash = %s WHERE password_hash IS NULL OR password_hash = '';",
-                    (default_hash,)
+                    "UPDATE tbl_membership SET password_hash = %s WHERE password_hash IS NULL OR password_hash = '' OR password_hash LIKE %s;",
+                    (default_hash, '$2b$12$HxNkW%')
                 )
                 
-                # 2. Ensure committee admin accounts exist in tbl_admins
+                # 2. Ensure committee admin accounts exist and have valid password hashes in tbl_admins
                 committee_admins = [
                     ('admin', hash_password('passwd'), 'billing_admin'),
                     ('treasurer', hash_password('sdera@123'), 'treasurer'),
@@ -476,12 +497,18 @@ def init_db():
                 ]
                 
                 for username, pwd_hash, role in committee_admins:
-                    cur.execute("SELECT * FROM tbl_admins WHERE username = %s;", (username,))
+                    cur.execute("SELECT * FROM tbl_admins WHERE LOWER(username) = LOWER(%s);", (username,))
                     existing = cur.fetchone()
+                    expected_pwd = 'passwd' if username == 'admin' else 'sdera@123'
                     if not existing:
                         cur.execute(
                             "INSERT INTO tbl_admins (username, password_hash, role) VALUES (%s, %s, %s);",
                             (username, pwd_hash, role)
+                        )
+                    elif not verify_password(expected_pwd, existing.get('password_hash', '')):
+                        cur.execute(
+                            "UPDATE tbl_admins SET password_hash = %s, role = %s WHERE admin_id = %s;",
+                            (pwd_hash, role, existing['admin_id'])
                         )
                 
                 # 3. Ensure tbl_email_logs table exists
