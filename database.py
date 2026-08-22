@@ -146,40 +146,66 @@ def determine_engine():
 
     return _ENGINE_MODE
 
+def get_db():
+    """Get or create request-scoped connection for low-latency query reuse."""
+    try:
+        from flask import g, has_request_context
+        if has_request_context():
+            if not hasattr(g, 'db_conn') or g.db_conn is None:
+                engine = determine_engine()
+                if engine == 'sqlite':
+                    g.db_conn = get_sqlite_connection()
+                else:
+                    g.db_conn = get_mysql_connection()
+            return g.db_conn
+    except Exception:
+        pass
+    
+    engine = determine_engine()
+    return get_sqlite_connection() if engine == 'sqlite' else get_mysql_connection()
+
 def query_db(query, params=None, one=False):
     """Execute SELECT query and return dictionary results safely across MySQL & SQLite."""
     engine = determine_engine()
     
     if engine == 'sqlite':
         sqlite_query = re.sub(r'%s', '?', query)
-        conn = get_sqlite_connection()
-        try:
-            cur = conn.cursor()
-            if params:
-                cur.execute(sqlite_query, params)
-            else:
-                cur.execute(sqlite_query)
-            if one:
-                row = cur.fetchone()
-                return dict(row) if row else None
-            return [dict(r) for r in cur.fetchall()]
-        finally:
-            conn.close()
+        conn = get_db()
+        cur = conn.cursor()
+        if params:
+            cur.execute(sqlite_query, params)
+        else:
+            cur.execute(sqlite_query)
+        if one:
+            row = cur.fetchone()
+            return dict(row) if row else None
+        return [dict(r) for r in cur.fetchall()]
     else:
         try:
-            conn = get_mysql_connection()
-            try:
-                with conn.cursor() as cur:
-                    if params:
-                        cur.execute(query, params)
-                    else:
-                        cur.execute(query)
-                    if one:
-                        return cur.fetchone()
-                    return cur.fetchall()
-            finally:
-                conn.close()
+            conn = get_db()
+            with conn.cursor() as cur:
+                if params:
+                    cur.execute(query, params)
+                else:
+                    cur.execute(query)
+                if one:
+                    return cur.fetchone()
+                return cur.fetchall()
         except Exception as e:
+            try:
+                from flask import g, has_request_context
+                if has_request_context() and hasattr(g, 'db_conn'):
+                    g.db_conn = get_mysql_connection()
+                    with g.db_conn.cursor() as cur:
+                        if params:
+                            cur.execute(query, params)
+                        else:
+                            cur.execute(query)
+                        if one:
+                            return cur.fetchone()
+                        return cur.fetchall()
+            except Exception:
+                pass
             print(f"[DB Query Error] MySQL query failed: {e}.")
             if Config.DB_TYPE != 'mysql':
                 print("[DB Query Fallback] Retrying query against SQLite fallback.")
@@ -194,31 +220,38 @@ def execute_db(query, params=None):
     
     if engine == 'sqlite':
         sqlite_query = re.sub(r'%s', '?', query)
-        conn = get_sqlite_connection()
-        try:
-            cur = conn.cursor()
-            if params:
-                cur.execute(sqlite_query, params)
-            else:
-                cur.execute(sqlite_query)
-            conn.commit()
-            return cur.lastrowid if cur.lastrowid else cur.rowcount
-        finally:
-            conn.close()
+        conn = get_db()
+        cur = conn.cursor()
+        if params:
+            cur.execute(sqlite_query, params)
+        else:
+            cur.execute(sqlite_query)
+        conn.commit()
+        return cur.lastrowid if cur.lastrowid else cur.rowcount
     else:
         try:
-            conn = get_mysql_connection()
-            try:
-                with conn.cursor() as cur:
-                    if params:
-                        cur.execute(query, params)
-                    else:
-                        cur.execute(query)
-                    conn.commit()
-                    return cur.lastrowid if cur.lastrowid else cur.rowcount
-            finally:
-                conn.close()
+            conn = get_db()
+            with conn.cursor() as cur:
+                if params:
+                    cur.execute(query, params)
+                else:
+                    cur.execute(query)
+                conn.commit()
+                return cur.lastrowid if cur.lastrowid else cur.rowcount
         except Exception as e:
+            try:
+                from flask import g, has_request_context
+                if has_request_context() and hasattr(g, 'db_conn'):
+                    g.db_conn = get_mysql_connection()
+                    with g.db_conn.cursor() as cur:
+                        if params:
+                            cur.execute(query, params)
+                        else:
+                            cur.execute(query)
+                        g.db_conn.commit()
+                        return cur.lastrowid if cur.lastrowid else cur.rowcount
+            except Exception:
+                pass
             print(f"[DB Execute Error] MySQL execute failed: {e}.")
             if Config.DB_TYPE != 'mysql':
                 print("[DB Execute Fallback] Retrying execute against SQLite fallback.")
@@ -540,34 +573,45 @@ def ensure_mysql_schema(conn):
             except Exception as ex_all:
                 print(f"[DB Warning] Seed data load error: {ex_all}")
 
-def init_db():
+_INIT_DB_DONE = False
+SDERA_HASH = '$2b$12$pUxg9hjJZPcG01LOx65fkOmpNwGznM6UCHP5EoQ4RH8//ZDyFWHMS'
+PASSWD_HASH = '$2b$12$N7Lq1igJAuiprlykUoyqWuY9u6V7VSEFzmscm4rsAhL2j9JrQ0Sha'
+
+def init_db(force=False):
     """
     Initialize database extensions and verify tables in sddra_billing / sddra.db.
     Completely non-destructive: preserves all 44 members, 190 receipts, and 81 expenses.
+    Optimized for high performance and fast serverless cold starts.
     """
+    global _INIT_DB_DONE, _ENGINE_MODE
+    if _INIT_DB_DONE and not force:
+        return
+
     engine = determine_engine()
     if engine == 'sqlite':
-        try:
-            conn = get_sqlite_connection()
-            try:
-                cur = conn.cursor()
-                cur.execute("SELECT COUNT(*) FROM tbl_membership;")
-                cnt = cur.fetchone()[0]
-                print(f"[DB Init] Connected successfully to SQLite database '{Config.SQLITE_PATH}' with {cnt} members.")
-            finally:
-                conn.close()
-            ensure_notices_table_sqlite()
-        except Exception as e:
-            print(f"[DB Warning] SQLite init note: {e}")
+        ensure_notices_table_sqlite()
+        _INIT_DB_DONE = True
         return
 
     try:
         conn = get_mysql_connection()
         try:
             with conn.cursor() as cur:
-                # 0. Ensure schema exists if connected to fresh cloud database
-                ensure_mysql_schema(conn)
+                # Fast path: check if cloud database is already populated
+                try:
+                    cur.execute("SELECT COUNT(*) as cnt FROM tbl_membership;")
+                    r = cur.fetchone()
+                    count = r['cnt'] if isinstance(r, dict) else r[0]
+                    if count >= 44:
+                        _INIT_DB_DONE = True
+                        print(f"[DB Init Fast-Path] Connected to MySQL '{Config.DB_NAME}' ({count} members ready).")
+                        return
+                except Exception:
+                    pass
 
+                # If empty, provision tables and seed data
+                ensure_mysql_schema(conn)
+                
                 # 1. Non-destructively ensure password_hash column exists on tbl_membership
                 cur.execute("""
                     SELECT COUNT(*) as cnt 
@@ -580,32 +624,30 @@ def init_db():
                     print("[DB Init] Adding 'password_hash' column to tbl_membership...")
                     cur.execute("ALTER TABLE tbl_membership ADD COLUMN password_hash VARCHAR(255) DEFAULT NULL;")
                 
-                # Ensure all members have a valid initial hashed password (sdera@123)
-                default_hash = hash_password("sdera@123")
+                # Fast update of default hashes without dynamic bcrypt calculation
                 cur.execute(
                     "UPDATE tbl_membership SET password_hash = %s WHERE password_hash IS NULL OR password_hash = '' OR password_hash LIKE %s;",
-                    (default_hash, '$2b$12$HxNkW%')
+                    (SDERA_HASH, '$2b$12$HxNkW%')
                 )
                 
                 # 2. Ensure committee admin accounts exist and have valid password hashes in tbl_admins
                 committee_admins = [
-                    ('admin', hash_password('passwd'), 'billing_admin'),
-                    ('treasurer', hash_password('sdera@123'), 'treasurer'),
-                    ('president', hash_password('sdera@123'), 'president'),
-                    ('secretary', hash_password('sdera@123'), 'secretary'),
-                    ('caretaker', hash_password('sdera@123'), 'caretaker')
+                    ('admin', PASSWD_HASH, 'billing_admin'),
+                    ('treasurer', SDERA_HASH, 'treasurer'),
+                    ('president', SDERA_HASH, 'president'),
+                    ('secretary', SDERA_HASH, 'secretary'),
+                    ('caretaker', SDERA_HASH, 'caretaker')
                 ]
                 
                 for username, pwd_hash, role in committee_admins:
                     cur.execute("SELECT * FROM tbl_admins WHERE LOWER(username) = LOWER(%s);", (username,))
                     existing = cur.fetchone()
-                    expected_pwd = 'passwd' if username == 'admin' else 'sdera@123'
                     if not existing:
                         cur.execute(
                             "INSERT INTO tbl_admins (username, password_hash, role) VALUES (%s, %s, %s);",
                             (username, pwd_hash, role)
                         )
-                    elif not verify_password(expected_pwd, existing.get('password_hash', '')):
+                    elif existing.get('password_hash', '').startswith('$2b$12$HxNkW') or existing.get('password_hash', '').startswith('$2b$12$MA9Sw'):
                         cur.execute(
                             "UPDATE tbl_admins SET password_hash = %s, role = %s WHERE admin_id = %s;",
                             (pwd_hash, role, existing['admin_id'])
@@ -632,9 +674,10 @@ def init_db():
                 print(f"[DB Init] Connected successfully to MySQL '{Config.DB_NAME}' on {Config.DB_HOST}:{Config.DB_PORT}")
         finally:
             conn.close()
+        _INIT_DB_DONE = True
     except Exception as e:
         print(f"[DB Warning] Could not connect to MySQL database ({e}). Switching to SQLite.")
-        global _ENGINE_MODE
         _ENGINE_MODE = 'sqlite'
         ensure_notices_table_sqlite()
+        _INIT_DB_DONE = True
 

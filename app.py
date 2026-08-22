@@ -35,6 +35,17 @@ def set_response_headers(response):
         response.headers['Cache-Control'] = 'public, max-age=0, must-revalidate'
     return response
 
+@app.teardown_appcontext
+def close_request_db(exception=None):
+    from flask import g
+    db_conn = getattr(g, 'db_conn', None)
+    if db_conn is not None:
+        try:
+            db_conn.close()
+        except Exception:
+            pass
+        g.db_conn = None
+
 # Ensure database tables and initial hashes exist non-destructively
 try:
     init_db()
