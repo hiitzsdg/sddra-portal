@@ -805,45 +805,50 @@ def api_db_status():
 
 @app.route('/api/seed-cloud-db')
 def api_seed_cloud_db():
-    from database import get_mysql_connection, init_db
+    from database import get_mysql_connection, ensure_mysql_schema, init_db, get_writable_sqlite_path
     try:
         conn = get_mysql_connection()
         try:
-            dump_candidates = [
-                os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sddra_billing_dump.sql'),
-                os.path.join(os.getcwd(), 'sddra_billing_dump.sql'),
-                '/var/task/sddra_billing_dump.sql'
-            ]
-            dump_file = next((p for p in dump_candidates if os.path.exists(p)), None)
-            if not dump_file:
-                return jsonify({"success": False, "error": "sddra_billing_dump.sql not found on server"})
+            sq_path = get_writable_sqlite_path()
+            if not os.path.exists(sq_path):
+                return jsonify({"success": False, "error": f"SQLite reference database not found at {sq_path}"})
+                
+            sq_conn = sqlite3.connect(sq_path)
+            sq_conn.row_factory = sqlite3.Row
+            sq_cur = sq_conn.cursor()
             
-            with open(dump_file, 'r', encoding='utf-8') as f:
-                sql_dump = f.read()
-            statements = [s.strip() for s in sql_dump.split(';\n') if s.strip()]
-            
-            success_count = 0
             with conn.cursor() as cur:
-                for stmt in statements:
-                    if stmt.startswith('/*') or stmt.startswith('--'):
-                        continue
+                # Force replace all tables from SQLite
+                for tbl in ['tbl_membership', 'tbl_mbr_cntct', 'tbl_receipts', 'tbl_expenses', 'tbl_admins', 'tbl_notices']:
                     try:
-                        cur.execute(stmt)
-                        success_count += 1
-                    except Exception:
-                        pass
+                        sq_cur.execute(f"SELECT * FROM {tbl};")
+                        rows = sq_cur.fetchall()
+                        if rows:
+                            cols = rows[0].keys()
+                            placeholders = ", ".join(["%s"] * len(cols))
+                            col_names = ", ".join([f"`{c}`" for c in cols])
+                            insert_sql = f"REPLACE INTO `{tbl}` ({col_names}) VALUES ({placeholders});"
+                            val_list = [tuple(r[c] for c in cols) for r in rows]
+                            cur.executemany(insert_sql, val_list)
+                    except Exception as e_tbl:
+                        print(f"Table sync note: {e_tbl}")
                 conn.commit()
+            sq_conn.close()
             
             init_db()
             
             members = query_db("SELECT COUNT(*) as cnt FROM tbl_membership;", one=True)
+            contacts = query_db("SELECT COUNT(*) as cnt FROM tbl_mbr_cntct;", one=True)
             receipts = query_db("SELECT COUNT(*) as cnt FROM tbl_receipts;", one=True)
+            expenses = query_db("SELECT COUNT(*) as cnt FROM tbl_expenses;", one=True)
+            
             return jsonify({
                 "success": True, 
                 "message": "Cloud database successfully populated with all official association data!",
                 "members_count": members['cnt'] if members else 0,
+                "contacts_count": contacts['cnt'] if contacts else 0,
                 "receipts_count": receipts['cnt'] if receipts else 0,
-                "statements_executed": success_count
+                "expenses_count": expenses['cnt'] if expenses else 0
             })
         finally:
             conn.close()

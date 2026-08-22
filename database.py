@@ -415,45 +415,132 @@ def ensure_notices_table_mysql(conn):
         conn.commit()
 
 def ensure_mysql_schema(conn):
-    """Automatically provision complete tables and data if connected to an empty cloud MySQL/TiDB database."""
+    """Automatically provision complete tables and structured records from bundled SQLite dataset to MySQL / TiDB Cloud."""
     with conn.cursor() as cur:
+        # 1. Create tables if they do not exist
         cur.execute("""
-            SELECT COUNT(*) as cnt 
-            FROM information_schema.TABLES 
-            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'tbl_membership';
-        """, (Config.DB_NAME,))
-        has_table = cur.fetchone()['cnt'] > 0
+            CREATE TABLE IF NOT EXISTS tbl_membership (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                flat_no VARCHAR(20) NOT NULL UNIQUE,
+                member_name VARCHAR(150) NOT NULL,
+                RvsdFlatSize INT DEFAULT 0,
+                car_parking_space VARCHAR(20) DEFAULT '-',
+                cps_owner TINYINT(1) DEFAULT 0,
+                tws_owner TINYINT(1) DEFAULT 0,
+                tws_count INT DEFAULT 0,
+                flat_charges DECIMAL(10,2) DEFAULT 1.55,
+                common_expenses DECIMAL(10,2) DEFAULT 170.00,
+                cps_charges DECIMAL(10,2) DEFAULT 0.00,
+                tws_charges DECIMAL(10,2) DEFAULT 0.00,
+                capital_fund DECIMAL(10,2) DEFAULT 0.21,
+                monthly_charge DECIMAL(10,2) DEFAULT 0.00,
+                password_hash VARCHAR(255) DEFAULT NULL
+            ) ENGINE=InnoDB;
+        """)
         
-        mbr_count = 0
-        if has_table:
-            try:
-                cur.execute("SELECT COUNT(*) as cnt FROM tbl_membership;")
-                r = cur.fetchone()
-                mbr_count = r['cnt'] if isinstance(r, dict) else r[0]
-            except Exception:
-                mbr_count = 0
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tbl_mbr_cntct (
+                flat_no VARCHAR(20) PRIMARY KEY,
+                mobile_num_1 VARCHAR(50) DEFAULT NULL,
+                mobile_num_2 VARCHAR(50) DEFAULT NULL,
+                email_1 VARCHAR(100) DEFAULT NULL,
+                email_2 VARCHAR(100) DEFAULT NULL
+            ) ENGINE=InnoDB;
+        """)
         
-        if not has_table or mbr_count == 0:
-            print(f"[DB Init] Cloud database '{Config.DB_NAME}' has {mbr_count} members. Initializing complete schema from sddra_billing_dump.sql...")
-            dump_candidates = [
-                os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sddra_billing_dump.sql'),
-                os.path.join(os.getcwd(), 'sddra_billing_dump.sql'),
-                '/var/task/sddra_billing_dump.sql'
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tbl_receipts (
+                receipt_no INT PRIMARY KEY,
+                flat_no VARCHAR(20) NOT NULL,
+                member_name VARCHAR(150) NOT NULL,
+                amount DECIMAL(10,2) NOT NULL,
+                pymnt_mode VARCHAR(50) DEFAULT 'Online',
+                subscription_type VARCHAR(50) DEFAULT 'Monthly',
+                remarks VARCHAR(255) DEFAULT NULL,
+                payment_date VARCHAR(50) DEFAULT NULL,
+                receipt_date VARCHAR(50) DEFAULT NULL,
+                coverage_start VARCHAR(50) DEFAULT NULL,
+                coverage_end VARCHAR(50) DEFAULT NULL,
+                INDEX idx_flat (flat_no)
+            ) ENGINE=InnoDB;
+        """)
+        
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tbl_expenses (
+                voucher_no INT PRIMARY KEY,
+                voucher_date VARCHAR(50) NOT NULL,
+                expense_description TEXT NOT NULL,
+                particulars VARCHAR(255) DEFAULT NULL,
+                spl_head VARCHAR(100) DEFAULT NULL,
+                payment_by VARCHAR(100) DEFAULT 'Estate Manager',
+                amount DECIMAL(10,2) NOT NULL,
+                created_at VARCHAR(50) DEFAULT NULL
+            ) ENGINE=InnoDB;
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tbl_admins (
+                admin_id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(50) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                role VARCHAR(50) NOT NULL DEFAULT 'super_admin',
+                email VARCHAR(100) DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB;
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tbl_notices (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                content TEXT NOT NULL,
+                category VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
+                priority VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
+                is_pinned TINYINT(1) NOT NULL DEFAULT 0,
+                posted_by VARCHAR(100) NOT NULL,
+                posted_by_role VARCHAR(50) NOT NULL DEFAULT 'Executive Committee',
+                status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB;
+        """)
+        conn.commit()
+
+        # 2. Check if tbl_membership has data
+        cur.execute("SELECT COUNT(*) as cnt FROM tbl_membership;")
+        row = cur.fetchone()
+        mbr_count = row['cnt'] if isinstance(row, dict) else row[0]
+        
+        if mbr_count == 0:
+            print(f"[DB Init] Populating TiDB Cloud tables from bundled SQLite dataset...")
+            sqlite_candidates = [
+                Config.SQLITE_PATH,
+                os.path.join(os.getcwd(), 'sddra.db'),
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sddra.db'),
+                '/var/task/sddra.db'
             ]
-            dump_file = next((p for p in dump_candidates if os.path.exists(p)), None)
-            if dump_file:
-                with open(dump_file, 'r', encoding='utf-8') as f:
-                    sql_dump = f.read()
-                statements = [s.strip() for s in sql_dump.split(';\n') if s.strip()]
-                for stmt in statements:
-                    if stmt.startswith('/*') or stmt.startswith('--'):
-                        continue
+            sq_path = next((p for p in sqlite_candidates if p and os.path.exists(p)), None)
+            if sq_path:
+                sq_conn = sqlite3.connect(sq_path)
+                sq_conn.row_factory = sqlite3.Row
+                sq_cur = sq_conn.cursor()
+                
+                for tbl in ['tbl_membership', 'tbl_mbr_cntct', 'tbl_receipts', 'tbl_expenses', 'tbl_admins', 'tbl_notices']:
                     try:
-                        cur.execute(stmt)
-                    except Exception:
-                        pass
+                        sq_cur.execute(f"SELECT * FROM {tbl};")
+                        rows = sq_cur.fetchall()
+                        if rows:
+                            cols = rows[0].keys()
+                            placeholders = ", ".join(["%s"] * len(cols))
+                            col_names = ", ".join([f"`{c}`" for c in cols])
+                            insert_sql = f"REPLACE INTO `{tbl}` ({col_names}) VALUES ({placeholders});"
+                            val_list = [tuple(r[c] for c in cols) for r in rows]
+                            cur.executemany(insert_sql, val_list)
+                            print(f"[DB Init] Successfully synced {len(val_list)} rows into `{tbl}`.")
+                    except Exception as e_tbl:
+                        print(f"[DB Init] Table sync note on `{tbl}`: {e_tbl}")
+                sq_conn.close()
                 conn.commit()
-                print(f"[DB Init] Completed automatic cloud database schema & seed provisioning for '{Config.DB_NAME}'.")
 
 def init_db():
     """
