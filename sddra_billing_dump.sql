@@ -610,7 +610,7 @@ INSERT INTO `tbl_mbr_cntct` (`flat_no`, `mobile_num_1`, `mobile_num_2`, `email_1
 INSERT INTO `tbl_mbr_cntct` (`flat_no`, `mobile_num_1`, `mobile_num_2`, `email_1`, `email_2`) VALUES ('A/2-A', '629-084-7982', NULL, 'asitmed2000@yahoo.com', NULL);
 INSERT INTO `tbl_mbr_cntct` (`flat_no`, `mobile_num_1`, `mobile_num_2`, `email_1`, `email_2`) VALUES ('A/2-B', '965-205-2462', NULL, 'rnch65@gmail.com', NULL);
 INSERT INTO `tbl_mbr_cntct` (`flat_no`, `mobile_num_1`, `mobile_num_2`, `email_1`, `email_2`) VALUES ('A/2-C', '943-208-8965', NULL, 'debasis63@gmail.com', NULL);
-INSERT INTO `tbl_mbr_cntct` (`flat_no`, `mobile_num_1`, `mobile_num_2`, `email_1`, `email_2`) VALUES ('A/2-D', '947-781-5365', NULL, 'snchatto@rediffmail.com', NULL);
+INSERT INTO `tbl_mbr_cntct` (`flat_no`, `mobile_num_1`, `mobile_num_2`, `email_1`, `email_2`) VALUES ('A/2-D', '947-781-5365', NULL, 'upekshitsharma@gmail.com', NULL);
 INSERT INTO `tbl_mbr_cntct` (`flat_no`, `mobile_num_1`, `mobile_num_2`, `email_1`, `email_2`) VALUES ('A/3-A', '916-376-0697', NULL, 'patra.amlan@gmail.com', NULL);
 INSERT INTO `tbl_mbr_cntct` (`flat_no`, `mobile_num_1`, `mobile_num_2`, `email_1`, `email_2`) VALUES ('A/3-B', '905-166-6311', '824-047-9945', 'jayantadhar1977@gmail.com', NULL);
 INSERT INTO `tbl_mbr_cntct` (`flat_no`, `mobile_num_1`, `mobile_num_2`, `email_1`, `email_2`) VALUES ('A/3-C', '947-717-6079', NULL, 'zzmanasadu315@gmail.com', NULL);

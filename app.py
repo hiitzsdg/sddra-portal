@@ -252,7 +252,7 @@ def profile():
     if request.method == 'POST':
         action = request.form.get('action')
         
-        if action == 'update_info' and not is_admin:
+        if action == 'update_info':
             email1 = request.form.get('email', '').strip()
             phone1 = request.form.get('phone', '').strip()
             
@@ -261,16 +261,30 @@ def profile():
                 return redirect(url_for('profile'))
             
             try:
-                if contact:
-                    execute_db(
-                        "UPDATE tbl_mbr_cntct SET email_1 = %s, mobile_num_1 = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", 
-                        (email1, phone1, flat_no)
-                    )
-                else:
-                    execute_db(
-                        "INSERT INTO tbl_mbr_cntct (flat_no, email_1, mobile_num_1) VALUES (%s, %s, %s)", 
-                        (flat_no, email1, phone1)
-                    )
+                if flat_no:
+                    # Check if contact entry exists in tbl_mbr_cntct
+                    cnt = query_db("SELECT flat_no FROM tbl_mbr_cntct WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (flat_no,), one=True)
+                    if cnt:
+                        execute_db(
+                            "UPDATE tbl_mbr_cntct SET email_1 = %s, mobile_num_1 = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", 
+                            (email1, phone1, flat_no)
+                        )
+                    else:
+                        execute_db(
+                            "INSERT INTO tbl_mbr_cntct (flat_no, email_1, mobile_num_1) VALUES (%s, %s, %s)", 
+                            (flat_no, email1, phone1)
+                        )
+                    # Also keep members table in sync if it exists
+                    try:
+                        execute_db("UPDATE members SET email = %s, phone = %s WHERE LOWER(TRIM(flat_number)) = LOWER(TRIM(%s))", (email1, phone1, flat_no))
+                    except Exception:
+                        pass
+                
+                if is_admin and admin:
+                    try:
+                        execute_db("UPDATE tbl_admins SET email = %s WHERE username = %s", (email1, user.get('username')))
+                    except Exception:
+                        pass
                     
                 if 'user' in session:
                     session['user']['email'] = email1
@@ -680,22 +694,64 @@ def admin_members():
     query = """
         SELECT m.*, 
                c.mobile_num_1, c.mobile_num_2, c.email_1, c.email_2,
-               COALESCE(SUM(r.amount), 0) as total_paid,
-               COUNT(r.receipt_no) as receipts_count,
-               MAX(r.payment_date) as last_payment_date
+               COALESCE(r.total_paid, 0) as total_paid,
+               COALESCE(r.receipts_count, 0) as receipts_count,
+               r.last_payment_date
         FROM tbl_membership m
-        LEFT JOIN tbl_mbr_cntct c ON m.flat_no = c.flat_no
-        LEFT JOIN tbl_receipts r ON m.flat_no = r.flat_no
+        LEFT JOIN tbl_mbr_cntct c ON LOWER(TRIM(m.flat_no)) = LOWER(TRIM(c.flat_no))
+        LEFT JOIN (
+            SELECT LOWER(TRIM(flat_no)) as flat_no,
+                   SUM(amount) as total_paid,
+                   COUNT(receipt_no) as receipts_count,
+                   MAX(payment_date) as last_payment_date
+            FROM tbl_receipts
+            GROUP BY LOWER(TRIM(flat_no))
+        ) r ON LOWER(TRIM(m.flat_no)) = r.flat_no
     """
     params = []
     if search_q:
         query += " WHERE m.flat_no LIKE %s OR m.member_name LIKE %s OR c.mobile_num_1 LIKE %s OR c.email_1 LIKE %s"
         params.extend([f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", f"%{search_q}%"])
         
-    query += " GROUP BY m.id ORDER BY m.flat_no"
+    query += " ORDER BY m.flat_no"
     members = query_db(query, params)
     
     return render_template('admin_members.html', members=members, search_q=search_q)
+
+@app.route('/admin/members/update-contact', methods=['POST'])
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def admin_update_member_contact():
+    flat_no = request.form.get('flat_no', '').strip()
+    email = request.form.get('email', '').strip()
+    phone = request.form.get('phone', '').strip()
+    
+    if not flat_no:
+        flash('Flat number is required.', 'danger')
+        return redirect(url_for('admin_members'))
+        
+    try:
+        cnt = query_db("SELECT flat_no FROM tbl_mbr_cntct WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (flat_no,), one=True)
+        if cnt:
+            execute_db(
+                "UPDATE tbl_mbr_cntct SET email_1 = %s, mobile_num_1 = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))",
+                (email, phone, flat_no)
+            )
+        else:
+            execute_db(
+                "INSERT INTO tbl_mbr_cntct (flat_no, email_1, mobile_num_1) VALUES (%s, %s, %s)",
+                (flat_no, email, phone)
+            )
+            
+        try:
+            execute_db("UPDATE members SET email = %s, phone = %s WHERE LOWER(TRIM(flat_number)) = LOWER(TRIM(%s))", (email, phone, flat_no))
+        except Exception:
+            pass
+            
+        flash(f"✓ Contact details for Flat {flat_no} updated successfully ({email}).", 'success')
+    except Exception as e:
+        flash(f"Error updating contact details for Flat {flat_no}: {e}", 'danger')
+        
+    return redirect(url_for('admin_members'))
 
 @app.route('/api/member-receipts')
 @app.route('/api/members/<path:flat_no>/receipts')
