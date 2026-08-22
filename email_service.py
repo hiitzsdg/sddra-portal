@@ -579,4 +579,152 @@ def send_receipt_email(receipt_no, custom_recipient=None):
         }
 
 
+def broadcast_notice_email(notice, author_name=None):
+    """
+    Broadcast an official association notice to all registered resident email addresses.
+    """
+    title = notice.get('title', 'Society Announcement')
+    content = notice.get('content', '')
+    category = notice.get('category', 'GENERAL').replace('_', ' ').title()
+    priority = notice.get('priority', 'NORMAL').upper()
+    posted_by = notice.get('posted_by') or author_name or 'Executive Committee'
+    posted_by_role = notice.get('posted_by_role', 'Committee Official')
+    
+    # Priority badge styling
+    prio_color = "#3b82f6"
+    prio_bg = "#eff6ff"
+    prio_label = "📢 SOCIETY ANNOUNCEMENT"
+    if priority == 'URGENT':
+        prio_color = "#ef4444"
+        prio_bg = "#fef2f2"
+        prio_label = "🚨 URGENT NOTICE"
+    elif priority == 'HIGH':
+        prio_color = "#f59e0b"
+        prio_bg = "#fffbeb"
+        prio_label = "⚠️ IMPORTANT NOTICE"
+
+    # Convert line breaks to HTML paragraphs
+    formatted_content = "".join(f"<p style='margin: 0 0 12px 0; line-height: 1.6;'>{line.strip()}</p>" for line in content.split('\n') if line.strip())
+
+    html_email = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, sans-serif; background-color: #f1f5f9; margin: 0; padding: 24px; color: #1e293b; }}
+            .container {{ max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #cbd5e1; }}
+            .header {{ background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%); color: #ffffff; padding: 28px 24px; text-align: center; }}
+            .header h1 {{ margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.3px; }}
+            .header p {{ margin: 6px 0 0; font-size: 12px; color: #93c5fd; }}
+            .body {{ padding: 28px 24px; }}
+            .prio-badge {{ display: inline-block; background: {prio_bg}; color: {prio_color}; border: 1px solid {prio_color}; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; margin-bottom: 14px; }}
+            .category-tag {{ display: inline-block; background: #e2e8f0; color: #475569; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-left: 6px; }}
+            .notice-title {{ font-size: 19px; font-weight: 700; color: #0f172a; margin: 0 0 16px 0; }}
+            .notice-card {{ background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid {prio_color}; border-radius: 8px; padding: 20px; margin-bottom: 22px; font-size: 14px; color: #334155; }}
+            .signoff {{ background: #f1f5f9; border-radius: 8px; padding: 14px 18px; font-size: 13px; color: #475569; margin-top: 20px; }}
+            .footer {{ background: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>{Config.ASSOCIATION_NAME}</h1>
+                <p>Official Residents' Association Notice &bull; Reg No: {Config.ASSOCIATION_REG_NO}</p>
+            </div>
+            <div class="body">
+                <div>
+                    <span class="prio-badge">{prio_label}</span>
+                    <span class="category-tag">📂 {category}</span>
+                </div>
+                <h2 class="notice-title">{title}</h2>
+                <div class="notice-card">
+                    {formatted_content}
+                </div>
+                <div class="signoff">
+                    <strong>Issued By:</strong> {posted_by} &bull; <em>{posted_by_role}</em><br>
+                    <strong>Date:</strong> {datetime.now().strftime('%d %B %Y')} &bull; South Dumdum Enclave
+                </div>
+            </div>
+            <div class="footer">
+                <p style="margin: 0;">This is an official communication from South Dumdum Enclave Residents' Association.</p>
+                <p style="margin: 4px 0 0;">Helpline: {Config.ASSOCIATION_PHONE} &bull; {Config.ASSOCIATION_EMAIL}</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    # Fetch recipient emails from tbl_mbr_cntct and tbl_membership
+    recipients = []
+    try:
+        contact_rows = query_db("SELECT email_1, email_2 FROM tbl_mbr_cntct;")
+        for r in (contact_rows or []):
+            if r.get('email_1') and '@' in r['email_1'] and r['email_1'].strip() not in recipients:
+                recipients.append(r['email_1'].strip())
+            if r.get('email_2') and '@' in r['email_2'] and r['email_2'].strip() not in recipients:
+                recipients.append(r['email_2'].strip())
+    except Exception:
+        pass
+
+    try:
+        member_rows = query_db("SELECT email FROM members;") if query_db("SELECT COUNT(*) FROM members;") else []
+        for r in (member_rows or []):
+            if r.get('email') and '@' in r['email'] and r['email'].strip() not in recipients:
+                recipients.append(r['email'].strip())
+    except Exception:
+        pass
+
+    if not recipients:
+        recipients = ["members@southdumdum.org"]
+
+    subject = f"[{prio_label}] {title} - {Config.ASSOCIATION_NAME}"
+    smtp_enabled = bool(Config.SMTP_USERNAME and Config.SMTP_PASSWORD)
+
+    sent_count = 0
+    if smtp_enabled:
+        try:
+            server = smtplib.SMTP(Config.SMTP_SERVER, Config.SMTP_PORT, timeout=6)
+            if Config.SMTP_USE_TLS:
+                server.starttls()
+            server.login(Config.SMTP_USERNAME, Config.SMTP_PASSWORD)
+            
+            for recipient in recipients:
+                try:
+                    msg = MIMEMultipart('alternative')
+                    msg['Subject'] = subject
+                    msg['From'] = f"{Config.SMTP_FROM_NAME} <{Config.SMTP_FROM_EMAIL}>"
+                    msg['To'] = recipient
+                    msg.attach(MIMEText(f"Notice: {title}\n\n{content}\n\nIssued by: {posted_by} ({posted_by_role})", 'plain'))
+                    msg.attach(MIMEText(html_email, 'html'))
+                    server.sendmail(Config.SMTP_FROM_EMAIL, [recipient], msg.as_string())
+                    sent_count += 1
+                except Exception:
+                    pass
+            server.quit()
+            return {
+                "success": True,
+                "message": f"Notice broadcast successfully dispatched to {sent_count} member emails via live SMTP.",
+                "recipients_count": sent_count,
+                "status": "SENT"
+            }
+        except Exception as e:
+            return {
+                "success": True,
+                "message": f"Notice broadcast prepared for {len(recipients)} members (Simulated delivery: {str(e)}).",
+                "recipients_count": len(recipients),
+                "status": "SIMULATED",
+                "preview_html": html_email
+            }
+    else:
+        return {
+            "success": True,
+            "message": f"Notice broadcast simulated to {len(recipients)} registered member email addresses.",
+            "recipients_count": len(recipients),
+            "status": "SIMULATED",
+            "preview_html": html_email
+        }
+
+
+
 

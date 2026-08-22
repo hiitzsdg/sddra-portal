@@ -137,6 +137,7 @@
             <nav class="navbar-nav-desktop">
                 <ul class="nav-menu">
                     <li><a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">📊 Dashboard</a></li>
+                    <li><a href="{{ url_for('notices_list') }}" class="nav-link {% if request.endpoint == 'notices_list' %}active{% endif %}">📢 Notice Board</a></li>
                     <li><a href="{{ url_for('expenses_list') }}" class="nav-link {% if request.endpoint == 'expenses_list' %}active{% endif %}">🧾 Society Expenses</a></li>
                     
                     {% if is_admin %}
@@ -188,6 +189,7 @@
         <div class="mobile-nav-drawer" id="mobileNavDrawer">
             <ul class="nav-menu">
                 <li><a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">📊 Dashboard</a></li>
+                <li><a href="{{ url_for('notices_list') }}" class="nav-link {% if request.endpoint == 'notices_list' %}active{% endif %}">📢 Notice Board</a></li>
                 <li><a href="{{ url_for('expenses_list') }}" class="nav-link {% if request.endpoint == 'expenses_list' %}active{% endif %}">🧾 Society Expenses</a></li>
                 
                 {% if is_admin %}

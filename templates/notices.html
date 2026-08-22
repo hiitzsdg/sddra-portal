@@ -1,0 +1,638 @@
+{% extends 'base.html' %}
+
+{% block title %}Notice Board - South Dumdum Enclave{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ================= NOTICE BOARD SPECIFIC STYLES ================= */
+.notices-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.notices-pills-bar {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+    scrollbar-width: thin;
+}
+
+.notice-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-pill, 9999px);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    border: 1px solid var(--surface-border, rgba(255,255,255,0.1));
+    background: var(--surface-card, rgba(15, 23, 42, 0.82));
+    color: var(--text-secondary, #cbd5e1);
+    transition: all 0.2s ease;
+}
+
+.notice-pill:hover {
+    background: var(--surface-card-hover, rgba(30, 41, 59, 0.9));
+    color: var(--text-main, #ffffff);
+    border-color: var(--primary-400, #60a5fa);
+    transform: translateY(-1px);
+}
+
+.notice-pill.active {
+    background: linear-gradient(135deg, var(--primary-600, #2563eb), var(--primary-700, #1d4ed8));
+    color: #ffffff;
+    border-color: var(--primary-500, #3b82f6);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+.notice-pill-badge {
+    background: rgba(0, 0, 0, 0.25);
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+/* Urgent Pinned Banner */
+.urgent-banner-card {
+    background: linear-gradient(135deg, rgba(153, 27, 27, 0.45) 0%, rgba(30, 10, 15, 0.85) 100%);
+    border: 1px solid rgba(239, 68, 68, 0.45);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.18);
+    border-radius: var(--radius-lg, 18px);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.urgent-banner-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 6px;
+    background: linear-gradient(180deg, #ef4444, #f59e0b);
+}
+
+/* Notice Cards Grid */
+.notices-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .notices-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.notice-card {
+    background: var(--surface-card, rgba(15, 23, 42, 0.82));
+    border: 1px solid var(--surface-border, rgba(255, 255, 255, 0.1));
+    border-radius: var(--radius-lg, 18px);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    backdrop-filter: blur(12px);
+}
+
+.notice-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--surface-border-hover, rgba(59, 130, 246, 0.45));
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.notice-card.is-pinned {
+    border-color: rgba(245, 158, 11, 0.45);
+    background: linear-gradient(180deg, rgba(30, 25, 10, 0.35) 0%, var(--surface-card, rgba(15, 23, 42, 0.82)) 100%);
+}
+
+.notice-card.is-urgent {
+    border-color: rgba(239, 68, 68, 0.45);
+}
+
+.notice-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.notice-badges-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.notice-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-heading, #ffffff);
+    line-height: 1.4;
+    margin-bottom: 0.75rem;
+}
+
+.notice-body-text {
+    font-size: 0.92rem;
+    line-height: 1.65;
+    color: var(--text-secondary, #cbd5e1);
+    margin-bottom: 1.5rem;
+    white-space: pre-line;
+}
+
+.notice-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-border, rgba(255, 255, 255, 0.08));
+    font-size: 0.82rem;
+    color: var(--text-muted, #94a3b8);
+}
+
+.notice-author-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.notice-author-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-600, #2563eb), #7e22ce);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+
+.notice-actions {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+/* Category Badge Colors */
+.badge-cat-water { background: rgba(14, 165, 233, 0.18); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); }
+.badge-cat-maintenance { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.35); }
+.badge-cat-agm { background: rgba(168, 85, 247, 0.18); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.35); }
+.badge-cat-events { background: rgba(236, 72, 153, 0.18); color: #f472b6; border: 1px solid rgba(244, 114, 182, 0.35); }
+.badge-cat-security { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.35); }
+.badge-cat-general { background: rgba(100, 116, 139, 0.18); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.35); }
+.badge-cat-financial { background: rgba(34, 197, 94, 0.18); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.35); }
+.badge-cat-emergency { background: rgba(239, 68, 68, 0.22); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.4); }
+
+.badge-prio-urgent { background: rgba(239, 68, 68, 0.25); color: #f87171; border: 1px solid #ef4444; font-weight: 700; }
+.badge-prio-high { background: rgba(245, 158, 11, 0.22); color: #fbbf24; border: 1px solid #f59e0b; font-weight: 600; }
+.badge-prio-normal { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+
+/* Modal custom styles */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(3, 7, 18, 0.85);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+}
+.modal-overlay.active { display: flex; }
+.modal-container {
+    background: var(--surface-card, #0f172a);
+    border: 1px solid var(--surface-border, rgba(255, 255, 255, 0.15));
+    border-radius: var(--radius-xl, 26px);
+    width: 100%;
+    max-width: 620px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 2rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+@media print {
+    .navbar, .footer, .notices-hero, .notices-pills-bar, .filter-box, .notice-actions, .no-print {
+        display: none !important;
+    }
+    body { background: #ffffff !important; color: #000000 !important; }
+    .notice-card { border: 1px solid #000000 !important; box-shadow: none !important; margin-bottom: 2rem; page-break-inside: avoid; }
+    .notice-title, .notice-body-text { color: #000000 !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <div class="page-header-title">
+        <h2>📢 Digital Notice Board & Circulars</h2>
+        <p>Official announcements, maintenance schedules, security advisories, and AGM notifications for SDERA residents.</p>
+    </div>
+
+    <div class="page-header-actions">
+        <button type="button" class="btn btn-secondary" onclick="window.print()" title="Print Notice Board">
+            🖨️ Print Circulars
+        </button>
+        {% if is_admin %}
+        <button type="button" class="btn btn-primary" onclick="openModal('postNoticeModal')">
+            ➕ Post Official Notice
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+{% if pinned_urgent %}
+<!-- ================= URGENT PINNED ALERTS BANNER ================= -->
+{% for un in pinned_urgent %}
+<div class="urgent-banner-card">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <span class="badge badge-prio-urgent">🚨 CRITICAL URGENT ALERT</span>
+                <span class="badge badge-warning">📌 Pinned to All Residents</span>
+            </div>
+            <h3 style="font-size: 1.35rem; font-weight: 800; color: #ffffff; margin-bottom: 0.5rem;">
+                {{ un.title }}
+            </h3>
+            <p style="font-size: 0.95rem; color: #fecaca; line-height: 1.6; margin: 0; white-space: pre-line;">
+                {{ un.content }}
+            </p>
+        </div>
+        <div style="text-align: right; font-size: 0.8rem; color: #fca5a5;">
+            <div>Issued by: <strong>{{ un.posted_by }}</strong> ({{ un.posted_by_role }})</div>
+            <div style="margin-top: 4px;">{{ un.created_at }}</div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- Category Pills Navigation -->
+<div class="notices-pills-bar">
+    {% for cat_code, cat_label, cat_icon in categories %}
+    <a href="{{ url_for('notices_list', category=cat_code, priority=current_priority, q=search_q, status=current_status) }}" 
+       class="notice-pill {% if current_category == cat_code %}active{% endif %}">
+        <span>{{ cat_icon }}</span>
+        <span>{{ cat_label }}</span>
+        <span class="notice-pill-badge">{{ cat_counts.get(cat_code, 0) }}</span>
+    </a>
+    {% endfor %}
+</div>
+
+<!-- Search & Filter Controls -->
+<div class="card filter-box" style="margin-bottom: 1.75rem; padding: 1.25rem;">
+    <form method="GET" action="{{ url_for('notices_list') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+        <input type="hidden" name="category" value="{{ current_category }}">
+        
+        <div style="flex: 1; min-width: 250px;">
+            <label class="form-label" for="q">Search Notice Content &amp; Titles</label>
+            <div class="live-search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="q" name="q" class="form-control" placeholder="Search water tank, AGM, lift AMC, security, Puja..." value="{{ search_q }}">
+                {% if search_q %}
+                <a href="{{ url_for('notices_list', category=current_category, priority=current_priority, status=current_status) }}" class="clear-btn" style="text-decoration: none; display: flex; align-items: center; justify-content: center;">&times;</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="width: 170px;">
+            <label class="form-label" for="priority">Priority Filter</label>
+            <select id="priority" name="priority" class="form-select" onchange="this.form.submit()">
+                <option value="ALL" {% if current_priority == 'ALL' %}selected{% endif %}>All Priorities</option>
+                <option value="URGENT" {% if current_priority == 'URGENT' %}selected{% endif %}>🚨 Urgent Only</option>
+                <option value="HIGH" {% if current_priority == 'HIGH' %}selected{% endif %}>⚠️ High Priority</option>
+                <option value="NORMAL" {% if current_priority == 'NORMAL' %}selected{% endif %}>📢 Normal</option>
+            </select>
+        </div>
+
+        <div style="width: 150px;">
+            <label class="form-label" for="status">Status</label>
+            <select id="status" name="status" class="form-select" onchange="this.form.submit()">
+                <option value="ACTIVE" {% if current_status == 'ACTIVE' %}selected{% endif %}>Active Notices</option>
+                <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All (Inc. Archived)</option>
+                <option value="ARCHIVED" {% if current_status == 'ARCHIVED' %}selected{% endif %}>Archived</option>
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            <a href="{{ url_for('notices_list') }}" class="btn btn-secondary">Reset</a>
+        </div>
+    </form>
+</div>
+
+<!-- ================= NOTICES FEED GRID ================= -->
+{% if notices %}
+<div class="notices-grid">
+    {% for n in notices %}
+    {% set cat_key = n.category|lower %}
+    <div class="notice-card {% if n.is_pinned %}is-pinned{% endif %} {% if n.priority == 'URGENT' %}is-urgent{% endif %}" id="notice-{{ n.id }}">
+        <div>
+            <!-- Card Header: Badges -->
+            <div class="notice-card-header">
+                <div class="notice-badges-group">
+                    <!-- Category Badge -->
+                    {% if n.category == 'WATER_SUPPLY' %}
+                        <span class="badge badge-cat-water">💧 Water &amp; Utilities</span>
+                    {% elif n.category == 'MAINTENANCE' %}
+                        <span class="badge badge-cat-maintenance">⚡ Maintenance</span>
+                    {% elif n.category == 'AGM_MEETING' %}
+                        <span class="badge badge-cat-agm">🏛️ AGM &amp; Meetings</span>
+                    {% elif n.category == 'EVENTS_FESTIVAL' %}
+                        <span class="badge badge-cat-events">🎉 Events &amp; Festival</span>
+                    {% elif n.category == 'SECURITY' %}
+                        <span class="badge badge-cat-security">🛡️ Security &amp; Gate</span>
+                    {% elif n.category == 'FINANCIAL' %}
+                        <span class="badge badge-cat-financial">💰 Accounts &amp; Dues</span>
+                    {% elif n.category == 'EMERGENCY' %}
+                        <span class="badge badge-cat-emergency">🚨 Urgent Alert</span>
+                    {% else %}
+                        <span class="badge badge-cat-general">📄 General</span>
+                    {% endif %}
+
+                    <!-- Priority Badge -->
+                    {% if n.priority == 'URGENT' %}
+                        <span class="badge badge-prio-urgent">🚨 URGENT</span>
+                    {% elif n.priority == 'HIGH' %}
+                        <span class="badge badge-prio-high">⚠️ HIGH</span>
+                    {% endif %}
+
+                    {% if n.is_pinned %}
+                        <span class="badge badge-warning" title="Pinned on Dashboard">📌 Pinned</span>
+                    {% endif %}
+
+                    {% if n.status == 'ARCHIVED' %}
+                        <span class="badge badge-secondary">📦 Archived</span>
+                    {% endif %}
+                </div>
+
+                <div class="notice-actions no-print">
+                    {% if is_admin %}
+                    <!-- Pin Toggle Button -->
+                    <form method="POST" action="{{ url_for('notices_toggle_pin', notice_id=n.id) }}" style="display:inline;">
+                        <button type="submit" class="btn btn-sm btn-secondary" style="padding: 0.2rem 0.5rem;" title="{{ 'Unpin from Top' if n.is_pinned else 'Pin to Top' }}">
+                            {{ '📍 Unpin' if n.is_pinned else '📌 Pin' }}
+                        </button>
+                    </form>
+
+                    <!-- Broadcast Email Button -->
+                    <form method="POST" action="{{ url_for('notices_broadcast', notice_id=n.id) }}" style="display:inline;" onsubmit="return confirm('Broadcast notice \'{{ n.title }}\' to all registered member email addresses?');">
+                        <button type="submit" class="btn btn-sm btn-secondary" style="padding: 0.2rem 0.5rem;" title="Broadcast to Member Inboxes">
+                            ✉️ Email
+                        </button>
+                    </form>
+
+                    <!-- Edit Button -->
+                    <button type="button" class="btn btn-sm btn-secondary" style="padding: 0.2rem 0.5rem;" title="Edit Notice"
+                            onclick='openEditModal({{ n|tojson }})'>
+                        ✏️
+                    </button>
+
+                    <!-- Delete Button -->
+                    <form method="POST" action="{{ url_for('notices_delete', notice_id=n.id) }}" style="display:inline;" onsubmit="return confirm('Permanently delete this notice?');">
+                        <button type="submit" class="btn btn-sm btn-secondary" style="padding: 0.2rem 0.5rem; color: #ef4444;" title="Delete Notice">
+                            🗑️
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Title -->
+            <h3 class="notice-title">{{ n.title }}</h3>
+
+            <!-- Content -->
+            <div class="notice-body-text">{{ n.content }}</div>
+        </div>
+
+        <!-- Footer -->
+        <div class="notice-footer">
+            <div class="notice-author-box">
+                <div class="notice-author-avatar">
+                    {{ n.posted_by[:1].upper() if n.posted_by else 'S' }}
+                </div>
+                <div>
+                    <strong style="color: var(--text-main, #ffffff);">{{ n.posted_by }}</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-muted, #94a3b8);">{{ n.posted_by_role }}</div>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span title="{{ n.created_at }}">📅 {{ (n.created_at|string)[:10] }}</span>
+                <button type="button" class="btn btn-sm btn-secondary no-print" style="padding: 0.15rem 0.45rem; font-size: 0.75rem;" onclick="copyNoticeText({{ n.id }})" title="Copy text to clipboard">
+                    📋 Copy
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align: center; padding: 4rem 2rem;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">📢</div>
+    <h3 style="color: var(--text-main, #ffffff); margin-bottom: 0.5rem;">No Notices Found</h3>
+    <p style="color: var(--text-muted, #94a3b8); max-width: 450px; margin: 0 auto 1.5rem auto;">
+        No notices match the selected category (<strong>{{ current_category }}</strong>) or search filter.
+    </p>
+    <a href="{{ url_for('notices_list') }}" class="btn btn-primary">Clear Filters</a>
+</div>
+{% endif %}
+
+<!-- ================= MODALS ================= -->
+
+{% if is_admin %}
+<!-- 1. Post New Notice Modal -->
+<div class="modal-overlay" id="postNoticeModal">
+    <div class="modal-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--surface-border, rgba(255,255,255,0.1)); padding-bottom: 1rem;">
+            <h3 style="margin: 0; color: var(--text-heading, #ffffff); font-size: 1.25rem;">📢 Post Official Notice</h3>
+            <button type="button" class="clear-btn" onclick="closeModal('postNoticeModal')" style="font-size: 1.5rem;">&times;</button>
+        </div>
+
+        <form method="POST" action="{{ url_for('notices_create') }}">
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="new_title">Notice Headline / Title *</label>
+                <input type="text" id="new_title" name="title" class="form-control" placeholder="e.g., Water Tank Deep Cleaning Schedule" required>
+            </div>
+
+            <div class="grid-2" style="margin-bottom: 1.25rem; gap: 1rem;">
+                <div>
+                    <label class="form-label" for="new_category">Category *</label>
+                    <select id="new_category" name="category" class="form-select" required>
+                        <option value="GENERAL">📄 General Circular</option>
+                        <option value="MAINTENANCE">⚡ Maintenance &amp; Repairs</option>
+                        <option value="WATER_SUPPLY">💧 Water &amp; Utilities</option>
+                        <option value="SECURITY">🛡️ Security &amp; Gate</option>
+                        <option value="AGM_MEETING">🏛️ AGM &amp; Meetings</option>
+                        <option value="EVENTS_FESTIVAL">🎉 Events &amp; Festival</option>
+                        <option value="FINANCIAL">💰 Accounts &amp; Dues</option>
+                        <option value="EMERGENCY">🚨 Urgent Alert</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label" for="new_priority">Priority Level *</label>
+                    <select id="new_priority" name="priority" class="form-select" required>
+                        <option value="NORMAL">📢 Normal Priority</option>
+                        <option value="HIGH">⚠️ High Priority</option>
+                        <option value="URGENT">🚨 URGENT (Emergency Alert)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="new_content">Notice Body &amp; Details *</label>
+                <textarea id="new_content" name="content" class="form-control" rows="6" placeholder="Provide complete circular details, timings, affected flats, action items, and contact helpline..." required></textarea>
+                <span style="font-size: 0.78rem; color: var(--text-muted, #94a3b8); margin-top: 4px; display: block;">Paragraph breaks and bullet points are preserved automatically.</span>
+            </div>
+
+            <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-md, 12px); padding: 1rem; margin-bottom: 1.5rem;">
+                <label style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.65rem; cursor: pointer; color: var(--text-main, #ffffff); font-size: 0.9rem;">
+                    <input type="checkbox" name="is_pinned" value="1" style="width: 18px; height: 18px;">
+                    <span>📌 <strong>Pin Notice to Dashboard</strong> (Displays prominently at the top of portal)</span>
+                </label>
+
+                <label style="display: flex; align-items: center; gap: 0.65rem; margin: 0; cursor: pointer; color: var(--text-main, #ffffff); font-size: 0.9rem;">
+                    <input type="checkbox" name="do_broadcast" value="1" style="width: 18px; height: 18px;">
+                    <span>✉️ <strong>Broadcast Email to Members</strong> (Dispatches formatted circular to registered resident emails)</span>
+                </label>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('postNoticeModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Publish Circular 📢</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 2. Edit Notice Modal -->
+<div class="modal-overlay" id="editNoticeModal">
+    <div class="modal-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--surface-border, rgba(255,255,255,0.1)); padding-bottom: 1rem;">
+            <h3 style="margin: 0; color: var(--text-heading, #ffffff); font-size: 1.25rem;">✏️ Edit Notice</h3>
+            <button type="button" class="clear-btn" onclick="closeModal('editNoticeModal')" style="font-size: 1.5rem;">&times;</button>
+        </div>
+
+        <form id="editNoticeForm" method="POST" action="">
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="edit_title">Headline / Title *</label>
+                <input type="text" id="edit_title" name="title" class="form-control" required>
+            </div>
+
+            <div class="grid-2" style="margin-bottom: 1.25rem; gap: 1rem;">
+                <div>
+                    <label class="form-label" for="edit_category">Category *</label>
+                    <select id="edit_category" name="category" class="form-select" required>
+                        <option value="GENERAL">📄 General Circular</option>
+                        <option value="MAINTENANCE">⚡ Maintenance &amp; Repairs</option>
+                        <option value="WATER_SUPPLY">💧 Water &amp; Utilities</option>
+                        <option value="SECURITY">🛡️ Security &amp; Gate</option>
+                        <option value="AGM_MEETING">🏛️ AGM &amp; Meetings</option>
+                        <option value="EVENTS_FESTIVAL">🎉 Events &amp; Festival</option>
+                        <option value="FINANCIAL">💰 Accounts &amp; Dues</option>
+                        <option value="EMERGENCY">🚨 Urgent Alert</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label" for="edit_priority">Priority Level *</label>
+                    <select id="edit_priority" name="priority" class="form-select" required>
+                        <option value="NORMAL">📢 Normal Priority</option>
+                        <option value="HIGH">⚠️ High Priority</option>
+                        <option value="URGENT">🚨 URGENT (Emergency Alert)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="edit_status">Publication Status</label>
+                <select id="edit_status" name="status" class="form-select">
+                    <option value="ACTIVE">Active</option>
+                    <option value="ARCHIVED">Archived (Hidden from default feed)</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label" for="edit_content">Notice Content *</label>
+                <textarea id="edit_content" name="content" class="form-control" rows="6" required></textarea>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.05); border-radius: var(--radius-md, 12px); padding: 0.85rem; margin-bottom: 1.5rem;">
+                <label style="display: flex; align-items: center; gap: 0.65rem; margin: 0; cursor: pointer; color: var(--text-main, #ffffff); font-size: 0.9rem;">
+                    <input type="checkbox" id="edit_is_pinned" name="is_pinned" value="1" style="width: 18px; height: 18px;">
+                    <span>📌 <strong>Pin Notice to Dashboard</strong></span>
+                </label>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editNoticeModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function openModal(id) {
+    var m = document.getElementById(id);
+    if (m) m.classList.add('active');
+}
+
+function closeModal(id) {
+    var m = document.getElementById(id);
+    if (m) m.classList.remove('active');
+}
+
+function openEditModal(notice) {
+    var form = document.getElementById('editNoticeForm');
+    form.action = '/notices/' + notice.id + '/edit';
+    document.getElementById('edit_title').value = notice.title || '';
+    document.getElementById('edit_category').value = notice.category || 'GENERAL';
+    document.getElementById('edit_priority').value = notice.priority || 'NORMAL';
+    document.getElementById('edit_status').value = notice.status || 'ACTIVE';
+    document.getElementById('edit_content').value = notice.content || '';
+    document.getElementById('edit_is_pinned').checked = (notice.is_pinned == 1);
+    openModal('editNoticeModal');
+}
+
+function copyNoticeText(noticeId) {
+    var card = document.getElementById('notice-' + noticeId);
+    if (!card) return;
+    var title = card.querySelector('.notice-title').innerText;
+    var body = card.querySelector('.notice-body-text').innerText;
+    var fullText = "📢 " + title + "\n\n" + body + "\n\n— South Dumdum Enclave Residents' Association";
+    
+    navigator.clipboard.writeText(fullText).then(function() {
+        alert("✓ Notice text copied to clipboard!");
+    }).catch(function() {
+        prompt("Copy notice text below:", fullText);
+    });
+}
+</script>
+{% endblock %}

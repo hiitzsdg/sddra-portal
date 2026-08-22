@@ -241,6 +241,121 @@ def hash_password(plain_password: str) -> str:
     salt = bcrypt.gensalt(12)
     return bcrypt.hashpw(plain_password.encode('utf-8'), salt).decode('utf-8')
 
+SEED_NOTICES = [
+    (
+        "Overhead Water Tank Deep Cleaning & Disinfection Schedule",
+        "Dear Residents,\n\nPlease be informed that annual chemical cleaning and pressure-washing of both Block A and Block B overhead and underground water reservoirs is scheduled for Sunday, August 30, from 8:00 AM to 3:00 PM.\n\n• Water supply will be temporarily interrupted during these hours.\n• Please store sufficient water in advance for morning household requirements.\n• Normal water supply will resume by 4:00 PM post-disinfection.\n\nFor any urgent queries, contact Caretaker Bikas Mondal (+91 98300 12345).",
+        "WATER_SUPPLY",
+        "URGENT",
+        1,
+        "Debasish Roy",
+        "Secretary"
+    ),
+    (
+        "Notification: 18th Annual General Meeting (AGM 2026)",
+        "Notice is hereby given that the 18th Annual General Meeting (AGM) of South Dumdum Enclave Residents' Association will be held on Sunday, September 14, at 6:30 PM at the Community Hall (Ground Floor).\n\nAgenda Items:\n1. Review & passing of FY 2025-26 Audited Accounts and Balance Sheet.\n2. Review of Reserve Sinking Fund and Building Repainting Plan.\n3. Proposal for Common Area Rooftop Solar Panel Installation.\n4. Election / Confirmation of Executive Committee for 2026-2028.\n\nAll flat owners are cordially requested to attend punctually.",
+        "AGM_MEETING",
+        "HIGH",
+        1,
+        "Subhashish Mukherjee",
+        "President"
+    ),
+    (
+        "Schindler Lift AMC Bi-Monthly Lubrication & Safety Check",
+        "The routine bi-monthly comprehensive safety check and brake pad inspection by Schindler India engineers will be carried out this Thursday between 11:00 AM and 2:00 PM.\n\nEach lift will be paused individually for approximately 45 minutes to minimize resident inconvenience. Power backup generator will be on standby.",
+        "MAINTENANCE",
+        "NORMAL",
+        0,
+        "Swapnadeep Ganguly",
+        "Treasurer"
+    ),
+    (
+        "Sharodotsav / Durga Puja 2026 Cultural Sub-Committee Formation",
+        "With the festive season approaching, all interested residents and youth members are invited to join the SDERA Cultural Sub-Committee for organizing this year's Durga Puja, Bhog distribution, and evening cultural performances.\n\nPreliminary planning meetup: This Saturday at 7:00 PM in the Society Lounge. Your creative ideas and volunteer participation are warmly welcomed!",
+        "EVENTS_FESTIVAL",
+        "NORMAL",
+        0,
+        "Debasish Roy",
+        "Secretary"
+    ),
+    (
+        "Updated Security Protocols & Caretaker Intercom Extensions",
+        "To bolster perimeter safety and smooth visitor entry:\n\n• Night Delivery Protocol: All food (Swiggy/Zomato) and courier deliveries after 10:00 PM will require prior gate clearance via intercom.\n• Intercom Speed Dial: Guard Cabin (#100), Caretaker Office (#101).\n• Caretaker Mobile: +91 98300 12345.\n\nVisitors without resident verification will be requested to register their contact numbers at the main security desk.",
+        "SECURITY",
+        "NORMAL",
+        0,
+        "Bikas Mondal",
+        "Caretaker"
+    )
+]
+
+def ensure_notices_table_sqlite():
+    """Ensure tbl_notices table and seed notices exist in SQLite."""
+    conn = get_sqlite_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tbl_notices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title VARCHAR(255) NOT NULL,
+                content TEXT NOT NULL,
+                category VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
+                priority VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
+                is_pinned INTEGER NOT NULL DEFAULT 0,
+                posted_by VARCHAR(100) NOT NULL,
+                posted_by_role VARCHAR(50) NOT NULL DEFAULT 'Executive Committee',
+                status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        cur.execute("SELECT COUNT(*) FROM tbl_notices;")
+        count = cur.fetchone()[0]
+        if count == 0:
+            for title, content, cat, prio, pinned, by_name, by_role in SEED_NOTICES:
+                cur.execute("""
+                    INSERT INTO tbl_notices (title, content, category, priority, is_pinned, posted_by, posted_by_role, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE');
+                """, (title, content, cat, prio, pinned, by_name, by_role))
+            conn.commit()
+            print(f"[DB Init] Seeded {len(SEED_NOTICES)} initial digital notices in SQLite.")
+    finally:
+        conn.close()
+
+def ensure_notices_table_mysql(conn):
+    """Ensure tbl_notices table and seed notices exist in MySQL."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tbl_notices (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                content TEXT NOT NULL,
+                category VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
+                priority VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
+                is_pinned TINYINT(1) NOT NULL DEFAULT 0,
+                posted_by VARCHAR(100) NOT NULL,
+                posted_by_role VARCHAR(50) NOT NULL DEFAULT 'Executive Committee',
+                status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_category (category),
+                INDEX idx_priority (priority),
+                INDEX idx_is_pinned (is_pinned),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB;
+        """)
+        cur.execute("SELECT COUNT(*) as cnt FROM tbl_notices;")
+        row = cur.fetchone()
+        count = row['cnt'] if isinstance(row, dict) else row[0]
+        if count == 0:
+            for title, content, cat, prio, pinned, by_name, by_role in SEED_NOTICES:
+                cur.execute("""
+                    INSERT INTO tbl_notices (title, content, category, priority, is_pinned, posted_by, posted_by_role, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE');
+                """, (title, content, cat, prio, pinned, by_name, by_role))
+            conn.commit()
+            print(f"[DB Init] Seeded {len(SEED_NOTICES)} initial digital notices in MySQL.")
+
 def init_db():
     """
     Initialize database extensions and verify tables in sddra_billing / sddra.db.
@@ -257,6 +372,7 @@ def init_db():
                 print(f"[DB Init] Connected successfully to SQLite database '{Config.SQLITE_PATH}' with {cnt} members.")
             finally:
                 conn.close()
+            ensure_notices_table_sqlite()
         except Exception as e:
             print(f"[DB Warning] SQLite init note: {e}")
         return
@@ -317,6 +433,9 @@ def init_db():
                     ) ENGINE=InnoDB;
                 """)
                 
+                # 4. Ensure tbl_notices table and seed notices exist
+                ensure_notices_table_mysql(conn)
+                
                 print(f"[DB Init] Connected successfully to MySQL '{Config.DB_NAME}' on {Config.DB_HOST}:{Config.DB_PORT}")
         finally:
             conn.close()
@@ -324,3 +443,5 @@ def init_db():
         print(f"[DB Warning] Could not connect to MySQL database ({e}). Switching to SQLite.")
         global _ENGINE_MODE
         _ENGINE_MODE = 'sqlite'
+        ensure_notices_table_sqlite()
+

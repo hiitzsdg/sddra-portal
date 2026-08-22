@@ -23,6 +23,49 @@
     </div>
 </div>
 
+{% if pinned_notices or recent_notices %}
+<!-- Digital Notice Board Broadcast Widget -->
+<div class="card" style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(30, 58, 138, 0.22) 0%, var(--surface-card, rgba(15, 23, 42, 0.85)) 100%); border: 1px solid var(--surface-border, rgba(59, 130, 246, 0.3)); padding: 1.4rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <span style="font-size: 1.35rem;">📢</span>
+            <h3 class="card-title" style="margin: 0; font-size: 1.15rem;">Official Society Announcements</h3>
+        </div>
+        <a href="{{ url_for('notices_list') }}" class="btn btn-sm btn-outline-primary" style="padding: 0.25rem 0.75rem; font-size: 0.82rem;">View Notice Board &rarr;</a>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+        {% for n in (pinned_notices if pinned_notices else recent_notices[:2]) %}
+        <div style="background: rgba(0, 0, 0, 0.28); border: 1px solid {% if n.priority == 'URGENT' %}rgba(239, 68, 68, 0.45){% elif n.priority == 'HIGH' %}rgba(245, 158, 11, 0.35){% else %}rgba(255, 255, 255, 0.08){% endif %}; border-radius: var(--radius-md, 12px); padding: 1.15rem; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                    {% if n.priority == 'URGENT' %}
+                    <span class="badge" style="background: rgba(239, 68, 68, 0.25); color: #f87171; border: 1px solid #ef4444; font-size: 0.72rem; font-weight: 700;">🚨 URGENT</span>
+                    {% elif n.priority == 'HIGH' %}
+                    <span class="badge" style="background: rgba(245, 158, 11, 0.25); color: #fbbf24; border: 1px solid #f59e0b; font-size: 0.72rem; font-weight: 600;">⚠️ HIGH</span>
+                    {% else %}
+                    <span class="badge" style="background: rgba(59, 130, 246, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); font-size: 0.72rem;">📢 CIRCULAR</span>
+                    {% endif %}
+
+                    {% if n.is_pinned %}
+                    <span style="font-size: 0.75rem; color: #fbbf24; font-weight: 600;">📌 Pinned</span>
+                    {% endif %}
+                </div>
+                <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-main, #ffffff); margin-bottom: 0.4rem; line-height: 1.35;">{{ n.title }}</h4>
+                <p style="font-size: 0.84rem; color: var(--text-secondary, #cbd5e1); line-height: 1.5; margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                    {{ n.content }}
+                </p>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.85rem; padding-top: 0.6rem; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 0.76rem; color: var(--text-muted, #94a3b8);">
+                <span>By {{ n.posted_by }}</span>
+                <a href="{{ url_for('notices_list') }}#notice-{{ n.id }}" class="text-highlight-blue" style="font-weight: 600; text-decoration: none;">Read Full Notice &rarr;</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 {% if is_admin %}
 <!-- ================= SUPERADMIN / COMMITTEE DASHBOARD ================= -->
 

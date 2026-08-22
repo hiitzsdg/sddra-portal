@@ -8,7 +8,7 @@ from decimal import Decimal
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort, Response
 from config import Config
 from database import init_db, query_db, execute_db, verify_password, hash_password, determine_engine
-from email_service import send_receipt_email
+from email_service import send_receipt_email, broadcast_notice_email
 from pdf_service import generate_receipt_pdf_bytes
 
 
@@ -354,6 +354,9 @@ def dashboard():
         recent_receipts = query_db(rcpt_query, rcpt_params)
         recent_expenses = query_db("SELECT * FROM tbl_expenses ORDER BY voucher_no DESC")
         
+        pinned_notices = query_db("SELECT * FROM tbl_notices WHERE is_pinned = 1 AND status = 'ACTIVE' ORDER BY priority = 'URGENT' DESC, id DESC LIMIT 3") or []
+        recent_notices = query_db("SELECT * FROM tbl_notices WHERE status = 'ACTIVE' ORDER BY is_pinned DESC, priority = 'URGENT' DESC, id DESC LIMIT 4") or []
+
         return render_template(
             'dashboard.html',
             is_admin=True,
@@ -368,6 +371,8 @@ def dashboard():
             total_maintenance_overdue=total_maintenance_overdue,
             recent_receipts=recent_receipts,
             recent_expenses=recent_expenses,
+            pinned_notices=pinned_notices,
+            recent_notices=recent_notices,
             search_q=search_q,
             current_year=2026
         )
@@ -391,6 +396,9 @@ def dashboard():
         total_expenses_row = query_db("SELECT COALESCE(SUM(amount), 0) as total FROM tbl_expenses", one=True)
         total_expenses = float(total_expenses_row['total']) if total_expenses_row else 0.0
         recent_expenses = query_db("SELECT * FROM tbl_expenses ORDER BY voucher_no DESC LIMIT 5")
+        
+        pinned_notices = query_db("SELECT * FROM tbl_notices WHERE is_pinned = 1 AND status = 'ACTIVE' ORDER BY priority = 'URGENT' DESC, id DESC LIMIT 3") or []
+        recent_notices = query_db("SELECT * FROM tbl_notices WHERE status = 'ACTIVE' ORDER BY is_pinned DESC, priority = 'URGENT' DESC, id DESC LIMIT 4") or []
 
         return render_template(
             'dashboard.html',
@@ -402,6 +410,8 @@ def dashboard():
             my_penalty=my_penalty,
             total_expenses=total_expenses,
             recent_expenses=recent_expenses,
+            pinned_notices=pinned_notices,
+            recent_notices=recent_notices,
             current_year=2026
         )
 
@@ -1147,6 +1157,192 @@ def admin_update_unit_rates(member_id):
         flash(f"Error updating unit tariff: {e}", 'danger')
         
     return redirect(url_for('admin_billing_rates'))
+
+# --- Digital Notice Board Routes ---
+NOTICE_CATEGORIES = [
+    ('ALL', 'All Notices', '📢'),
+    ('GENERAL', 'General Circulars', '📄'),
+    ('MAINTENANCE', 'Maintenance & Repairs', '⚡'),
+    ('WATER_SUPPLY', 'Water & Utilities', '💧'),
+    ('SECURITY', 'Security & Gate', '🛡️'),
+    ('AGM_MEETING', 'AGM & Meetings', '🏛️'),
+    ('EVENTS_FESTIVAL', 'Events & Puja', '🎉'),
+    ('FINANCIAL', 'Accounts & Dues', '💰'),
+    ('EMERGENCY', 'Urgent Alerts', '🚨')
+]
+
+@app.route('/notices')
+@login_required
+def notices_list():
+    user = session.get('user', {})
+    is_admin = bool(user.get('is_admin') or user.get('role') in ADMIN_ROLES)
+    
+    cat_filter = request.args.get('category', 'ALL').strip().upper()
+    priority_filter = request.args.get('priority', 'ALL').strip().upper()
+    search_q = request.args.get('q', '').strip()
+    status_filter = request.args.get('status', 'ACTIVE').strip().upper()
+    
+    query = "SELECT * FROM tbl_notices WHERE 1=1"
+    params = []
+    
+    if status_filter != 'ALL':
+        query += " AND status = %s"
+        params.append(status_filter)
+        
+    if cat_filter != 'ALL':
+        query += " AND category = %s"
+        params.append(cat_filter)
+        
+    if priority_filter != 'ALL':
+        query += " AND priority = %s"
+        params.append(priority_filter)
+        
+    if search_q:
+        query += " AND (title LIKE %s OR content LIKE %s OR posted_by LIKE %s)"
+        like_term = f"%{search_q}%"
+        params.extend([like_term, like_term, like_term])
+        
+    query += " ORDER BY is_pinned DESC, (priority = 'URGENT') DESC, (priority = 'HIGH') DESC, id DESC"
+    notices = query_db(query, params)
+    
+    # Calculate category counts for UI badges
+    cat_counts = {}
+    total_active = 0
+    all_notices_raw = query_db("SELECT category, COUNT(*) as cnt FROM tbl_notices WHERE status = 'ACTIVE' GROUP BY category")
+    for r in (all_notices_raw or []):
+        cat_counts[r['category']] = r['cnt']
+        total_active += r['cnt']
+    cat_counts['ALL'] = total_active
+
+    # Pinned urgent notices for top marquee / alert cards
+    pinned_urgent = [n for n in (notices or []) if n.get('is_pinned') and n.get('priority') == 'URGENT']
+
+    return render_template(
+        'notices.html',
+        notices=notices,
+        categories=NOTICE_CATEGORIES,
+        current_category=cat_filter,
+        current_priority=priority_filter,
+        current_status=status_filter,
+        search_q=search_q,
+        cat_counts=cat_counts,
+        pinned_urgent=pinned_urgent,
+        is_admin=is_admin,
+        now=datetime.now()
+    )
+
+@app.route('/notices/create', methods=['POST'])
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def notices_create():
+    user = session.get('user', {})
+    title = request.form.get('title', '').strip()
+    content = request.form.get('content', '').strip()
+    category = request.form.get('category', 'GENERAL').strip().upper()
+    priority = request.form.get('priority', 'NORMAL').strip().upper()
+    is_pinned = 1 if request.form.get('is_pinned') == '1' else 0
+    do_broadcast = (request.form.get('do_broadcast') == '1')
+    
+    if not title or not content:
+        flash('Please provide both a Title and Content for the notice.', 'danger')
+        return redirect(url_for('notices_list'))
+        
+    posted_by = user.get('name') or user.get('username') or 'Executive Committee'
+    posted_by_role = user.get('role', 'Committee Official').replace('_', ' ').title()
+    
+    try:
+        notice_id = execute_db(
+            """INSERT INTO tbl_notices (title, content, category, priority, is_pinned, posted_by, posted_by_role, status)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE')""",
+            (title, content, category, priority, is_pinned, posted_by, posted_by_role)
+        )
+        
+        broadcast_msg = ""
+        if do_broadcast:
+            notice_dict = {
+                'id': notice_id,
+                'title': title,
+                'content': content,
+                'category': category,
+                'priority': priority,
+                'posted_by': posted_by,
+                'posted_by_role': posted_by_role
+            }
+            res = broadcast_notice_email(notice_dict, author_name=posted_by)
+            broadcast_msg = f" • Email broadcast dispatched to {res.get('recipients_count', 'all')} member inboxes."
+            
+        flash(f"📢 Official notice '{title}' published successfully!{broadcast_msg}", 'success')
+    except Exception as e:
+        flash(f"Error publishing notice: {e}", 'danger')
+        
+    return redirect(url_for('notices_list'))
+
+@app.route('/notices/<int:notice_id>/edit', methods=['POST'])
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def notices_edit(notice_id):
+    title = request.form.get('title', '').strip()
+    content = request.form.get('content', '').strip()
+    category = request.form.get('category', 'GENERAL').strip().upper()
+    priority = request.form.get('priority', 'NORMAL').strip().upper()
+    status = request.form.get('status', 'ACTIVE').strip().upper()
+    is_pinned = 1 if request.form.get('is_pinned') == '1' else 0
+    
+    if not title or not content:
+        flash('Please provide both a Title and Content for the notice.', 'danger')
+        return redirect(url_for('notices_list'))
+        
+    try:
+        execute_db(
+            """UPDATE tbl_notices 
+               SET title = %s, content = %s, category = %s, priority = %s, is_pinned = %s, status = %s, updated_at = CURRENT_TIMESTAMP
+               WHERE id = %s""",
+            (title, content, category, priority, is_pinned, status, notice_id)
+        )
+        flash(f"Notice #{notice_id} updated successfully.", 'success')
+    except Exception as e:
+        flash(f"Error updating notice: {e}", 'danger')
+        
+    return redirect(url_for('notices_list'))
+
+@app.route('/notices/<int:notice_id>/toggle-pin', methods=['POST'])
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def notices_toggle_pin(notice_id):
+    try:
+        notice = query_db("SELECT is_pinned, title FROM tbl_notices WHERE id = %s", (notice_id,), one=True)
+        if notice:
+            new_pin = 0 if notice['is_pinned'] else 1
+            execute_db("UPDATE tbl_notices SET is_pinned = %s WHERE id = %s", (new_pin, notice_id))
+            status_text = "pinned to dashboard" if new_pin else "unpinned"
+            flash(f"Notice '{notice['title']}' is now {status_text}.", 'info')
+        else:
+            flash("Notice not found.", 'danger')
+    except Exception as e:
+        flash(f"Error updating pin state: {e}", 'danger')
+    return redirect(url_for('notices_list'))
+
+@app.route('/notices/<int:notice_id>/delete', methods=['POST'])
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def notices_delete(notice_id):
+    try:
+        execute_db("DELETE FROM tbl_notices WHERE id = %s", (notice_id,))
+        flash(f"Notice #{notice_id} was removed successfully.", 'info')
+    except Exception as e:
+        flash(f"Error deleting notice: {e}", 'danger')
+    return redirect(url_for('notices_list'))
+
+@app.route('/notices/<int:notice_id>/broadcast', methods=['POST'])
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def notices_broadcast(notice_id):
+    try:
+        notice = query_db("SELECT * FROM tbl_notices WHERE id = %s", (notice_id,), one=True)
+        if not notice:
+            flash("Notice not found.", 'danger')
+            return redirect(url_for('notices_list'))
+        user = session.get('user', {})
+        res = broadcast_notice_email(notice, author_name=user.get('name'))
+        flash(f"📢 {res.get('message', 'Notice broadcast sent successfully!')}", 'success')
+    except Exception as e:
+        flash(f"Error broadcasting notice: {e}", 'danger')
+    return redirect(url_for('notices_list'))
 
 if __name__ == '__main__':
     init_db()
