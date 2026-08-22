@@ -531,9 +531,18 @@ def ensure_mysql_schema(conn):
                 password_hash VARCHAR(255) NOT NULL,
                 role VARCHAR(50) NOT NULL DEFAULT 'super_admin',
                 email VARCHAR(100) DEFAULT NULL,
+                phone VARCHAR(50) DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB;
         """)
+        try:
+            cur.execute("ALTER TABLE tbl_admins ADD COLUMN email VARCHAR(100) DEFAULT NULL;")
+        except Exception:
+            pass
+        try:
+            cur.execute("ALTER TABLE tbl_admins ADD COLUMN phone VARCHAR(50) DEFAULT NULL;")
+        except Exception:
+            pass
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS tbl_notices (

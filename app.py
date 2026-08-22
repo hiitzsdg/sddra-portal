@@ -421,7 +421,31 @@ def profile():
                     return redirect(url_for('profile'))
 
     penalty_info = calculate_flat_penalty(flat_no, member=member) if (flat_no and flat_no != 'Office') else None
-    return render_template('profile.html', member=member or user, contact=contact, penalty_info=penalty_info)
+
+    # Resolve active email & phone with complete fallback hierarchy
+    resolved_email = ''
+    resolved_phone = ''
+    if contact:
+        resolved_email = contact.get('email_1') or contact.get('email_2') or ''
+        resolved_phone = contact.get('mobile_num_1') or contact.get('mobile_num_2') or ''
+    if not resolved_email and admin:
+        resolved_email = admin.get('email') or ''
+    if not resolved_phone and admin:
+        resolved_phone = admin.get('phone') or ''
+    if not resolved_email and user:
+        resolved_email = user.get('email') or ''
+    if not resolved_phone and user:
+        resolved_phone = user.get('phone') or ''
+
+    return render_template(
+        'profile.html',
+        member=member or user,
+        contact=contact,
+        admin=admin,
+        penalty_info=penalty_info,
+        resolved_email=resolved_email,
+        resolved_phone=resolved_phone
+    )
 
 # --- Dashboard ---
 @app.route('/dashboard')

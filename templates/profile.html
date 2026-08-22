@@ -108,12 +108,12 @@
 
             <div class="form-group">
                 <label class="form-label" for="prof_email">Registered Email for Receipt Delivery *</label>
-                <input type="email" id="prof_email" name="email" class="form-control" value="{{ (contact.email_1 or contact.email_2) if contact else (current_user.email or '') }}" placeholder="e.g. resident@example.com" required>
+                <input type="email" id="prof_email" name="email" class="form-control" value="{{ resolved_email }}" placeholder="e.g. resident@example.com" required>
             </div>
 
             <div class="form-group">
                 <label class="form-label" for="prof_phone">Primary Contact Phone Number *</label>
-                <input type="text" id="prof_phone" name="phone" class="form-control" value="{{ (contact.mobile_num_1 or contact.mobile_num_2) if contact else (current_user.phone or '') }}" placeholder="e.g. +91 98765 43210" required>
+                <input type="text" id="prof_phone" name="phone" class="form-control" value="{{ resolved_phone }}" placeholder="e.g. +91 98765 43210" required>
             </div>
 
             <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem;">
