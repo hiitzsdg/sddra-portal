@@ -7,7 +7,7 @@ from datetime import datetime, date
 from decimal import Decimal
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort, Response
 from config import Config
-from database import init_db, query_db, execute_db, verify_password, hash_password
+from database import init_db, query_db, execute_db, verify_password, hash_password, determine_engine
 from email_service import send_receipt_email
 from pdf_service import generate_receipt_pdf_bytes
 
@@ -52,12 +52,14 @@ def inject_globals():
         user = None
     is_admin = bool(user and (user.get('role') in ADMIN_ROLES or user.get('is_admin', False)))
     is_exec = bool(user and (user.get('role') in EXECUTIVE_ROLES or user.get('is_admin', False)))
+    is_billing_admin = bool(user and (user.get('role') in {'super_admin', 'billing_admin'} or user.get('username') == 'admin'))
     return {
         'config': Config,
         'now': datetime.now(),
         'current_user': user,
         'is_admin': is_admin,
         'is_executive': is_exec,
+        'is_billing_admin': is_billing_admin,
         'asset_version': '2.1.2'
     }
 
@@ -83,8 +85,8 @@ def roles_required(*allowed_roles):
                 flash('Please log in to continue.', 'warning')
                 return redirect(url_for('login', next=request.url))
             user_role = user.get('role', 'MEMBER')
-            is_admin = user.get('is_admin', False)
-            if user_role not in allowed_roles and not is_admin:
+            has_role = (user_role in allowed_roles) or (user_role == 'super_admin') or (user.get('username') == 'admin')
+            if not has_role:
                 flash('Access Denied: You do not have permission to view this resource.', 'danger')
                 return redirect(url_for('dashboard'))
             return f(*args, **kwargs)
@@ -963,6 +965,188 @@ def chart_data():
         'categories': [{'category': r['particulars'], 'total': float(r['total'])} for r in particulars_rows],
         'monthly': [{'month': r['ym'], 'total': float(r['total'])} for r in monthly_rows]
     })
+
+# ================= Maintenance Tariff & Billing Rate Scale Console =================
+def compute_flat_monthly_charge(sq_feet, flat_charges, capital_fund, common_expenses, cps_charges, tws_charges):
+    """
+    Compute rounded monthly maintenance charge based on the official formula:
+    Total = Round10((Flat Area * Flat Charges) + (Flat Area * Capital Fund) + Common Expenses + CPS Charges + TWS Charges)
+    """
+    try:
+        sq_ft = float(sq_feet or 0)
+        fc = float(flat_charges or 0)
+        cf = float(capital_fund or 0)
+        ce = float(common_expenses or 0)
+        cps = float(cps_charges or 0)
+        tws = float(tws_charges or 0)
+        
+        raw_total = (sq_ft * fc) + (sq_ft * cf) + ce + cps + tws
+        return int(round(raw_total / 10.0) * 10)
+    except Exception:
+        return 0
+
+@app.route('/admin/billing-rates', methods=['GET', 'POST'])
+@roles_required('super_admin', 'billing_admin')
+def admin_billing_rates():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'apply_global_rates':
+            try:
+                flat_charges = float(request.form.get('flat_charges', 1.55))
+                capital_fund = float(request.form.get('capital_fund', 0.21))
+                common_expenses = float(request.form.get('common_expenses', 170.0))
+                cps_base_rate = float(request.form.get('cps_charges', 160.0))
+                tws_base_rate = float(request.form.get('tws_charges', 150.0))
+                
+                members = query_db("SELECT * FROM tbl_membership")
+                old_total = sum(float(m.get('monthly_charge') or 0) for m in members)
+                new_total = 0
+                
+                is_mysql = (determine_engine() == 'mysql')
+                
+                for m in members:
+                    sq_ft = float(m.get('RvsdFlatSize') or 0)
+                    cps_chg = cps_base_rate if m.get('cps_owner') else 0.0
+                    tws_chg = (tws_base_rate * (m.get('tws_count') or 1)) if m.get('tws_owner') else 0.0
+                    
+                    if is_mysql:
+                        execute_db(
+                            """UPDATE tbl_membership 
+                               SET flat_charges = %s, capital_fund = %s, common_expenses = %s, cps_charges = %s, tws_charges = %s 
+                               WHERE id = %s""",
+                            (flat_charges, capital_fund, common_expenses, cps_chg, tws_chg, m['id'])
+                        )
+                    else:
+                        m_calc = compute_flat_monthly_charge(sq_ft, flat_charges, capital_fund, common_expenses, cps_chg, tws_chg)
+                        execute_db(
+                            """UPDATE tbl_membership 
+                               SET flat_charges = %s, capital_fund = %s, common_expenses = %s, cps_charges = %s, tws_charges = %s, monthly_charge = %s 
+                               WHERE id = %s""",
+                            (flat_charges, capital_fund, common_expenses, cps_chg, tws_chg, m_calc, m['id'])
+                        )
+                    
+                    new_total += compute_flat_monthly_charge(sq_ft, flat_charges, capital_fund, common_expenses, cps_chg, tws_chg)
+                
+                flash(f"⚡ Tariff Rate Scale applied to all 44 flats! Monthly society inflow updated: ₹{old_total:,.2f} ➔ ₹{new_total:,.2f} (Delta: {'+' if new_total >= old_total else ''}₹{new_total - old_total:,.2f})", 'success')
+                return redirect(url_for('admin_billing_rates'))
+            except Exception as e:
+                flash(f"Error applying global rates: {e}", 'danger')
+                return redirect(url_for('admin_billing_rates'))
+
+    # GET Request: Prepare statistics, roster & breakdown
+    members = query_db("SELECT * FROM tbl_membership ORDER BY flat_no")
+    search_q = request.args.get('q', '').strip().lower()
+    
+    total_area = sum(int(m.get('RvsdFlatSize') or 0) for m in members)
+    total_monthly_collection = sum(float(m.get('monthly_charge') or 0) for m in members)
+    
+    cps_units_count = sum(1 for m in members if m.get('cps_owner'))
+    tws_units_count = sum(int(m.get('tws_count') or 1) for m in members if m.get('tws_owner'))
+    
+    total_flat_area_revenue = sum(float(m.get('RvsdFlatSize') or 0) * float(m.get('flat_charges') or 0) for m in members)
+    total_capital_fund_revenue = sum(float(m.get('RvsdFlatSize') or 0) * float(m.get('capital_fund') or 0) for m in members)
+    total_common_exp_revenue = sum(float(m.get('common_expenses') or 0) for m in members)
+    total_cps_revenue = sum(float(m.get('cps_charges') or 0) for m in members)
+    total_tws_revenue = sum(float(m.get('tws_charges') or 0) for m in members)
+    
+    # Standard rates (from first member or default)
+    ref_member = members[0] if members else {}
+    current_flat_charges = float(ref_member.get('flat_charges') or 1.55)
+    current_capital_fund = float(ref_member.get('capital_fund') or 0.21)
+    current_common_expenses = float(ref_member.get('common_expenses') or 170.0)
+    current_cps_rate = 160.0
+    for m in members:
+        if m.get('cps_owner') and float(m.get('cps_charges') or 0) > 0:
+            current_cps_rate = float(m['cps_charges'])
+            break
+            
+    current_tws_rate = 150.0
+    for m in members:
+        if m.get('tws_owner') and float(m.get('tws_charges') or 0) > 0:
+            count = m.get('tws_count') or 1
+            current_tws_rate = float(m['tws_charges']) / count
+            break
+            
+    filtered_members = []
+    for m in members:
+        if search_q:
+            f_no = str(m.get('flat_no', '')).lower()
+            m_name = str(m.get('member_name', '')).lower()
+            if search_q not in f_no and search_q not in m_name:
+                continue
+        filtered_members.append(m)
+
+    return render_template(
+        'admin_billing_rates.html',
+        members=filtered_members,
+        all_members=members,
+        total_flats=len(members),
+        total_area=total_area,
+        total_monthly_collection=total_monthly_collection,
+        cps_units_count=cps_units_count,
+        tws_units_count=tws_units_count,
+        total_flat_area_revenue=total_flat_area_revenue,
+        total_capital_fund_revenue=total_capital_fund_revenue,
+        total_common_exp_revenue=total_common_exp_revenue,
+        total_cps_revenue=total_cps_revenue,
+        total_tws_revenue=total_tws_revenue,
+        current_flat_charges=current_flat_charges,
+        current_capital_fund=current_capital_fund,
+        current_common_expenses=current_common_expenses,
+        current_cps_rate=current_cps_rate,
+        current_tws_rate=current_tws_rate,
+        search_q=search_q
+    )
+
+@app.route('/admin/billing-rates/unit/<int:member_id>', methods=['POST'])
+@roles_required('super_admin', 'billing_admin')
+def admin_update_unit_rates(member_id):
+    try:
+        member = query_db("SELECT * FROM tbl_membership WHERE id = %s", (member_id,), one=True)
+        if not member:
+            flash("Member flat not found.", 'danger')
+            return redirect(url_for('admin_billing_rates'))
+            
+        sq_ft = float(request.form.get('sq_feet', member['RvsdFlatSize']))
+        flat_charges = float(request.form.get('flat_charges', member['flat_charges']))
+        capital_fund = float(request.form.get('capital_fund', member['capital_fund']))
+        common_expenses = float(request.form.get('common_expenses', member['common_expenses']))
+        
+        cps_owner = 1 if request.form.get('cps_owner') == '1' else 0
+        cps_space = request.form.get('car_parking_space', member.get('car_parking_space', '-')).strip()
+        cps_charges = float(request.form.get('cps_charges', member['cps_charges'])) if cps_owner else 0.0
+        
+        tws_owner = 1 if request.form.get('tws_owner') == '1' else 0
+        tws_count = int(request.form.get('tws_count', member.get('tws_count', 0))) if tws_owner else 0
+        tws_charges = float(request.form.get('tws_charges', member['tws_charges'])) if tws_owner else 0.0
+        
+        is_mysql = (determine_engine() == 'mysql')
+        if is_mysql:
+            execute_db(
+                """UPDATE tbl_membership 
+                   SET RvsdFlatSize = %s, car_parking_space = %s, cps_owner = %s, cps_charges = %s,
+                       tws_owner = %s, tws_count = %s, tws_charges = %s,
+                       flat_charges = %s, capital_fund = %s, common_expenses = %s
+                   WHERE id = %s""",
+                (sq_ft, cps_space, cps_owner, cps_charges, tws_owner, tws_count, tws_charges, flat_charges, capital_fund, common_expenses, member_id)
+            )
+        else:
+            new_monthly = compute_flat_monthly_charge(sq_ft, flat_charges, capital_fund, common_expenses, cps_charges, tws_charges)
+            execute_db(
+                """UPDATE tbl_membership 
+                   SET RvsdFlatSize = %s, car_parking_space = %s, cps_owner = %s, cps_charges = %s,
+                       tws_owner = %s, tws_count = %s, tws_charges = %s,
+                       flat_charges = %s, capital_fund = %s, common_expenses = %s, monthly_charge = %s
+                   WHERE id = %s""",
+                (sq_ft, cps_space, cps_owner, cps_charges, tws_owner, tws_count, tws_charges, flat_charges, capital_fund, common_expenses, new_monthly, member_id)
+            )
+            
+        flash(f"Unit tariff updated successfully for Flat {member['flat_no']} ({member['member_name']})!", 'success')
+    except Exception as e:
+        flash(f"Error updating unit tariff: {e}", 'danger')
+        
+    return redirect(url_for('admin_billing_rates'))
 
 if __name__ == '__main__':
     init_db()

@@ -201,6 +201,120 @@ class TestSDDRABillingPortal(unittest.TestCase):
         # Cleanup: restore default password
         execute_db("UPDATE tbl_membership SET password_hash = %s WHERE flat_no = 'A/4-C'", (default_h,))
 
+    def test_12_tariff_dashboard_rbac_restrictions(self):
+        """Verify that /admin/billing-rates is strictly restricted to super_admin and billing_admin."""
+        # 1. Anonymous access -> redirect to login
+        self.client.get('/logout', follow_redirects=True)
+        resp_anon = self.client.get('/admin/billing-rates', follow_redirects=True)
+        self.assertIn(b'Please log in', resp_anon.data)
+
+        # 2. General resident access (A/1-A) -> Access denied
+        self.client.get('/logout', follow_redirects=True)
+        self.client.post('/login', data={'username': 'A/1-A', 'password': 'sdera@123'}, follow_redirects=True)
+        resp_res = self.client.get('/admin/billing-rates', follow_redirects=True)
+        self.assertIn(b'Access Denied', resp_res.data)
+
+        # 3. Committee non-billing admin (president) -> Access denied
+        self.client.get('/logout', follow_redirects=True)
+        self.client.post('/login', data={'username': 'president', 'password': 'sdera@123'}, follow_redirects=True)
+        resp_pres = self.client.get('/admin/billing-rates', follow_redirects=True)
+        self.assertIn(b'Access Denied', resp_pres.data)
+
+        # 4. Billing Administrator (admin) -> Access granted
+        self.client.get('/logout', follow_redirects=True)
+        self.client.post('/login', data={'username': 'admin', 'password': 'passwd'}, follow_redirects=True)
+        resp_admin = self.client.get('/admin/billing-rates', follow_redirects=True)
+        self.assertEqual(resp_admin.status_code, 200)
+        self.assertIn(b'Maintenance Tariff &amp; Billing Rates Console', resp_admin.data)
+        self.assertIn(b'Official Society Maintenance Formula', resp_admin.data)
+
+    def test_13_global_tariff_rate_update(self):
+        """Verify applying global tariff rates recalculates and persists maintenance charges across all units."""
+        self.client.get('/logout', follow_redirects=True)
+        self.client.post('/login', data={'username': 'admin', 'password': 'passwd'}, follow_redirects=True)
+
+        # Apply new temporary rate scale
+        resp = self.client.post('/admin/billing-rates', data={
+            'action': 'apply_global_rates',
+            'flat_charges': '1.60',
+            'capital_fund': '0.25',
+            'common_expenses': '180.0',
+            'cps_charges': '175.0',
+            'tws_charges': '160.0'
+        }, follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b'Tariff Rate Scale applied', resp.data)
+
+        # Check Flat A/1-A (960 sq.ft., cps_owner=1, tws_owner=0)
+        # Expected: Round10((960 * 1.60) + (960 * 0.25) + 180 + 175 + 0)
+        # = Round10(1536 + 240 + 180 + 175) = Round10(2131) = 2130
+        member_a1a = query_db("SELECT * FROM tbl_membership WHERE flat_no = 'A/1-A'", one=True)
+        self.assertAlmostEqual(float(member_a1a['flat_charges']), 1.60, places=2)
+        self.assertAlmostEqual(float(member_a1a['capital_fund']), 0.25, places=2)
+        self.assertAlmostEqual(float(member_a1a['common_expenses']), 180.0, places=2)
+        self.assertAlmostEqual(float(member_a1a['cps_charges']), 175.0, places=2)
+        self.assertEqual(int(member_a1a['monthly_charge']), 2130)
+
+        # Restore default rates
+        self.client.post('/admin/billing-rates', data={
+            'action': 'apply_global_rates',
+            'flat_charges': '1.55',
+            'capital_fund': '0.21',
+            'common_expenses': '170.0',
+            'cps_charges': '160.0',
+            'tws_charges': '150.0'
+        }, follow_redirects=True)
+        
+        member_restored = query_db("SELECT * FROM tbl_membership WHERE flat_no = 'A/1-A'", one=True)
+        self.assertEqual(int(member_restored['monthly_charge']), 2020)
+
+    def test_14_individual_unit_tariff_update(self):
+        """Verify fine-tuning individual unit tariff parameters via POST /admin/billing-rates/unit/<id>."""
+        self.client.get('/logout', follow_redirects=True)
+        self.client.post('/login', data={'username': 'admin', 'password': 'passwd'}, follow_redirects=True)
+        
+        member = query_db("SELECT * FROM tbl_membership WHERE flat_no = 'A/4-C'", one=True)
+        orig_sq_ft = member['RvsdFlatSize']
+        orig_cps_owner = member['cps_owner']
+        orig_tws_count = member['tws_count']
+
+        # Update Unit Tariff for A/4-C
+        resp = self.client.post(f"/admin/billing-rates/unit/{member['id']}", data={
+            'sq_feet': str(orig_sq_ft),
+            'flat_charges': '1.55',
+            'capital_fund': '0.21',
+            'common_expenses': '170.0',
+            'cps_owner': '1',
+            'car_parking_space': '120',
+            'cps_charges': '160.0',
+            'tws_owner': '1',
+            'tws_count': '2',
+            'tws_charges': '300.0'
+        }, follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b'Unit tariff updated successfully', resp.data)
+
+        # A/4-C: 925 sq.ft., flat_chg=1.55, cap_fund=0.21, comm=170, cps=160, tws=300
+        # Expected: Round10((925*1.55) + (925*0.21) + 170 + 160 + 300) = Round10(1433.75 + 194.25 + 170 + 160 + 300) = Round10(2258) = 2260
+        updated_member = query_db("SELECT * FROM tbl_membership WHERE flat_no = 'A/4-C'", one=True)
+        self.assertEqual(int(updated_member['monthly_charge']), 2260)
+
+        # Restore original A/4-C parameters (1 TWS, 150 tws_charges -> 2110)
+        self.client.post(f"/admin/billing-rates/unit/{member['id']}", data={
+            'sq_feet': str(orig_sq_ft),
+            'flat_charges': '1.55',
+            'capital_fund': '0.21',
+            'common_expenses': '170.0',
+            'cps_owner': str(orig_cps_owner),
+            'car_parking_space': '120',
+            'cps_charges': '160.0',
+            'tws_owner': '1',
+            'tws_count': str(orig_tws_count),
+            'tws_charges': '150.0'
+        }, follow_redirects=True)
+        restored = query_db("SELECT * FROM tbl_membership WHERE flat_no = 'A/4-C'", one=True)
+        self.assertEqual(int(restored['monthly_charge']), 2110)
+
 if __name__ == '__main__':
     unittest.main()
 

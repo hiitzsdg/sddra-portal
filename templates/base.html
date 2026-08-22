@@ -145,6 +145,10 @@
                     <li><a href="{{ url_for('admin_penalties') }}" class="nav-link {% if request.endpoint == 'admin_penalties' %}active{% endif %}">⚖️ Penalties</a></li>
                     {% endif %}
                     
+                    {% if is_billing_admin %}
+                    <li><a href="{{ url_for('admin_billing_rates') }}" class="nav-link {% if request.endpoint in ['admin_billing_rates', 'admin_update_unit_rates'] %}active{% endif %}">⚡ Tariff &amp; Rates</a></li>
+                    {% endif %}
+                    
                     <li><a href="{{ url_for('profile') }}" class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}">⚙️ Profile</a></li>
                 </ul>
             </nav>
@@ -190,6 +194,10 @@
                 <li><a href="{{ url_for('admin_members') }}" class="nav-link {% if request.endpoint == 'admin_members' %}active{% endif %}">👥 Resident Directory</a></li>
                 <li><a href="{{ url_for('admin_receipts') }}" class="nav-link {% if request.endpoint == 'admin_receipts' %}active{% endif %}">💳 Receipts Ledger</a></li>
                 <li><a href="{{ url_for('admin_penalties') }}" class="nav-link {% if request.endpoint == 'admin_penalties' %}active{% endif %}">⚖️ Penalties & Defaulters</a></li>
+                {% endif %}
+                
+                {% if is_billing_admin %}
+                <li><a href="{{ url_for('admin_billing_rates') }}" class="nav-link {% if request.endpoint in ['admin_billing_rates', 'admin_update_unit_rates'] %}active{% endif %}">⚡ Tariff &amp; Rates Console</a></li>
                 {% endif %}
                 
                 <li><a href="{{ url_for('profile') }}" class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}">⚙️ Profile & Settings</a></li>

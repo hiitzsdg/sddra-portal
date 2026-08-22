@@ -1,0 +1,713 @@
+{% extends 'base.html' %}
+
+{% block title %}Maintenance Tariff & Billing Rates Console - SDDRA{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.75rem;">
+    <div class="page-header-title">
+        <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.35rem;">
+            <span style="font-size: 1.75rem;">⚡</span>
+            <h2 style="margin: 0; font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em;">Maintenance Tariff &amp; Billing Rates Console</h2>
+            <span class="badge badge-billing_admin" style="font-size: 0.75rem; letter-spacing: 0.05em;">ADMIN ONLY</span>
+        </div>
+        <p class="text-secondary" style="margin: 0; font-size: 0.88rem; max-width: 820px;">
+            Configure association rate scales (Flat Area Rates, Capital Fund, Common Expenses, CPS &amp; TWS Parking) and recalculate monthly maintenance across all 44 units.
+        </p>
+    </div>
+
+    <div style="display: flex; gap: 0.6rem; align-items: center;">
+        <a href="{{ url_for('admin_members') }}" class="btn btn-outline-primary" style="font-size: 0.85rem;">
+            👥 Resident Directory
+        </a>
+        <a href="{{ url_for('admin_receipts') }}" class="btn btn-secondary" style="font-size: 0.85rem;">
+            💳 Receipts Ledger
+        </a>
+    </div>
+</div>
+
+<!-- Formula Callout Banner -->
+<div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #3b82f6; background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(30, 58, 138, 0.03)); padding: 1.1rem 1.4rem;">
+    <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; justify-content: space-between;">
+        <div>
+            <span style="font-size: 0.82rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.2rem;">
+                📐 Official Society Maintenance Formula
+            </span>
+            <code style="font-size: 0.95rem; font-weight: 700; color: var(--text-main); background: rgba(0,0,0,0.2); padding: 0.25rem 0.6rem; border-radius: 6px;">
+                Total Monthly Charge = Round₁₀((Flat Area × Flat Charges) + (Flat Area × Capital Fund) + Common Expenses + CPS Charge + TWS Charge)
+            </code>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">
+            Formula rounded to nearest ₹10 pursuant to Association Resolution.
+        </div>
+    </div>
+</div>
+
+<!-- Top Executive KPI Summary Cards -->
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 1.75rem;">
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-title">Total Society Covered Area</span>
+            <div class="stat-icon stat-icon-blue">📐</div>
+        </div>
+        <div class="stat-value" id="kpiTotalArea">{{ "{:,}".format(total_area) }} <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-muted);">sq. ft.</span></div>
+        <div class="stat-sub text-muted">Across <strong>{{ total_flats }}</strong> residential units (Blocks A, B, C)</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-title">Monthly Society Collection</span>
+            <div class="stat-icon stat-icon-emerald">💰</div>
+        </div>
+        <div class="stat-value text-amount-success" id="kpiCurrentTotal">₹ {{ "{:,.2f}".format(total_monthly_collection) }}</div>
+        <div class="stat-sub text-muted">Average: <strong class="text-main">₹ {{ "{:,.2f}".format(total_monthly_collection / total_flats if total_flats else 0) }}</strong> / flat</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-title">Projected Simulation Inflow</span>
+            <div class="stat-icon stat-icon-purple">⚡</div>
+        </div>
+        <div class="stat-value text-highlight-blue" id="kpiSimulatedTotal">₹ {{ "{:,.2f}".format(total_monthly_collection) }}</div>
+        <div class="stat-sub" id="kpiDeltaBadge">
+            <span class="badge badge-info" style="font-size: 0.75rem;">0.00% Variance (Current Rates)</span>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-title">Parking Assets Allocated</span>
+            <div class="stat-icon stat-icon-amber">🚗</div>
+        </div>
+        <div class="stat-value" style="font-size: 1.45rem;">
+            <span class="text-highlight-blue">{{ cps_units_count }}</span> CPS &bull; <span class="text-amount-success">{{ tws_units_count }}</span> TWS
+        </div>
+        <div class="stat-sub text-muted">Car Parking (CPS) &amp; Two-Wheeler (TWS)</div>
+    </div>
+</div>
+
+<!-- Main 2-Column: Rate Configuration & Live Tariff Visualizer -->
+<div class="grid-2" style="margin-bottom: 2rem; align-items: stretch;">
+    <!-- Column 1: Global Rate Scale Input Form -->
+    <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div class="card-header" style="margin-bottom: 1.25rem;">
+                <h3 class="card-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span>⚙️</span> Global Tariff Rate Scale
+                </h3>
+                <span class="badge badge-info">BATCH CONFIGURATION</span>
+            </div>
+            
+            <p class="text-secondary" style="font-size: 0.85rem; margin-bottom: 1.25rem;">
+                Adjust standard rates below. The interactive simulator will immediately recalculate all 44 flats in real time.
+            </p>
+
+            <form method="POST" action="{{ url_for('admin_billing_rates') }}" id="globalRatesForm" onsubmit="return confirmRateUpdate(event);">
+                <input type="hidden" name="action" value="apply_global_rates">
+
+                <div class="grid-2" style="gap: 1rem; margin-bottom: 0.75rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="inp_flat_charges">
+                            Flat Charges Rate (₹ / Sq. Ft.) *
+                        </label>
+                        <div style="position: relative;">
+                            <input type="number" step="0.01" min="0" id="inp_flat_charges" name="flat_charges" class="form-control" value="{{ current_flat_charges }}" required oninput="triggerTariffSimulation()">
+                            <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-muted);">₹ / sq.ft.</span>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.72rem;">Base area maintenance rate</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="inp_capital_fund">
+                            Capital Fund Rate (₹ / Sq. Ft.) *
+                        </label>
+                        <div style="position: relative;">
+                            <input type="number" step="0.01" min="0" id="inp_capital_fund" name="capital_fund" class="form-control" value="{{ current_capital_fund }}" required oninput="triggerTariffSimulation()">
+                            <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-muted);">₹ / sq.ft.</span>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.72rem;">Capital replacement reserve</small>
+                    </div>
+                </div>
+
+                <div class="grid-3" style="gap: 1rem; margin-bottom: 1.25rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="inp_common_expenses">
+                            Common Expenses (₹) *
+                        </label>
+                        <div style="position: relative;">
+                            <input type="number" step="1" min="0" id="inp_common_expenses" name="common_expenses" class="form-control" value="{{ current_common_expenses }}" required oninput="triggerTariffSimulation()">
+                            <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-muted);">₹ / flat</span>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.72rem;">Fixed base expense share</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="inp_cps_charges">
+                            CPS Car Parking (₹) *
+                        </label>
+                        <div style="position: relative;">
+                            <input type="number" step="1" min="0" id="inp_cps_charges" name="cps_charges" class="form-control" value="{{ current_cps_rate }}" required oninput="triggerTariffSimulation()">
+                            <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-muted);">₹ / unit</span>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.72rem;">Per parking space owner</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="inp_tws_charges">
+                            TWS Two-Wheeler (₹) *
+                        </label>
+                        <div style="position: relative;">
+                            <input type="number" step="1" min="0" id="inp_tws_charges" name="tws_charges" class="form-control" value="{{ current_tws_rate }}" required oninput="triggerTariffSimulation()">
+                            <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-muted);">₹ / space</span>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.72rem;">Per two-wheeler space slot</small>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; align-items: center; border-top: 1px solid var(--surface-border); padding-top: 1.25rem;">
+                    <button type="submit" class="btn btn-primary" style="padding: 0.75rem 1.4rem; font-weight: 700;">
+                        ⚡ Apply &amp; Recalculate 44 Flats
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="resetDefaultRates()" style="font-size: 0.85rem;">
+                        🔄 Reset Rates
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Column 2: Live Revenue Breakdown & Component Visualizer -->
+    <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+            <div class="card-header" style="margin-bottom: 1.25rem;">
+                <h3 class="card-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span>📊</span> Revenue Breakdown &amp; Impact
+                </h3>
+                <span class="badge badge-success" id="simStatusBadge">LIVE SIMULATION</span>
+            </div>
+
+            <!-- Inflow Comparison Hero Box -->
+            <div style="background: var(--surface-hover); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.5rem;">
+                    <div>
+                        <span class="text-muted" style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; display: block;">
+                            Simulated Monthly Society Inflow
+                        </span>
+                        <div style="font-size: 1.95rem; font-weight: 900; color: var(--primary); font-family: var(--font-heading);" id="simInflowBig">
+                            ₹ {{ "{:,.2f}".format(total_monthly_collection) }}
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="text-muted" style="font-size: 0.72rem; display: block;">Monthly Revenue Delta</span>
+                        <strong id="simDeltaBig" style="font-size: 1.15rem; color: var(--text-main);">
+                            ₹ +0.00
+                        </strong>
+                    </div>
+                </div>
+                
+                <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.08); border-radius: 9999px; overflow: hidden; display: flex; margin-top: 0.75rem;">
+                    <div id="barAreaChg" style="background: #3b82f6; width: 80%; height: 100%; transition: width 0.3s;" title="Flat Area Charges"></div>
+                    <div id="barCapFund" style="background: #8b5cf6; width: 10%; height: 100%; transition: width 0.3s;" title="Capital Fund"></div>
+                    <div id="barCommExp" style="background: #10b981; width: 8%; height: 100%; transition: width 0.3s;" title="Common Expenses"></div>
+                    <div id="barParking" style="background: #f59e0b; width: 2%; height: 100%; transition: width 0.3s;" title="Parking Assets"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--text-muted); margin-top: 0.35rem;">
+                    <span>🔵 Area: <strong class="text-main" id="pctArea">82%</strong></span>
+                    <span>🟣 Capital: <strong class="text-main" id="pctCap">11%</strong></span>
+                    <span>🟢 Common: <strong class="text-main" id="pctComm">9%</strong></span>
+                    <span>🟡 Parking: <strong class="text-main" id="pctPark">6%</strong></span>
+                </div>
+            </div>
+
+            <!-- Component List Table -->
+            <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.85rem; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-sm); font-size: 0.85rem;">
+                    <span style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="color: #3b82f6;">🏢</span>
+                        <span>Flat Area Charges Revenue:</span>
+                    </span>
+                    <strong class="text-main" id="simCompFlatArea">₹ {{ "{:,.2f}".format(total_flat_area_revenue) }}</strong>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.85rem; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-sm); font-size: 0.85rem;">
+                    <span style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="color: #8b5cf6;">🏗️</span>
+                        <span>Capital Fund Reserve Revenue:</span>
+                    </span>
+                    <strong class="text-main" id="simCompCapFund">₹ {{ "{:,.2f}".format(total_capital_fund_revenue) }}</strong>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.85rem; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-sm); font-size: 0.85rem;">
+                    <span style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="color: #10b981;">💡</span>
+                        <span>Common Expenses Base Revenue:</span>
+                    </span>
+                    <strong class="text-main" id="simCompCommonExp">₹ {{ "{:,.2f}".format(total_common_exp_revenue) }}</strong>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.85rem; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-sm); font-size: 0.85rem;">
+                    <span style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="color: #f59e0b;">🚗</span>
+                        <span>Car Parking (CPS) Revenue:</span>
+                    </span>
+                    <strong class="text-main" id="simCompCPS">₹ {{ "{:,.2f}".format(total_cps_revenue) }}</strong>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.85rem; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-sm); font-size: 0.85rem;">
+                    <span style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="color: #06b6d4;">🛵</span>
+                        <span>Two Wheeler (TWS) Revenue:</span>
+                    </span>
+                    <strong class="text-main" id="simCompTWS">₹ {{ "{:,.2f}".format(total_tws_revenue) }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 44-Unit Comprehensive Master Registry Table -->
+<div class="card">
+    <div class="card-header" style="flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h3 class="card-title">👥 44-Unit Maintenance Rate Roster &amp; Live Difference</h3>
+            <p class="text-secondary" style="font-size: 0.82rem; margin: 2px 0 0;">
+                Inspect individual unit breakdown and see the exact simulated monthly maintenance charge per flat.
+            </p>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="text" id="tariffSearch" class="form-control" placeholder="Search flat (e.g. A/4-C, A/1-A) or resident..." style="max-width: 280px; font-size: 0.85rem;" oninput="filterTariffTable()">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="clearTariffSearch()">Clear</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="data-table" id="tariffTable">
+            <thead>
+                <tr>
+                    <th>Flat No</th>
+                    <th>Resident Name</th>
+                    <th>Area (Sq. Ft.)</th>
+                    <th>CPS Parking</th>
+                    <th>TWS Parking</th>
+                    <th>Flat Rate (₹)</th>
+                    <th>Cap Fund (₹)</th>
+                    <th>Common Exp (₹)</th>
+                    <th>Current Charge (₹)</th>
+                    <th>Simulated Charge (₹)</th>
+                    <th>Delta (₹)</th>
+                    <th style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in all_members %}
+                <tr class="tariff-row" 
+                    id="row-{{ m.id }}"
+                    data-flat="{{ m.flat_no|lower }}"
+                    data-name="{{ m.member_name|lower }}"
+                    data-id="{{ m.id }}"
+                    data-area="{{ m.RvsdFlatSize or 0 }}"
+                    data-cps-owner="{{ 1 if m.cps_owner else 0 }}"
+                    data-cps-charges="{{ m.cps_charges or 0 }}"
+                    data-cps-space="{{ m.car_parking_space or '-' }}"
+                    data-tws-owner="{{ 1 if m.tws_owner else 0 }}"
+                    data-tws-count="{{ m.tws_count or 0 }}"
+                    data-tws-charges="{{ m.tws_charges or 0 }}"
+                    data-flat-charges="{{ m.flat_charges or 0 }}"
+                    data-capital-fund="{{ m.capital_fund or 0 }}"
+                    data-common-exp="{{ m.common_expenses or 0 }}"
+                    data-current-monthly="{{ m.monthly_charge or 0 }}">
+                    <td>
+                        <strong class="text-highlight-blue">{{ m.flat_no }}</strong>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600; color: var(--text-main); font-size: 0.88rem;">{{ m.member_name }}</div>
+                    </td>
+                    <td>
+                        <strong>{{ m.RvsdFlatSize or '-' }}</strong> sq. ft.
+                    </td>
+                    <td>
+                        {% if m.cps_owner and m.car_parking_space and m.car_parking_space != '-' %}
+                        <span class="badge badge-info" style="font-size: 0.75rem;">CPS {{ m.car_parking_space }} (₹{{ m.cps_charges or 160 }})</span>
+                        {% else %}
+                        <span class="text-muted" style="font-size: 0.8rem;">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if m.tws_owner %}
+                        <span class="badge badge-success" style="font-size: 0.75rem;">{{ m.tws_count or 1 }} Space{% if (m.tws_count or 1) > 1 %}s{% endif %} (₹{{ m.tws_charges or 150 }})</span>
+                        {% else %}
+                        <span class="text-muted" style="font-size: 0.8rem;">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="col-flat-rate">₹ {{ "{:,.2f}".format(m.flat_charges or 0) }}</td>
+                    <td class="col-cap-rate">₹ {{ "{:,.2f}".format(m.capital_fund or 0) }}</td>
+                    <td class="col-comm-exp">₹ {{ "{:,.2f}".format(m.common_expenses or 0) }}</td>
+                    <td>
+                        <strong class="text-main" style="font-size: 0.95rem;">₹ {{ "{:,.2f}".format(m.monthly_charge or 0) }}</strong>
+                    </td>
+                    <td>
+                        <strong class="sim-new-charge text-amount-success" style="font-size: 0.95rem;">₹ {{ "{:,.2f}".format(m.monthly_charge or 0) }}</strong>
+                    </td>
+                    <td>
+                        <span class="sim-delta-badge badge badge-secondary" style="font-size: 0.75rem;">₹ 0</span>
+                    </td>
+                    <td style="text-align: right;">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openUnitEditModal({{ m.id }})" title="Fine tune unit parameters">
+                            ✏️ Edit
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Unit Fine-Tuning Modal -->
+<div id="unitEditModal" class="modal-overlay" style="display: none;" onclick="if(event.target===this) closeUnitEditModal()">
+    <div class="modal-card" style="max-width: 580px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalUnitTitle">✏️ Fine-Tune Flat Parameters</h3>
+            <button type="button" class="close-btn" onclick="closeUnitEditModal()">&times;</button>
+        </div>
+
+        <form method="POST" id="unitEditForm" action="">
+            <div class="modal-body" style="padding: 1.25rem 1.5rem;">
+                <div class="grid-2" style="gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="m_sq_feet">Flat Size (Sq. Ft.) *</label>
+                        <input type="number" id="m_sq_feet" name="sq_feet" class="form-control" required oninput="calcModalPreview()">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="m_common_expenses">Common Expenses (₹) *</label>
+                        <input type="number" step="0.01" id="m_common_expenses" name="common_expenses" class="form-control" required oninput="calcModalPreview()">
+                    </div>
+                </div>
+
+                <div class="grid-2" style="gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="m_flat_charges">Flat Charges (₹ / Sq. Ft.) *</label>
+                        <input type="number" step="0.01" id="m_flat_charges" name="flat_charges" class="form-control" required oninput="calcModalPreview()">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="m_capital_fund">Capital Fund (₹ / Sq. Ft.) *</label>
+                        <input type="number" step="0.01" id="m_capital_fund" name="capital_fund" class="form-control" required oninput="calcModalPreview()">
+                    </div>
+                </div>
+
+                <!-- Car Parking Section -->
+                <div style="background: var(--surface-hover); padding: 0.85rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
+                        <strong style="font-size: 0.85rem; color: var(--text-main);">🚗 Car Parking Space (CPS)</strong>
+                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; cursor: pointer;">
+                            <input type="checkbox" id="m_cps_owner" name="cps_owner" value="1" onchange="toggleModalCPS(this.checked); calcModalPreview();">
+                            <span>Allocated</span>
+                        </label>
+                    </div>
+                    <div class="grid-2" id="m_cps_fields" style="gap: 0.75rem;">
+                        <div>
+                            <label class="form-label" for="m_cps_space" style="font-size: 0.75rem;">Space Identifier</label>
+                            <input type="text" id="m_cps_space" name="car_parking_space" class="form-control" placeholder="e.g. 120 or 150">
+                        </div>
+                        <div>
+                            <label class="form-label" for="m_cps_charges" style="font-size: 0.75rem;">CPS Charge (₹)</label>
+                            <input type="number" step="0.01" id="m_cps_charges" name="cps_charges" class="form-control" value="160.00" oninput="calcModalPreview()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Two-Wheeler Section -->
+                <div style="background: var(--surface-hover); padding: 0.85rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); margin-bottom: 1.25rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
+                        <strong style="font-size: 0.85rem; color: var(--text-main);">🛵 Two-Wheeler Parking (TWS)</strong>
+                        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; cursor: pointer;">
+                            <input type="checkbox" id="m_tws_owner" name="tws_owner" value="1" onchange="toggleModalTWS(this.checked); calcModalPreview();">
+                            <span>Allocated</span>
+                        </label>
+                    </div>
+                    <div class="grid-2" id="m_tws_fields" style="gap: 0.75rem;">
+                        <div>
+                            <label class="form-label" for="m_tws_count" style="font-size: 0.75rem;">Number of Spaces</label>
+                            <input type="number" id="m_tws_count" name="tws_count" min="1" max="10" class="form-control" value="1" oninput="calcModalPreview()">
+                        </div>
+                        <div>
+                            <label class="form-label" for="m_tws_charges" style="font-size: 0.75rem;">Total TWS Charge (₹)</label>
+                            <input type="number" step="0.01" id="m_tws_charges" name="tws_charges" class="form-control" value="150.00" oninput="calcModalPreview()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Preview Inside Modal -->
+                <div style="background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(16, 185, 129, 0.1)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); padding: 0.9rem 1.1rem; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span class="text-muted" style="font-size: 0.75rem; display: block;">Calculated Monthly Maintenance</span>
+                        <strong class="text-amount-success" id="modalCalculatedCharge" style="font-size: 1.35rem; font-family: var(--font-heading);">₹ 0.00</strong>
+                    </div>
+                    <div style="font-size: 0.75rem; text-align: right; color: var(--text-secondary);">
+                        Formula: Round₁₀(Area × Rates + Common + Parking)
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--surface-border);">
+                <button type="button" class="btn btn-secondary" onclick="closeUnitEditModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="font-weight: 700;">💾 Save Unit Tariff</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Master Data Cached in Memory for Zero-Latency Client Simulation
+const BASE_COLLECTION = {{ total_monthly_collection|float }};
+const DEFAULT_RATES = {
+    flat_charges: {{ current_flat_charges|float }},
+    capital_fund: {{ current_capital_fund|float }},
+    common_expenses: {{ current_common_expenses|float }},
+    cps_charges: {{ current_cps_rate|float }},
+    tws_charges: {{ current_tws_rate|float }}
+};
+
+function triggerTariffSimulation() {
+    const fc = parseFloat(document.getElementById('inp_flat_charges').value) || 0;
+    const cf = parseFloat(document.getElementById('inp_capital_fund').value) || 0;
+    const ce = parseFloat(document.getElementById('inp_common_expenses').value) || 0;
+    const cpsRate = parseFloat(document.getElementById('inp_cps_charges').value) || 0;
+    const twsRate = parseFloat(document.getElementById('inp_tws_charges').value) || 0;
+
+    let simTotalInflow = 0;
+    let simFlatAreaRev = 0;
+    let simCapFundRev = 0;
+    let simCommonExpRev = 0;
+    let simCPSRev = 0;
+    let simTWSRev = 0;
+
+    const rows = document.querySelectorAll('.tariff-row');
+    rows.forEach(row => {
+        const area = parseFloat(row.dataset.area) || 0;
+        const cpsOwner = parseInt(row.dataset.cpsOwner) === 1;
+        const twsOwner = parseInt(row.dataset.twsOwner) === 1;
+        const twsCount = parseInt(row.dataset.twsCount) || 1;
+        const currentMonthly = parseFloat(row.dataset.currentMonthly) || 0;
+
+        const cpsChg = cpsOwner ? cpsRate : 0;
+        const twsChg = twsOwner ? (twsRate * twsCount) : 0;
+
+        const flatAreaPart = area * fc;
+        const capFundPart = area * cf;
+        const commonExpPart = ce;
+
+        simFlatAreaRev += flatAreaPart;
+        simCapFundRev += capFundPart;
+        simCommonExpRev += commonExpPart;
+        simCPSRev += cpsChg;
+        simTWSRev += twsChg;
+
+        const rawMonthly = flatAreaPart + capFundPart + commonExpPart + cpsChg + twsChg;
+        const roundedMonthly = Math.round(rawMonthly / 10) * 10;
+        simTotalInflow += roundedMonthly;
+
+        // Update Row Display
+        const newChargeEl = row.querySelector('.sim-new-charge');
+        if (newChargeEl) {
+            newChargeEl.textContent = `₹ ${roundedMonthly.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+
+        const delta = roundedMonthly - currentMonthly;
+        const deltaEl = row.querySelector('.sim-delta-badge');
+        if (deltaEl) {
+            if (delta > 0) {
+                deltaEl.className = 'sim-delta-badge badge badge-danger';
+                deltaEl.textContent = `+ ₹ ${delta.toLocaleString('en-IN')}`;
+            } else if (delta < 0) {
+                deltaEl.className = 'sim-delta-badge badge badge-success';
+                deltaEl.textContent = `- ₹ ${Math.abs(delta).toLocaleString('en-IN')}`;
+            } else {
+                deltaEl.className = 'sim-delta-badge badge badge-secondary';
+                deltaEl.textContent = '₹ 0';
+            }
+        }
+    });
+
+    // Update Hero KPI & Summary Box
+    const deltaTotal = simTotalInflow - BASE_COLLECTION;
+    const deltaPct = BASE_COLLECTION > 0 ? ((deltaTotal / BASE_COLLECTION) * 100).toFixed(2) : 0;
+
+    const inflowBig = document.getElementById('simInflowBig');
+    if (inflowBig) {
+        inflowBig.textContent = `₹ ${simTotalInflow.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    const kpiSim = document.getElementById('kpiSimulatedTotal');
+    if (kpiSim) {
+        kpiSim.textContent = `₹ ${simTotalInflow.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    const deltaBig = document.getElementById('simDeltaBig');
+    if (deltaBig) {
+        if (deltaTotal > 0) {
+            deltaBig.style.color = '#f87171';
+            deltaBig.textContent = `+ ₹ ${deltaTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (+${deltaPct}%)`;
+        } else if (deltaTotal < 0) {
+            deltaBig.style.color = '#34d399';
+            deltaBig.textContent = `- ₹ ${Math.abs(deltaTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })} (${deltaPct}%)`;
+        } else {
+            deltaBig.style.color = 'var(--text-main)';
+            deltaBig.textContent = `₹ 0.00 (0.00%)`;
+        }
+    }
+
+    const deltaBadge = document.getElementById('kpiDeltaBadge');
+    if (deltaBadge) {
+        if (deltaTotal > 0) {
+            deltaBadge.innerHTML = `<span class="badge badge-danger" style="font-size: 0.75rem;">+ ₹ ${deltaTotal.toLocaleString('en-IN')} (+${deltaPct}%) Increase</span>`;
+        } else if (deltaTotal < 0) {
+            deltaBadge.innerHTML = `<span class="badge badge-success" style="font-size: 0.75rem;">- ₹ ${Math.abs(deltaTotal).toLocaleString('en-IN')} (${deltaPct}%) Reduction</span>`;
+        } else {
+            deltaBadge.innerHTML = `<span class="badge badge-info" style="font-size: 0.75rem;">0.00% Variance (Current Scale)</span>`;
+        }
+    }
+
+    // Component Revenue Text
+    document.getElementById('simCompFlatArea').textContent = `₹ ${simFlatAreaRev.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    document.getElementById('simCompCapFund').textContent = `₹ ${simCapFundRev.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    document.getElementById('simCompCommonExp').textContent = `₹ ${simCommonExpRev.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    document.getElementById('simCompCPS').textContent = `₹ ${simCompCPSRev.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    document.getElementById('simCompTWS').textContent = `₹ ${simCompTWSRev.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    // Percentage Progress Bar
+    const grandTotal = simFlatAreaRev + simCapFundRev + simCommonExpRev + simCompCPSRev + simCompTWSRev;
+    if (grandTotal > 0) {
+        const pArea = Math.round((simFlatAreaRev / grandTotal) * 100);
+        const pCap = Math.round((simCapFundRev / grandTotal) * 100);
+        const pComm = Math.round((simCommonExpRev / grandTotal) * 100);
+        const pPark = 100 - (pArea + pCap + pComm);
+
+        document.getElementById('barAreaChg').style.width = `${pArea}%`;
+        document.getElementById('barCapFund').style.width = `${pCap}%`;
+        document.getElementById('barCommExp').style.width = `${pComm}%`;
+        document.getElementById('barParking').style.width = `${pPark}%`;
+
+        document.getElementById('pctArea').textContent = `${pArea}%`;
+        document.getElementById('pctCap').textContent = `${pCap}%`;
+        document.getElementById('pctComm').textContent = `${pComm}%`;
+        document.getElementById('pctPark').textContent = `${pPark}%`;
+    }
+}
+
+function resetDefaultRates() {
+    document.getElementById('inp_flat_charges').value = DEFAULT_RATES.flat_charges;
+    document.getElementById('inp_capital_fund').value = DEFAULT_RATES.capital_fund;
+    document.getElementById('inp_common_expenses').value = DEFAULT_RATES.common_expenses;
+    document.getElementById('inp_cps_charges').value = DEFAULT_RATES.cps_charges;
+    document.getElementById('inp_tws_charges').value = DEFAULT_RATES.tws_charges;
+    triggerTariffSimulation();
+}
+
+function confirmRateUpdate(e) {
+    const fc = document.getElementById('inp_flat_charges').value;
+    const cf = document.getElementById('inp_capital_fund').value;
+    const ce = document.getElementById('inp_common_expenses').value;
+    const cps = document.getElementById('inp_cps_charges').value;
+    const tws = document.getElementById('inp_tws_charges').value;
+
+    const msg = `⚡ CONFIRM GLOBAL RATE UPDATE\n\nAre you sure you want to recalculate and persist maintenance charges for all 44 units?\n\n- Flat Charges: ₹${fc} / sq.ft.\n- Capital Fund: ₹${cf} / sq.ft.\n- Common Expenses: ₹${ce} / flat\n- CPS Car Parking: ₹${cps}\n- TWS Two Wheeler: ₹${tws}\n\nThis will update all member accounts in the society database.`;
+    return confirm(msg);
+}
+
+function filterTariffTable() {
+    const q = (document.getElementById('tariffSearch').value || '').toLowerCase().trim();
+    const rows = document.querySelectorAll('.tariff-row');
+    rows.forEach(r => {
+        const flat = r.dataset.flat || '';
+        const name = r.dataset.name || '';
+        if (!q || flat.includes(q) || name.includes(q)) {
+            r.style.display = '';
+        } else {
+            r.style.display = 'none';
+        }
+    });
+}
+
+function clearTariffSearch() {
+    document.getElementById('tariffSearch').value = '';
+    filterTariffTable();
+}
+
+// Unit Modal Fine Tuning
+function openUnitEditModal(memberId) {
+    const row = document.getElementById(`row-${memberId}`);
+    if (!row) return;
+
+    document.getElementById('modalUnitTitle').textContent = `✏️ Fine-Tune Flat ${row.dataset.flat.toUpperCase()}`;
+    document.getElementById('unitEditForm').action = `/admin/billing-rates/unit/${memberId}`;
+
+    document.getElementById('m_sq_feet').value = row.dataset.area;
+    document.getElementById('m_flat_charges').value = row.dataset.flatCharges;
+    document.getElementById('m_capital_fund').value = row.dataset.capitalFund;
+    document.getElementById('m_common_expenses').value = row.dataset.commonExp;
+
+    const isCps = parseInt(row.dataset.cpsOwner) === 1;
+    document.getElementById('m_cps_owner').checked = isCps;
+    document.getElementById('m_cps_space').value = row.dataset.cpsSpace || '';
+    document.getElementById('m_cps_charges').value = row.dataset.cpsCharges || '160';
+    toggleModalCPS(isCps);
+
+    const isTws = parseInt(row.dataset.twsOwner) === 1;
+    document.getElementById('m_tws_owner').checked = isTws;
+    document.getElementById('m_tws_count').value = row.dataset.twsCount || '1';
+    document.getElementById('m_tws_charges').value = row.dataset.twsCharges || '150';
+    toggleModalTWS(isTws);
+
+    calcModalPreview();
+    document.getElementById('unitEditModal').style.display = 'flex';
+}
+
+function closeUnitEditModal() {
+    document.getElementById('unitEditModal').style.display = 'none';
+}
+
+function toggleModalCPS(checked) {
+    const fields = document.getElementById('m_cps_fields');
+    if (fields) {
+        fields.style.opacity = checked ? '1' : '0.4';
+        fields.querySelectorAll('input').forEach(i => i.disabled = !checked);
+    }
+}
+
+function toggleModalTWS(checked) {
+    const fields = document.getElementById('m_tws_fields');
+    if (fields) {
+        fields.style.opacity = checked ? '1' : '0.4';
+        fields.querySelectorAll('input').forEach(i => i.disabled = !checked);
+    }
+}
+
+function calcModalPreview() {
+    const sqFt = parseFloat(document.getElementById('m_sq_feet').value) || 0;
+    const fc = parseFloat(document.getElementById('m_flat_charges').value) || 0;
+    const cf = parseFloat(document.getElementById('m_capital_fund').value) || 0;
+    const ce = parseFloat(document.getElementById('m_common_expenses').value) || 0;
+
+    const isCps = document.getElementById('m_cps_owner').checked;
+    const cpsChg = isCps ? (parseFloat(document.getElementById('m_cps_charges').value) || 0) : 0;
+
+    const isTws = document.getElementById('m_tws_owner').checked;
+    const twsChg = isTws ? (parseFloat(document.getElementById('m_tws_charges').value) || 0) : 0;
+
+    const raw = (sqFt * fc) + (sqFt * cf) + ce + cpsChg + twsChg;
+    const rounded = Math.round(raw / 10) * 10;
+
+    document.getElementById('modalCalculatedCharge').textContent = `₹ ${rounded.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// Initialize on Load
+document.addEventListener('DOMContentLoaded', function() {
+    triggerTariffSimulation();
+});
+</script>
+{% endblock %}
