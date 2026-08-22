@@ -1054,6 +1054,7 @@ def admin_update_member_contact():
 @app.route('/admin/audit-logs')
 @roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
 def admin_audit_logs():
+    init_db()
     search_q = request.args.get('q', '').strip()
     role_filter = request.args.get('role', '').strip()
     action_filter = request.args.get('action', '').strip()
@@ -1078,7 +1079,7 @@ def admin_audit_logs():
         d_val = int(days_filter)
         if d_val > 0:
             query += " AND created_at >= %s"
-            params.append(datetime.now() - timedelta(days=d_val))
+            params.append((datetime.now() - timedelta(days=d_val)).strftime('%Y-%m-%d %H:%M:%S'))
             
     query += " ORDER BY id DESC LIMIT 500"
     

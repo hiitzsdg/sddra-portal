@@ -590,6 +590,35 @@ def ensure_mysql_schema(conn):
         """)
         conn.commit()
 
+        # Seed tbl_activity_logs if empty
+        try:
+            cur.execute("SELECT COUNT(*) as cnt FROM tbl_activity_logs;")
+            r_act = cur.fetchone()
+            act_cnt = r_act['cnt'] if isinstance(r_act, dict) else r_act[0]
+            if act_cnt == 0:
+                from seed_data import SEED_ACTIVITY_LOGS
+                act_sql = """
+                    INSERT INTO tbl_activity_logs (actor_username, actor_name, actor_role, flat_no, action_type, description, ip_address, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+                """
+                act_vals = [
+                    (
+                        r['actor_username'],
+                        r['actor_name'],
+                        r['actor_role'],
+                        r['flat_no'],
+                        r['action_type'],
+                        r['description'],
+                        r.get('ip_address', '127.0.0.1'),
+                        r['created_at']
+                    ) for r in SEED_ACTIVITY_LOGS
+                ]
+                cur.executemany(act_sql, act_vals)
+                conn.commit()
+                print(f"[DB Init] Seeded {len(act_vals)} records into tbl_activity_logs.")
+        except Exception as e_act:
+            print(f"[DB Warning] Could not seed tbl_activity_logs: {e_act}")
+
         # 2. Check if tbl_membership has data
         cur.execute("SELECT COUNT(*) as cnt FROM tbl_membership;")
         row = cur.fetchone()
@@ -649,19 +678,7 @@ def init_db(force=False):
         conn = get_mysql_connection()
         try:
             with conn.cursor() as cur:
-                # Fast path: check if cloud database is already populated
-                try:
-                    cur.execute("SELECT COUNT(*) as cnt FROM tbl_membership;")
-                    r = cur.fetchone()
-                    count = r['cnt'] if isinstance(r, dict) else r[0]
-                    if count >= 44:
-                        _INIT_DB_DONE = True
-                        print(f"[DB Init Fast-Path] Connected to MySQL '{Config.DB_NAME}' ({count} members ready).")
-                        return
-                except Exception:
-                    pass
-
-                # If empty, provision tables and seed data
+                # Provision missing tables and ensure extensions exist
                 ensure_mysql_schema(conn)
                 
                 # 1. Non-destructively ensure password_hash column exists on tbl_membership
