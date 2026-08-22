@@ -26,16 +26,19 @@
                 <h3 class="text-main" style="font-size: 1.25rem; margin-bottom: 0.2rem;">
                     {{ member.member_name if member else current_user.name }}
                 </h3>
-                <p class="text-secondary" style="font-size: 0.88rem; margin: 0;">
+                <p class="text-secondary" style="font-size: 0.88rem; margin: 0; display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
                     {% if member and member.flat_no %}
                     <strong class="text-highlight-blue">Flat {{ member.flat_no }}</strong> &bull; 
                     <strong class="text-main">{{ member.RvsdFlatSize or '-' }} sq. ft.</strong>
                     {% if member.cps_owner and member.car_parking_space %}
                     &bull; <span class="badge badge-info" style="font-size: 0.75rem;">CPS: {{ member.car_parking_space }}</span>
                     {% endif %}
+                    {% if member.tws_owner or (member.tws_count and member.tws_count > 0) %}
+                    &bull; <span class="badge badge-success" style="font-size: 0.75rem;">TWS: {{ member.tws_count or 1 }} Space{% if (member.tws_count or 1) > 1 %}s{% endif %}</span>
+                    {% endif %}
                     {% else %}
                     <strong class="text-highlight-blue">Flat {{ current_user.flat_no or 'N/A' }}</strong> &bull; 
-                    <strong class="text-main">{{ current_user.sq_feet or member.RvsdFlatSize or '-' }} sq. ft.</strong>
+                    <strong class="text-main">{{ current_user.sq_feet or (member.RvsdFlatSize if member else '-') }} sq. ft.</strong>
                     {% endif %}
                 </p>
             </div>
@@ -61,7 +64,20 @@
                     {% if member and member.cps_owner %}
                     CPS {{ member.car_parking_space }}
                     {% else %}
-                    None
+                    <span class="text-muted">None</span>
+                    {% endif %}
+                </strong>
+            </div>
+            <div style="border-left: 1px solid var(--surface-border); padding-left: 0.75rem;">
+                <span class="text-muted" style="font-size: 0.75rem; display: block;">TWS Status</span>
+                <strong class="text-main" style="font-size: 0.95rem;">
+                    {% if member and (member.tws_owner or (member.tws_count and member.tws_count > 0)) %}
+                    <span class="text-highlight-blue">{{ member.tws_count or 1 }} Space{% if (member.tws_count or 1) > 1 %}s{% endif %}</span>
+                    {% if member.tws_charges %}
+                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">(₹{{ "{:,.0f}".format(member.tws_charges) }})</span>
+                    {% endif %}
+                    {% else %}
+                    <span class="text-muted">None</span>
                     {% endif %}
                 </strong>
             </div>
