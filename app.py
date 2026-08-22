@@ -102,16 +102,6 @@ def log_activity(action_type, description, actor=None, ip_address=None):
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
             (username, name, role, flat_no, action_type, description, ip_address or '127.0.0.1', now_dt)
         )
-        
-        # Legacy audit_log table sync
-        admin_id = actor.get('id') if actor.get('is_admin') else 0
-        try:
-            execute_db(
-                "INSERT INTO audit_log (admin_id, action, timestamp) VALUES (%s, %s, %s)",
-                (admin_id, f"[{username}] {action_type}: {description}", now_dt)
-            )
-        except Exception:
-            pass
     except Exception as err:
         app.logger.warning(f"Could not persist activity log: {err}")
 
@@ -437,12 +427,19 @@ def dashboard():
         total_members = total_members_row['count'] if total_members_row else 0
         
         # Calculate Defaulters & Penalty Overview KPIs
-        members_all = query_db("SELECT flat_no, monthly_charge, member_name FROM tbl_membership")
+        # Fast batch calculation: Pre-fetch all receipts once into memory to eliminate 44 N+1 queries
+        all_rcpts_for_penalty = query_db("SELECT flat_no, coverage_end, payment_date, remarks, subscription_type FROM tbl_receipts") or []
+        rcpts_by_flat_map = {}
+        for r_p in all_rcpts_for_penalty:
+            fn_k = str(r_p.get('flat_no', '')).strip().upper()
+            rcpts_by_flat_map.setdefault(fn_k, []).append(r_p)
+
+        members_all = query_db("SELECT flat_no, monthly_charge, member_name FROM tbl_membership") or []
         defaulters_total_count = 0
         total_penalty_accumulated = 0.0
         total_maintenance_overdue = 0.0
         for m_row in members_all:
-            p_calc = calculate_flat_penalty(m_row['flat_no'], member=m_row)
+            p_calc = calculate_flat_penalty(m_row['flat_no'], member=m_row, receipts_by_flat=rcpts_by_flat_map)
             if p_calc['overdue_months'] > 0:
                 defaulters_total_count += 1
                 total_maintenance_overdue += p_calc['base_due']
@@ -959,18 +956,21 @@ def admin_audit_logs():
         app.logger.warning(f"Failed to query audit logs: {err}")
         logs = []
     
-    # Calculate stats
+    # Calculate stats with 1 single aggregated query instead of 4 separate queries
     try:
-        total_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs", one=True)
-        member_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs WHERE actor_role = 'MEMBER'", one=True)
-        admin_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs WHERE actor_role != 'MEMBER'", one=True)
-        security_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs WHERE action_type IN ('LOGIN', 'LOGOUT', 'PASSWORD_CHANGE')", one=True)
-        
+        stats_row = query_db("""
+            SELECT 
+                COUNT(*) as total,
+                COALESCE(SUM(CASE WHEN actor_role = 'MEMBER' THEN 1 ELSE 0 END), 0) as member,
+                COALESCE(SUM(CASE WHEN actor_role != 'MEMBER' THEN 1 ELSE 0 END), 0) as admin,
+                COALESCE(SUM(CASE WHEN action_type IN ('LOGIN', 'LOGOUT', 'PASSWORD_CHANGE') THEN 1 ELSE 0 END), 0) as security
+            FROM tbl_activity_logs
+        """, one=True)
         stats = {
-            'total': total_logs_cnt['c'] if total_logs_cnt else 0,
-            'member': member_logs_cnt['c'] if member_logs_cnt else 0,
-            'admin': admin_logs_cnt['c'] if admin_logs_cnt else 0,
-            'security': security_logs_cnt['c'] if security_logs_cnt else 0
+            'total': int(stats_row['total'] or 0) if stats_row else 0,
+            'member': int(stats_row['member'] or 0) if stats_row else 0,
+            'admin': int(stats_row['admin'] or 0) if stats_row else 0,
+            'security': int(stats_row['security'] or 0) if stats_row else 0
         }
     except Exception:
         stats = {'total': len(logs), 'member': 0, 'admin': len(logs), 'security': 0}
@@ -1106,7 +1106,7 @@ def api_member_receipts(flat_no=None):
     })
 
 # ================= Overdue Maintenance & Cumulative Penalty Engine =================
-def calculate_flat_penalty(flat_no, member=None, target_date=None):
+def calculate_flat_penalty(flat_no, member=None, target_date=None, receipts_by_flat=None):
     """
     Calculate overdue months N and cumulative penalty using official formula:
     Penalty = (N * (N + 1) / 2) * 100
@@ -1127,13 +1127,17 @@ def calculate_flat_penalty(flat_no, member=None, target_date=None):
     member_name = member.get('member_name', 'Resident') if member else 'Resident'
     flat_size = member.get('RvsdFlatSize') if member else None
 
-    # Retrieve all valid coverage end dates for this flat
-    rcpt_rows = query_db(
-        """SELECT coverage_end, payment_date, remarks, subscription_type 
-           FROM tbl_receipts 
-           WHERE flat_no = %s""",
-        (flat_no,)
-    )
+    # Retrieve all valid coverage end dates for this flat (in-memory lookup when batch provided)
+    if receipts_by_flat is not None:
+        fn_key = str(flat_no).strip().upper()
+        rcpt_rows = receipts_by_flat.get(fn_key, [])
+    else:
+        rcpt_rows = query_db(
+            """SELECT coverage_end, payment_date, remarks, subscription_type 
+               FROM tbl_receipts 
+               WHERE flat_no = %s""",
+            (flat_no,)
+        )
 
     valid_coverage_dates = []
     month_lookup = {
@@ -1282,8 +1286,15 @@ def admin_penalties():
     defaulters_count = 0
     paid_up_count = 0
 
+    # Fast batch calculation: Pre-fetch all receipts once into memory to eliminate 44 N+1 queries
+    all_rcpts_for_penalty = query_db("SELECT flat_no, coverage_end, payment_date, remarks, subscription_type FROM tbl_receipts") or []
+    rcpts_by_flat_map = {}
+    for r_p in all_rcpts_for_penalty:
+        fn_k = str(r_p.get('flat_no', '')).strip().upper()
+        rcpts_by_flat_map.setdefault(fn_k, []).append(r_p)
+
     for m in members:
-        calc = calculate_flat_penalty(m['flat_no'], member=m, target_date=target_date)
+        calc = calculate_flat_penalty(m['flat_no'], member=m, target_date=target_date, receipts_by_flat=rcpts_by_flat_map)
         
         # Apply search filter
         if search_q:
