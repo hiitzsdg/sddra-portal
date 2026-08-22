@@ -7,7 +7,7 @@
     <div class="page-header-title">
         {% if is_admin %}
         <h2>📊 Executive Management Console</h2>
-        <p>Real-time financial status, audit trails, and member maintenance registry of South Dumdum Enclave.</p>
+        <p>Welcome, <strong>{{ current_user.title or current_user.name }}</strong> (Flat <strong>{{ current_user.flat_no }}</strong>). Official administrative status and financial records.</p>
         {% else %}
         <h2>🏠 Resident Dashboard & Payment Portal</h2>
         <p>Welcome, <strong>{{ member.member_name or current_user.name }}</strong> (Flat <strong>{{ current_user.flat_no }}</strong>). Official maintenance status and bills.</p>

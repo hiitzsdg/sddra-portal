@@ -183,11 +183,18 @@ def login():
             if admin and verify_password(password, admin.get('password_hash', '')):
                 admin_u = admin['username'].lower()
                 officer_names = {
-                    'treasurer': 'Swapnadeep Ganguly',
                     'president': 'Dr. Asit Kumar Bera',
-                    'secretary': 'Somenath Halder',
-                    'caretaker': 'Sanjoy Chakraborty',
-                    'admin': 'Billing Administrator'
+                    'secretary': 'Mr. Somenath Halder',
+                    'admin': 'Mr. Sanjoy Chakraborty',
+                    'treasurer': 'Mr. Swapnadeep Ganguly',
+                    'caretaker': 'Mr. Sanjoy Chakraborty'
+                }
+                officer_titles = {
+                    'president': 'President Dr. Asit Kumar Bera',
+                    'secretary': 'General Secretary Mr. Somenath Halder',
+                    'admin': 'Billing Administrator Mr. Sanjoy Chakraborty',
+                    'treasurer': 'Treasurer Mr. Swapnadeep Ganguly',
+                    'caretaker': 'Caretaker Mr. Sanjoy Chakraborty'
                 }
                 officer_flats = {
                     'treasurer': 'A/4-C',
@@ -200,11 +207,12 @@ def login():
                     'id': admin['admin_id'],
                     'username': admin['username'],
                     'name': officer_names.get(admin_u, admin['username'].title()),
+                    'title': officer_titles.get(admin_u, admin['username'].title()),
                     'role': admin.get('role', 'super_admin'),
                     'is_admin': True,
                     'flat_no': officer_flats.get(admin_u, 'Office')
                 }
-                flash(f"Login successful! Welcome, {officer_names.get(admin_u, admin['username'])}.", 'success')
+                flash(f"Login successful! Welcome, {officer_titles.get(admin_u, admin['username'])}.", 'success')
                 next_p = request.args.get('next')
                 return redirect(next_p or url_for('dashboard'))
 
