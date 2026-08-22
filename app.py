@@ -37,14 +37,8 @@ def set_response_headers(response):
 
 @app.teardown_appcontext
 def close_request_db(exception=None):
-    from flask import g
-    db_conn = getattr(g, 'db_conn', None)
-    if db_conn is not None:
-        try:
-            db_conn.close()
-        except Exception:
-            pass
-        g.db_conn = None
+    # Keep persistent MySQL/SQLite connections warm across requests for ultra-low latency
+    pass
 
 # Ensure database tables and initial hashes exist non-destructively
 try:
@@ -1054,7 +1048,6 @@ def admin_update_member_contact():
 @app.route('/admin/audit-logs')
 @roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
 def admin_audit_logs():
-    init_db()
     search_q = request.args.get('q', '').strip()
     role_filter = request.args.get('role', '').strip()
     action_filter = request.args.get('action', '').strip()

@@ -78,16 +78,31 @@ def get_writable_sqlite_path():
     _WRITABLE_SQLITE_PATH = Config.SQLITE_PATH
     return _WRITABLE_SQLITE_PATH
 
+_CACHED_MYSQL_CONN = None
+_CACHED_SQLITE_CONN = None
+
 def get_sqlite_connection():
     """Establish connection to local/serverless SQLite database with Row factory, custom functions, and path fallbacks."""
+    global _CACHED_SQLITE_CONN
+    if _CACHED_SQLITE_CONN is not None:
+        return _CACHED_SQLITE_CONN
     db_path = get_writable_sqlite_path()
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.create_function('DATE_FORMAT', 2, sqlite_date_format)
-    return conn
+    _CACHED_SQLITE_CONN = conn
+    return _CACHED_SQLITE_CONN
 
 def get_mysql_connection():
-    """Establish connection to MySQL / Cloud MySQL (TiDB, Aiven, RDS, Railway)."""
+    """Establish connection to MySQL / Cloud MySQL with connection keepalive and TLS session reuse."""
+    global _CACHED_MYSQL_CONN
+    if _CACHED_MYSQL_CONN is not None:
+        try:
+            _CACHED_MYSQL_CONN.ping(reconnect=True)
+            return _CACHED_MYSQL_CONN
+        except Exception:
+            _CACHED_MYSQL_CONN = None
+
     conn_params = {
         'host': Config.DB_HOST,
         'port': Config.DB_PORT,
@@ -97,7 +112,9 @@ def get_mysql_connection():
         'charset': 'utf8mb4',
         'cursorclass': pymysql.cursors.DictCursor,
         'autocommit': True,
-        'connect_timeout': 15.0
+        'connect_timeout': 10.0,
+        'read_timeout': 10.0,
+        'write_timeout': 10.0
     }
     use_ssl = Config.DB_SSL or any(cloud_dom in Config.DB_HOST.lower() for cloud_dom in ['tidb', 'aiven', 'planetscale', 'aws', 'rds', 'railway', 'supabase', 'neon'])
     if use_ssl:
@@ -106,7 +123,8 @@ def get_mysql_connection():
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         conn_params['ssl'] = ctx
-    return pymysql.connect(**conn_params)
+    _CACHED_MYSQL_CONN = pymysql.connect(**conn_params)
+    return _CACHED_MYSQL_CONN
 
 def determine_engine():
     """Determine whether to use MySQL or fallback to SQLite."""
@@ -137,7 +155,6 @@ def determine_engine():
     # Try connecting to MySQL
     try:
         conn = get_mysql_connection()
-        conn.close()
         _ENGINE_MODE = 'mysql'
         print(f"[DB Engine] Successfully initialized MySQL engine on {Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}")
     except Exception as e:
@@ -148,19 +165,6 @@ def determine_engine():
 
 def get_db():
     """Get or create request-scoped connection for low-latency query reuse."""
-    try:
-        from flask import g, has_request_context
-        if has_request_context():
-            if not hasattr(g, 'db_conn') or g.db_conn is None:
-                engine = determine_engine()
-                if engine == 'sqlite':
-                    g.db_conn = get_sqlite_connection()
-                else:
-                    g.db_conn = get_mysql_connection()
-            return g.db_conn
-    except Exception:
-        pass
-    
     engine = determine_engine()
     return get_sqlite_connection() if engine == 'sqlite' else get_mysql_connection()
 
