@@ -772,6 +772,8 @@ def admin_update_member_contact():
     except Exception as e:
         flash(f"Error updating contact details for Flat {flat_no}: {e}", 'danger')
         
+    return redirect(url_for('admin_members'))
+
 @app.route('/api/db-status')
 def api_db_status():
     from database import determine_engine, get_mysql_connection
