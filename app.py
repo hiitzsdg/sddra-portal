@@ -725,7 +725,10 @@ def admin_receipts():
     query += " ORDER BY receipt_no DESC"
     
     receipts = query_db(query, params)
-    all_flats = query_db("SELECT flat_no, member_name FROM tbl_membership ORDER BY flat_no")
+    all_flats = query_db("SELECT flat_no, member_name, monthly_charge FROM tbl_membership ORDER BY flat_no")
+    
+    max_rcpt_row = query_db("SELECT COALESCE(MAX(receipt_no), 2390) + 1 as next_r FROM tbl_receipts", one=True)
+    next_receipt_no = int(max_rcpt_row['next_r']) if max_rcpt_row else 2391
     
     return render_template(
         'admin_receipts.html',
@@ -733,7 +736,8 @@ def admin_receipts():
         all_flats=all_flats,
         flat_filter=flat_filter,
         month_filter=month_filter,
-        search_q=search_q
+        search_q=search_q,
+        next_receipt_no=next_receipt_no
     )
 
 @app.route('/admin/receipts/new', methods=['POST'])
@@ -749,22 +753,28 @@ def create_receipt():
     coverage_start = request.form.get('coverage_start') or payment_date
     coverage_end = request.form.get('coverage_end') or payment_date
     auto_email = request.form.get('auto_email') == '1'
+    receipt_no_input = request.form.get('receipt_no', '').strip()
     
     member = query_db("SELECT member_name FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
     member_name = member['member_name'] if member else 'Resident'
     
     try:
-        receipt_no = execute_db(
-            """INSERT INTO tbl_receipts (flat_no, member_name, amount, pymnt_mode, subscription_type, remarks, payment_date, receipt_date, coverage_start, coverage_end)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (flat_no, member_name, float(amount), pymnt_mode, subscription_type, remarks, payment_date, receipt_date, coverage_start, coverage_end)
+        max_r_row = query_db("SELECT COALESCE(MAX(receipt_no), 2390) + 1 as next_r FROM tbl_receipts", one=True)
+        calc_next = int(max_r_row['next_r']) if max_r_row else 2391
+        r_no = int(receipt_no_input) if (receipt_no_input and receipt_no_input.isdigit()) else calc_next
+
+        execute_db(
+            """INSERT INTO tbl_receipts (receipt_no, flat_no, member_name, amount, pymnt_mode, subscription_type, remarks, payment_date, receipt_date, coverage_start, coverage_end)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (r_no, flat_no, member_name, float(amount), pymnt_mode, subscription_type, remarks, payment_date, receipt_date, coverage_start, coverage_end)
         )
-        flash(f"Receipt #{receipt_no} generated successfully for Flat {flat_no} ({member_name})!", 'success')
+        receipt_no = r_no
+        flash(f"✓ Receipt #{receipt_no} (SDERA_{receipt_no}) generated successfully for Flat {flat_no} ({member_name})!", 'success')
         
         if auto_email:
             send_res = send_receipt_email(receipt_no)
             if send_res['success']:
-                flash("Receipt emailed to resident.", 'info')
+                flash(f"✓ Official receipt PDF emailed to Flat {flat_no}.", 'info')
     except Exception as e:
         flash(f"Error creating receipt: {e}", 'danger')
         

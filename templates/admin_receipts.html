@@ -11,7 +11,7 @@
 
     <div class="page-header-actions">
         <button type="button" class="btn btn-primary" onclick="openModal('createReceiptModal')">
-            ➕ Issue New Receipt
+            ➕ Issue New Receipt <span class="badge badge-info" style="margin-left: 0.35rem; background: rgba(255,255,255,0.22); color: #fff; font-weight: 700;">#{{ next_receipt_no }}</span>
         </button>
     </div>
 </div>
@@ -130,19 +130,42 @@
 <div id="createReceiptModal" class="modal-backdrop">
     <div class="modal-card">
         <div class="modal-header">
-            <h3 class="card-title" style="font-size: 1.2rem;">
-                ➕ Issue Maintenance Payment Receipt
-            </h3>
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <h3 class="card-title" style="font-size: 1.2rem; margin: 0;">
+                    ➕ Issue Maintenance Payment Receipt
+                </h3>
+                <span class="badge badge-success" style="font-size: 0.9rem; padding: 0.3rem 0.65rem; font-weight: 700;">
+                    SDERA_{{ next_receipt_no }} (Receipt #{{ next_receipt_no }})
+                </span>
+            </div>
             <button type="button" class="close-btn" onclick="closeModal('createReceiptModal')">&times;</button>
         </div>
         <form method="POST" action="{{ url_for('create_receipt') }}">
             <div class="modal-body">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="rcpt_no">Receipt Number *</label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <span style="position: absolute; left: 0.85rem; color: var(--highlight-blue); font-weight: 700; font-size: 0.95rem;">SDERA_</span>
+                            <input type="number" id="rcpt_no" name="receipt_no" class="form-control" style="padding-left: 4.6rem; font-weight: 700; color: var(--highlight-blue); background: var(--surface-card);" value="{{ next_receipt_no }}" readonly>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem; display: block;">Auto-assigned next official receipt sequence</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="rcpt_date">Payment Date *</label>
+                        <input type="date" id="rcpt_date" name="payment_date" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label class="form-label" for="rcpt_flat">Select Flat Resident *</label>
-                    <select id="rcpt_flat" name="flat_no" class="form-select" required>
+                    <select id="rcpt_flat" name="flat_no" class="form-select" onchange="updateReceiptFlatCharge(this)" required>
                         <option value="">-- Choose Flat Resident --</option>
                         {% for f in all_flats %}
-                        <option value="{{ f.flat_no }}">Flat {{ f.flat_no }} - {{ f.member_name }}</option>
+                        <option value="{{ f.flat_no }}" data-monthly-charge="{{ f.monthly_charge or 2000.00 }}" {% if flat_filter == f.flat_no %}selected{% endif %}>
+                            Flat {{ f.flat_no }} - {{ f.member_name }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -151,17 +174,6 @@
                     <div class="form-group">
                         <label class="form-label" for="rcpt_amount">Amount Received (INR) *</label>
                         <input type="number" step="0.01" id="rcpt_amount" name="amount" class="form-control" value="2000.00" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="rcpt_date">Payment Date *</label>
-                        <input type="date" id="rcpt_date" name="payment_date" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required>
-                    </div>
-                </div>
-
-                <div class="grid-2">
-                    <div class="form-group">
-                        <label class="form-label" for="rcpt_remarks">Month / Remarks *</label>
-                        <input type="text" id="rcpt_remarks" name="remarks" class="form-control" value="Aug'2026" required>
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="rcpt_mode">Payment Mode *</label>
@@ -173,9 +185,15 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label" for="rcpt_sub_type">Subscription Type</label>
-                    <input type="text" id="rcpt_sub_type" name="subscription_type" class="form-control" value="Monthly Subscription">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="rcpt_remarks">Month / Remarks *</label>
+                        <input type="text" id="rcpt_remarks" name="remarks" class="form-control" value="Aug'2026" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="rcpt_sub_type">Subscription Type</label>
+                        <input type="text" id="rcpt_sub_type" name="subscription_type" class="form-control" value="Monthly Subscription">
+                    </div>
                 </div>
 
                 <div style="background: var(--surface-card); border: 1px solid var(--surface-border); padding: 0.85rem 1rem; border-radius: var(--radius-md);">
@@ -192,4 +210,18 @@
         </form>
     </div>
 </div>
+
+<script>
+function updateReceiptFlatCharge(selectEl) {
+    if (!selectEl) return;
+    const opt = selectEl.options[selectEl.selectedIndex];
+    if (opt && opt.getAttribute('data-monthly-charge')) {
+        const chg = parseFloat(opt.getAttribute('data-monthly-charge'));
+        const amtInput = document.getElementById('rcpt_amount');
+        if (amtInput && chg > 0) {
+            amtInput.value = chg.toFixed(2);
+        }
+    }
+}
+</script>
 {% endblock %}
