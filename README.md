@@ -44,10 +44,10 @@ All test accounts use default password: **`sdera@123`**
 
 | Role | Name | Username | Flat | Permissions |
 | :--- | :--- | :--- | :--- | :--- |
-| **President** | Subhashish Mukherjee | `president` | A-401 | Full Association & Financial Admin |
-| **Secretary** | Debasish Roy | `secretary` | B-202 | Member & Operational Admin |
+| **President** | Dr. Asit Kumar Bera | `president` | A-401 | Full Association & Financial Admin |
+| **Secretary** | Somenath Halder | `secretary` | B-202 | Member & Operational Admin |
 | **Treasurer** | Swapnadeep Ganguly | `treasurer` | A/4-C | Receipts & Expense Management |
-| **Caretaker** | Bikas Mondal | `caretaker` | Staff (CT-01) | Roster & Payment Collection Entry |
+| **Caretaker** | Sanjoy Chakraborty | `caretaker` | Staff (CT-01) | Roster & Payment Collection Entry |
 | **Member** | Sourav Ganguly | `sourav101` | A-101 | Personal Receipts & Expense View Only |
 | **Member** | Anirban Bhattacharya | `anirban201` | A-201 | Personal Receipts & Expense View Only |
 | **Member** | Priya Mukherjee | `priya301` | A-301 | Personal Receipts & Expense View Only |

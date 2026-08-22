@@ -244,11 +244,11 @@ def hash_password(plain_password: str) -> str:
 SEED_NOTICES = [
     (
         "Overhead Water Tank Deep Cleaning & Disinfection Schedule",
-        "Dear Residents,\n\nPlease be informed that annual chemical cleaning and pressure-washing of both Block A and Block B overhead and underground water reservoirs is scheduled for Sunday, August 30, from 8:00 AM to 3:00 PM.\n\n• Water supply will be temporarily interrupted during these hours.\n• Please store sufficient water in advance for morning household requirements.\n• Normal water supply will resume by 4:00 PM post-disinfection.\n\nFor any urgent queries, contact Caretaker Bikas Mondal (+91 98300 12345).",
+        "Dear Residents,\n\nPlease be informed that annual chemical cleaning and pressure-washing of both Block A and Block B overhead and underground water reservoirs is scheduled for Sunday, August 30, from 8:00 AM to 3:00 PM.\n\n• Water supply will be temporarily interrupted during these hours.\n• Please store sufficient water in advance for morning household requirements.\n• Normal water supply will resume by 4:00 PM post-disinfection.\n\nFor any urgent queries, contact Caretaker Sanjoy Chakraborty (+91 98300 12345).",
         "WATER_SUPPLY",
         "URGENT",
         1,
-        "Debasish Roy",
+        "Somenath Halder",
         "Secretary"
     ),
     (
@@ -257,7 +257,7 @@ SEED_NOTICES = [
         "AGM_MEETING",
         "HIGH",
         1,
-        "Subhashish Mukherjee",
+        "Dr. Asit Kumar Bera",
         "President"
     ),
     (
@@ -275,7 +275,7 @@ SEED_NOTICES = [
         "EVENTS_FESTIVAL",
         "NORMAL",
         0,
-        "Debasish Roy",
+        "Somenath Halder",
         "Secretary"
     ),
     (
@@ -284,13 +284,13 @@ SEED_NOTICES = [
         "SECURITY",
         "NORMAL",
         0,
-        "Bikas Mondal",
+        "Sanjoy Chakraborty",
         "Caretaker"
     )
 ]
 
 def ensure_notices_table_sqlite():
-    """Ensure tbl_notices table and seed notices exist in SQLite."""
+    """Ensure tbl_notices table, seed notices, and name updates exist in SQLite."""
     conn = get_sqlite_connection()
     try:
         cur = conn.cursor()
@@ -317,13 +317,29 @@ def ensure_notices_table_sqlite():
                     INSERT INTO tbl_notices (title, content, category, priority, is_pinned, posted_by, posted_by_role, status)
                     VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE');
                 """, (title, content, cat, prio, pinned, by_name, by_role))
-            conn.commit()
             print(f"[DB Init] Seeded {len(SEED_NOTICES)} initial digital notices in SQLite.")
+        else:
+            # Update existing records with verified committee names
+            cur.execute("UPDATE tbl_notices SET posted_by = 'Somenath Halder' WHERE posted_by = 'Debasish Roy';")
+            cur.execute("UPDATE tbl_notices SET posted_by = 'Dr. Asit Kumar Bera' WHERE posted_by = 'Subhashish Mukherjee';")
+            cur.execute("UPDATE tbl_notices SET posted_by = 'Sanjoy Chakraborty' WHERE posted_by = 'Bikas Mondal';")
+            cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Debasish Roy', 'Somenath Halder');")
+            cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Subhashish Mukherjee', 'Dr. Asit Kumar Bera');")
+            cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Bikas Mondal', 'Sanjoy Chakraborty');")
+            
+        try:
+            cur.execute("UPDATE members SET name = 'Somenath Halder' WHERE name = 'Debasish Roy';")
+            cur.execute("UPDATE members SET name = 'Dr. Asit Kumar Bera' WHERE name = 'Subhashish Mukherjee';")
+            cur.execute("UPDATE members SET name = 'Sanjoy Chakraborty (Caretaker)' WHERE name LIKE '%Bikas Mondal%';")
+        except Exception:
+            pass
+
+        conn.commit()
     finally:
         conn.close()
 
 def ensure_notices_table_mysql(conn):
-    """Ensure tbl_notices table and seed notices exist in MySQL."""
+    """Ensure tbl_notices table, seed notices, and name updates exist in MySQL."""
     with conn.cursor() as cur:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS tbl_notices (
@@ -353,8 +369,24 @@ def ensure_notices_table_mysql(conn):
                     INSERT INTO tbl_notices (title, content, category, priority, is_pinned, posted_by, posted_by_role, status)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE');
                 """, (title, content, cat, prio, pinned, by_name, by_role))
-            conn.commit()
             print(f"[DB Init] Seeded {len(SEED_NOTICES)} initial digital notices in MySQL.")
+        else:
+            # Update existing records with verified committee names
+            cur.execute("UPDATE tbl_notices SET posted_by = 'Somenath Halder' WHERE posted_by = 'Debasish Roy';")
+            cur.execute("UPDATE tbl_notices SET posted_by = 'Dr. Asit Kumar Bera' WHERE posted_by = 'Subhashish Mukherjee';")
+            cur.execute("UPDATE tbl_notices SET posted_by = 'Sanjoy Chakraborty' WHERE posted_by = 'Bikas Mondal';")
+            cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Debasish Roy', 'Somenath Halder');")
+            cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Subhashish Mukherjee', 'Dr. Asit Kumar Bera');")
+            cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Bikas Mondal', 'Sanjoy Chakraborty');")
+            
+        try:
+            cur.execute("UPDATE members SET name = 'Somenath Halder' WHERE name = 'Debasish Roy';")
+            cur.execute("UPDATE members SET name = 'Dr. Asit Kumar Bera' WHERE name = 'Subhashish Mukherjee';")
+            cur.execute("UPDATE members SET name = 'Sanjoy Chakraborty (Caretaker)' WHERE name LIKE '%Bikas Mondal%';")
+        except Exception:
+            pass
+
+        conn.commit()
 
 def init_db():
     """

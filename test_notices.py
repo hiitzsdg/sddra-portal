@@ -67,7 +67,7 @@ class TestDigitalNoticeBoard(unittest.TestCase):
             sess['user'] = {
                 'id': 99,
                 'username': 'secretary',
-                'name': 'Debasish Roy',
+                'name': 'Somenath Halder',
                 'flat_no': 'B-202',
                 'role': 'secretary',
                 'is_admin': True
