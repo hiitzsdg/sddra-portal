@@ -243,7 +243,11 @@
                 <p style="font-size: 0.78rem; margin-top: 4px; color: var(--text-muted);">Reg No: {{ config.ASSOCIATION_REG_NO }} &bull; {{ config.ASSOCIATION_ADDRESS }}</p>
             </div>
             <div style="text-align: right; font-size: 0.82rem; color: var(--text-muted);">
+                {% if current_user %}
                 <p>Support Helpline: <strong class="text-highlight-blue">{{ config.ASSOCIATION_PHONE }}</strong> &bull; {{ config.ASSOCIATION_EMAIL }}</p>
+                {% else %}
+                <p>Official Enquiries: <a href="mailto:{{ config.ASSOCIATION_EMAIL }}" style="color: var(--primary); text-decoration: underline;">{{ config.ASSOCIATION_EMAIL }}</a></p>
+                {% endif %}
                 <p style="margin-top: 4px; color: var(--text-muted);">&copy; {{ now.year }} SDERA. Secured Role-Based Residential Portal.</p>
             </div>
         </div>
