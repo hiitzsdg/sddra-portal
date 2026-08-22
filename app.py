@@ -3,7 +3,7 @@ import re
 import calendar
 import traceback
 from functools import wraps
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from decimal import Decimal
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort, Response
 from config import Config
@@ -73,6 +73,47 @@ def inject_globals():
         'is_billing_admin': is_billing_admin,
         'asset_version': '2.1.2'
     }
+
+# --- Activity & Audit Logging Engine ---
+def log_activity(action_type, description, actor=None, ip_address=None):
+    """Record an audit trail entry for member & administrator actions across the portal."""
+    try:
+        if actor is None:
+            actor = session.get('user', {})
+        if not isinstance(actor, dict):
+            actor = {}
+            
+        username = actor.get('username', 'System')
+        name = actor.get('name', username)
+        role = actor.get('role', 'MEMBER')
+        flat_no = actor.get('flat_no', '-')
+        
+        if not ip_address:
+            try:
+                ip_address = request.headers.get('X-Forwarded-For', request.remote_addr) if request else '127.0.0.1'
+                if ip_address and ',' in ip_address:
+                    ip_address = ip_address.split(',')[0].strip()
+            except Exception:
+                ip_address = '127.0.0.1'
+                
+        now_dt = datetime.now()
+        execute_db(
+            """INSERT INTO tbl_activity_logs (actor_username, actor_name, actor_role, flat_no, action_type, description, ip_address, created_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (username, name, role, flat_no, action_type, description, ip_address or '127.0.0.1', now_dt)
+        )
+        
+        # Legacy audit_log table sync
+        admin_id = actor.get('id') if actor.get('is_admin') else 0
+        try:
+            execute_db(
+                "INSERT INTO audit_log (admin_id, action, timestamp) VALUES (%s, %s, %s)",
+                (admin_id, f"[{username}] {action_type}: {description}", now_dt)
+            )
+        except Exception:
+            pass
+    except Exception as err:
+        app.logger.warning(f"Could not persist activity log: {err}")
 
 # --- Defensive Decorators ---
 def login_required(f):
@@ -212,6 +253,7 @@ def login():
                     'is_admin': True,
                     'flat_no': officer_flats.get(admin_u, 'Office')
                 }
+                log_activity('LOGIN', f"Administrative sign in ({officer_titles.get(admin_u, admin['username'])})", actor=session['user'])
                 flash(f"Login successful! Welcome, {officer_titles.get(admin_u, admin['username'])}.", 'success')
                 next_p = request.args.get('next')
                 return redirect(next_p or url_for('dashboard'))
@@ -266,6 +308,7 @@ def login():
                     'monthly_charge': member.get('monthly_charge', 0),
                     'sq_feet': member.get('RvsdFlatSize')
                 }
+                log_activity('LOGIN', f"Member signed in to resident portal from Flat {member['flat_no']}", actor=session['user'])
                 flash(f"Welcome, {member['member_name']} (Flat {member['flat_no']})!", 'success')
                 next_p = request.args.get('next')
                 return redirect(next_p or url_for('dashboard'))
@@ -278,6 +321,7 @@ def login():
 
 @app.route('/logout')
 def logout():
+    log_activity('LOGOUT', f"User signed out from portal")
     session.clear()
     flash('You have been logged out successfully.', 'info')
     return redirect(url_for('login'))
@@ -335,6 +379,7 @@ def profile():
                     session['user']['phone'] = phone1
                     session.modified = True
                     
+                log_activity('PROFILE_UPDATE', f"Updated official contact info for Flat {flat_no} (Email: {email1}, Phone: {phone1})")
                 flash('Contact details updated successfully in the official registry.', 'success')
                 return redirect(url_for('profile'))
             except Exception as e:
@@ -362,6 +407,7 @@ def profile():
                     else:
                         execute_db("UPDATE tbl_membership SET password_hash = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (new_h, flat_no))
                     session.modified = True
+                    log_activity('PASSWORD_CHANGE', f"Changed portal account security password for Flat {flat_no}")
                     flash('Your password has been updated successfully!', 'success')
                     return redirect(url_for('profile'))
                 except Exception as e:
@@ -414,6 +460,7 @@ def dashboard():
         
         pinned_notices = query_db("SELECT * FROM tbl_notices WHERE is_pinned = 1 AND status = 'ACTIVE' ORDER BY priority = 'URGENT' DESC, id DESC LIMIT 3") or []
         recent_notices = query_db("SELECT * FROM tbl_notices WHERE status = 'ACTIVE' ORDER BY is_pinned DESC, priority = 'URGENT' DESC, id DESC LIMIT 4") or []
+        recent_activity_logs = query_db("SELECT * FROM tbl_activity_logs ORDER BY id DESC LIMIT 6") or []
 
         return render_template(
             'dashboard.html',
@@ -429,6 +476,7 @@ def dashboard():
             total_maintenance_overdue=total_maintenance_overdue,
             recent_receipts=recent_receipts,
             recent_expenses=recent_expenses,
+            recent_activity_logs=recent_activity_logs,
             pinned_notices=pinned_notices,
             recent_notices=recent_notices,
             search_q=search_q,
@@ -656,6 +704,7 @@ def add_expense():
                VALUES (%s, %s, %s, %s, %s, %s, %s)""",
             (v_no, voucher_date, expense_description, particulars, spl_head, payment_by, float(amount))
         )
+        log_activity('EXPENSE_RECORDED', f"Recorded Expense Voucher #{v_no} ({expense_description}) - INR {float(amount):,.2f} ({particulars})")
         flash(f"✓ Expense voucher #{v_no} for INR {float(amount):,.2f} recorded successfully.", 'success')
     except Exception as e:
         flash(f"Error adding expense: {e}", 'danger')
@@ -688,6 +737,7 @@ def edit_expense(voucher_no):
                WHERE voucher_no = %s""",
             (voucher_date, expense_description, particulars, spl_head, payment_by, amount, voucher_no)
         )
+        log_activity('EXPENSE_UPDATED', f"Updated Expense Voucher #{voucher_no} ({expense_description}) - INR {amount:,.2f} ({particulars})")
         flash(f"✓ Expense Voucher #{voucher_no} updated successfully.", 'success')
     except Exception as e:
         flash(f"Error updating expense voucher #{voucher_no}: {e}", 'danger')
@@ -698,6 +748,7 @@ def edit_expense(voucher_no):
 @roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
 def delete_expense(voucher_no):
     execute_db("DELETE FROM tbl_expenses WHERE voucher_no = %s", (voucher_no,))
+    log_activity('EXPENSE_DELETED', f"Deleted Expense Voucher #{voucher_no}")
     flash(f"Voucher #{voucher_no} deleted.", 'info')
     return redirect(url_for('expenses_list'))
 
@@ -769,6 +820,7 @@ def create_receipt():
             (r_no, flat_no, member_name, float(amount), pymnt_mode, subscription_type, remarks, payment_date, receipt_date, coverage_start, coverage_end)
         )
         receipt_no = r_no
+        log_activity('RECEIPT_ISSUED', f"Generated Receipt #{receipt_no} for Flat {flat_no} ({member_name}) - INR {float(amount):,.2f} ({remarks})")
         flash(f"✓ Receipt #{receipt_no} (SDERA_{receipt_no}) generated successfully for Flat {flat_no} ({member_name})!", 'success')
         
         if auto_email:
@@ -790,6 +842,7 @@ def delete_receipt(receipt_no):
             execute_db("DELETE FROM receipts WHERE receipt_no = %s OR receipt_no = %s", (str(receipt_no), f"SDERA_{receipt_no}"))
         except Exception:
             pass
+        log_activity('RECEIPT_DELETED', f"Deleted Receipt #{receipt_no} for Flat {rcpt['flat_no'] if rcpt else '-'}")
         if rcpt:
             flash(f"✓ Receipt #{receipt_no} (SDERA_{receipt_no}) for Flat {rcpt['flat_no']} ({rcpt['member_name']}) was deleted successfully.", 'info')
         else:
@@ -861,11 +914,74 @@ def admin_update_member_contact():
         except Exception:
             pass
             
+        log_activity('PROFILE_UPDATE', f"Treasurer/Admin updated official contact registry for Flat {flat_no} (Email: {email}, Phone: {phone})")
         flash(f"✓ Contact details for Flat {flat_no} updated successfully ({email}).", 'success')
     except Exception as e:
         flash(f"Error updating contact details for Flat {flat_no}: {e}", 'danger')
         
     return redirect(url_for('admin_members'))
+
+# --- Administrative: Activity & Audit Trail Panel ---
+@app.route('/admin/audit-logs')
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def admin_audit_logs():
+    search_q = request.args.get('q', '').strip()
+    role_filter = request.args.get('role', '').strip()
+    action_filter = request.args.get('action', '').strip()
+    days_filter = request.args.get('days', '30').strip()
+    
+    query = "SELECT * FROM tbl_activity_logs WHERE 1=1"
+    params = []
+    
+    if search_q:
+        query += " AND (actor_username LIKE %s OR actor_name LIKE %s OR flat_no LIKE %s OR description LIKE %s OR action_type LIKE %s)"
+        params.extend([f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", f"%{search_q}%"])
+        
+    if role_filter:
+        query += " AND actor_role = %s"
+        params.append(role_filter)
+        
+    if action_filter:
+        query += " AND action_type = %s"
+        params.append(action_filter)
+        
+    if days_filter and days_filter.isdigit():
+        d_val = int(days_filter)
+        if d_val > 0:
+            query += " AND created_at >= %s"
+            params.append(datetime.now() - timedelta(days=d_val))
+            
+    query += " ORDER BY id DESC LIMIT 500"
+    
+    logs = query_db(query, params) or []
+    
+    # Calculate stats
+    total_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs", one=True)
+    member_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs WHERE actor_role = 'MEMBER'", one=True)
+    admin_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs WHERE actor_role != 'MEMBER'", one=True)
+    security_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs WHERE action_type IN ('LOGIN', 'LOGOUT', 'PASSWORD_CHANGE')", one=True)
+    
+    stats = {
+        'total': total_logs_cnt['c'] if total_logs_cnt else 0,
+        'member': member_logs_cnt['c'] if member_logs_cnt else 0,
+        'admin': admin_logs_cnt['c'] if admin_logs_cnt else 0,
+        'security': security_logs_cnt['c'] if security_logs_cnt else 0
+    }
+    
+    distinct_roles = query_db("SELECT DISTINCT actor_role FROM tbl_activity_logs WHERE actor_role IS NOT NULL ORDER BY actor_role") or []
+    distinct_actions = query_db("SELECT DISTINCT action_type FROM tbl_activity_logs WHERE action_type IS NOT NULL ORDER BY action_type") or []
+    
+    return render_template(
+        'admin_audit_logs.html',
+        logs=logs,
+        stats=stats,
+        distinct_roles=distinct_roles,
+        distinct_actions=distinct_actions,
+        search_q=search_q,
+        current_role=role_filter,
+        current_action=action_filter,
+        current_days=days_filter
+    )
 
 @app.route('/api/db-status')
 def api_db_status():
@@ -1298,6 +1414,7 @@ def admin_billing_rates():
                     
                     new_total += compute_flat_monthly_charge(sq_ft, flat_charges, capital_fund, common_expenses, cps_chg, tws_chg)
                 
+                log_activity('RATES_UPDATED', f"Applied new global maintenance rates: Flat SqFt Rs {flat_charges}, Common Rs {common_expenses}, CPS Rs {cps_rate}, TwS Rs {tws_rate}")
                 flash(f"⚡ Tariff Rate Scale applied to all 44 flats! Monthly society inflow updated: ₹{old_total:,.2f} ➔ ₹{new_total:,.2f} (Delta: {'+' if new_total >= old_total else ''}₹{new_total - old_total:,.2f})", 'success')
                 return redirect(url_for('admin_billing_rates'))
             except Exception as e:
@@ -1530,6 +1647,7 @@ def notices_create():
             res = broadcast_notice_email(notice_dict, author_name=posted_by)
             broadcast_msg = f" • Email broadcast dispatched to {res.get('recipients_count', 'all')} member inboxes."
             
+        log_activity('NOTICE_PUBLISHED', f"Published official notice #{notice_id}: '{title}' ({category} / {priority})")
         flash(f"📢 Official notice '{title}' published successfully!{broadcast_msg}", 'success')
     except Exception as e:
         flash(f"Error publishing notice: {e}", 'danger')
@@ -1557,6 +1675,7 @@ def notices_edit(notice_id):
                WHERE id = %s""",
             (title, content, category, priority, is_pinned, status, notice_id)
         )
+        log_activity('NOTICE_UPDATED', f"Updated official notice #{notice_id}: '{title}'")
         flash(f"Notice #{notice_id} updated successfully.", 'success')
     except Exception as e:
         flash(f"Error updating notice: {e}", 'danger')
@@ -1584,6 +1703,7 @@ def notices_toggle_pin(notice_id):
 def notices_delete(notice_id):
     try:
         execute_db("DELETE FROM tbl_notices WHERE id = %s", (notice_id,))
+        log_activity('NOTICE_DELETED', f"Deleted notice #{notice_id}")
         flash(f"Notice #{notice_id} was removed successfully.", 'info')
     except Exception as e:
         flash(f"Error deleting notice: {e}", 'danger')
@@ -1599,6 +1719,7 @@ def notices_broadcast(notice_id):
             return redirect(url_for('notices_list'))
         user = session.get('user', {})
         res = broadcast_notice_email(notice, author_name=user.get('name'))
+        log_activity('NOTICE_BROADCAST', f"Broadcast notice #{notice_id} ('{notice['title']}') to resident emails")
         flash(f"📢 {res.get('message', 'Notice broadcast sent successfully!')}", 'success')
     except Exception as e:
         flash(f"Error broadcasting notice: {e}", 'danger')

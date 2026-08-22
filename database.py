@@ -537,6 +537,24 @@ def ensure_mysql_schema(conn):
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) ENGINE=InnoDB;
         """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tbl_activity_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                actor_username VARCHAR(50) NOT NULL,
+                actor_name VARCHAR(150) DEFAULT NULL,
+                actor_role VARCHAR(50) NOT NULL DEFAULT 'MEMBER',
+                flat_no VARCHAR(20) DEFAULT '-',
+                action_type VARCHAR(50) NOT NULL,
+                description TEXT NOT NULL,
+                ip_address VARCHAR(50) DEFAULT '127.0.0.1',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_actor (actor_username),
+                INDEX idx_action (action_type),
+                INDEX idx_flat (flat_no),
+                INDEX idx_time (created_at)
+            ) ENGINE=InnoDB;
+        """)
         conn.commit()
 
         # 2. Check if tbl_membership has data

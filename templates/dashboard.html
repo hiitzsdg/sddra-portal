@@ -282,6 +282,58 @@
     </div>
 </div>
 
+<!-- Super Admin / Officer Activity Logs Quick Preview -->
+<div class="card" style="margin-top: 1.5rem; margin-bottom: 2rem;">
+    <div class="card-header">
+        <h3 class="card-title">🛡️ Recent Member & Administrator Activity Audit</h3>
+        <a href="{{ url_for('admin_audit_logs') }}" class="btn btn-sm btn-outline-primary">Open Full Audit Console (Live Trail) &rarr;</a>
+    </div>
+    <div class="table-container" style="max-height: 290px; overflow-y: auto;">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th style="width: 165px;">Timestamp</th>
+                    <th>Actor / Flat</th>
+                    <th>Role</th>
+                    <th>Action</th>
+                    <th>Activity Detail</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for l in recent_activity_logs %}
+                <tr>
+                    <td class="text-secondary" style="font-size: 0.82rem; white-space: nowrap;">
+                        {{ l.created_at.strftime('%Y-%m-%d %H:%M') if l.created_at else '-' }}
+                    </td>
+                    <td>
+                        <strong class="text-main" style="font-size: 0.88rem;">{{ l.actor_name or l.actor_username }}</strong>
+                        {% if l.flat_no and l.flat_no != '-' %}
+                        <span class="badge badge-info" style="font-size: 0.7rem; padding: 0.12rem 0.35rem; margin-left: 3px;">Flat {{ l.flat_no }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set r_lower = (l.actor_role or 'member')|lower %}
+                        <span class="badge badge-{{ r_lower }}" style="font-size: 0.72rem;">{{ l.actor_role }}</span>
+                    </td>
+                    <td>
+                        <span class="badge badge-secondary" style="font-size: 0.74rem;">{{ l.action_type }}</span>
+                    </td>
+                    <td>
+                        <span class="text-main" style="font-size: 0.85rem; line-height: 1.35;">{{ l.description }}</span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No activity records found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 {% else %}
 <!-- ================= REGULAR RESIDENT DASHBOARD ================= -->
 <div class="grid-3" style="margin-bottom: 2rem;">

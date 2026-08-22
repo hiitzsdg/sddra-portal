@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+
+{% block title %}Activity Logs & Audit Trail - SDDRA Portal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-title">
+        <h2>🛡️ Member & Administrator Activity Audit Trail</h2>
+        <p>Comprehensive audit log tracking logins, profile changes, receipt transactions, expense vouchers, and system modifications.</p>
+    </div>
+
+    <div class="page-header-actions">
+        <button type="button" class="btn btn-secondary" onclick="window.print()">
+            🖨️ Print Audit Log
+        </button>
+        <a href="{{ url_for('admin_audit_logs') }}" class="btn btn-primary">
+            🔄 Refresh Live Logs
+        </a>
+    </div>
+</div>
+
+<!-- Stat Overview Cards -->
+<div class="grid-4" style="margin-bottom: 2rem;">
+    <div class="card" style="padding: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <p class="text-muted" style="font-size: 0.82rem; margin: 0 0 0.35rem; text-transform: uppercase; letter-spacing: 0.05em;">Total Logged Events</p>
+                <h3 style="font-size: 1.8rem; margin: 0; font-weight: 800; color: var(--text-main);">{{ stats.total }}</h3>
+            </div>
+            <span style="font-size: 1.8rem;">📊</span>
+        </div>
+        <div style="margin-top: 0.6rem; font-size: 0.78rem;" class="text-muted">Master database audit records</div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <p class="text-muted" style="font-size: 0.82rem; margin: 0 0 0.35rem; text-transform: uppercase; letter-spacing: 0.05em;">Resident Member Actions</p>
+                <h3 style="font-size: 1.8rem; margin: 0; font-weight: 800; color: #2563eb;">{{ stats.member }}</h3>
+            </div>
+            <span style="font-size: 1.8rem;">👤</span>
+        </div>
+        <div style="margin-top: 0.6rem; font-size: 0.78rem;" class="text-muted">Logins & profile contact updates</div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <p class="text-muted" style="font-size: 0.82rem; margin: 0 0 0.35rem; text-transform: uppercase; letter-spacing: 0.05em;">Admin & Officer Actions</p>
+                <h3 style="font-size: 1.8rem; margin: 0; font-weight: 800; color: #10b981;">{{ stats.admin }}</h3>
+            </div>
+            <span style="font-size: 1.8rem;">⚡</span>
+        </div>
+        <div style="margin-top: 0.6rem; font-size: 0.78rem;" class="text-muted">Receipts, expenses & notices</div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <p class="text-muted" style="font-size: 0.82rem; margin: 0 0 0.35rem; text-transform: uppercase; letter-spacing: 0.05em;">Security & Auth Events</p>
+                <h3 style="font-size: 1.8rem; margin: 0; font-weight: 800; color: #f59e0b;">{{ stats.security }}</h3>
+            </div>
+            <span style="font-size: 1.8rem;">🔒</span>
+        </div>
+        <div style="margin-top: 0.6rem; font-size: 0.78rem;" class="text-muted">Sign-ins, sign-outs & passwords</div>
+    </div>
+</div>
+
+<!-- Filters & Search Form -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1.35rem;">
+    <form method="GET" action="{{ url_for('admin_audit_logs') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 240px;">
+            <label class="form-label" for="liveAuditSearch">Live Instant Search / Filter</label>
+            <div class="live-search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="liveAuditSearch" name="q" value="{{ search_q or '' }}" class="form-control" placeholder="Search by flat (e.g. A/2-D), name, action, or keyword..." data-live-search="#auditLogsTable" data-search-counter="#auditCountBadge" data-clear-btn="clearAuditSearch">
+                <button type="button" id="clearAuditSearch" class="clear-btn" title="Clear search">&times;</button>
+            </div>
+        </div>
+
+        <div style="width: 180px;">
+            <label class="form-label" for="roleFilter">Filter by Role</label>
+            <select id="roleFilter" name="role" class="form-select">
+                <option value="">All Roles</option>
+                {% for r in distinct_roles %}
+                <option value="{{ r.actor_role }}" {% if current_role == r.actor_role %}selected{% endif %}>
+                    {{ r.actor_role }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="width: 200px;">
+            <label class="form-label" for="actionFilter">Filter by Action</label>
+            <select id="actionFilter" name="action" class="form-select">
+                <option value="">All Action Types</option>
+                {% for a in distinct_actions %}
+                <option value="{{ a.action_type }}" {% if current_action == a.action_type %}selected{% endif %}>
+                    {{ a.action_type.replace('_', ' ') }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="width: 160px;">
+            <label class="form-label" for="daysFilter">Time Range</label>
+            <select id="daysFilter" name="days" class="form-select">
+                <option value="7" {% if current_days == '7' %}selected{% endif %}>Last 7 Days</option>
+                <option value="30" {% if current_days == '30' or not current_days %}selected{% endif %}>Last 30 Days</option>
+                <option value="90" {% if current_days == '90' %}selected{% endif %}>Last 90 Days</option>
+                <option value="0" {% if current_days == '0' %}selected{% endif %}>All Time</option>
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary">🔍 Query</button>
+            <a href="{{ url_for('admin_audit_logs') }}" class="btn btn-secondary">Reset</a>
+        </div>
+    </form>
+</div>
+
+<!-- Audit Log Records Table -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">📜 Chronological Activity Records</h3>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span id="auditCountBadge" class="badge badge-info">{{ logs|length }} Events Found</span>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="custom-table" id="auditLogsTable">
+            <thead>
+                <tr>
+                    <th style="width: 175px;">Timestamp</th>
+                    <th>Actor / Flat</th>
+                    <th>Role</th>
+                    <th>Action Type</th>
+                    <th>Details & Description</th>
+                    <th>IP / Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for l in logs %}
+                <tr>
+                    <td class="text-secondary" style="font-size: 0.85rem; white-space: nowrap;">
+                        <span style="display: block; font-weight: 600; color: var(--text-main);">{{ l.created_at.strftime('%Y-%m-%d %H:%M:%S') if l.created_at else '-' }}</span>
+                    </td>
+                    <td>
+                        <div>
+                            <strong class="text-main" style="display: block;">{{ l.actor_name or l.actor_username }}</strong>
+                            {% if l.flat_no and l.flat_no != '-' %}
+                            <span class="badge badge-info" style="font-size: 0.72rem; padding: 0.15rem 0.4rem; margin-top: 0.2rem;">Flat {{ l.flat_no }}</span>
+                            {% else %}
+                            <span class="text-muted" style="font-size: 0.75rem;">{{ l.actor_username }}</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        {% set role_lower = (l.actor_role or 'member')|lower %}
+                        <span class="badge badge-{{ role_lower }}" style="font-size: 0.78rem;">
+                            {{ l.actor_role }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if 'LOGIN' in l.action_type %}
+                        <span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                            <span>🔐</span> Login
+                        </span>
+                        {% elif 'LOGOUT' in l.action_type %}
+                        <span class="badge badge-secondary" style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                            <span>🚪</span> Logout
+                        </span>
+                        {% elif 'PASSWORD' in l.action_type %}
+                        <span class="badge badge-warning" style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                            <span>🔑</span> Security
+                        </span>
+                        {% elif 'PROFILE' in l.action_type or 'CONTACT' in l.action_type %}
+                        <span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                            <span>⚙️</span> Profile
+                        </span>
+                        {% elif 'RECEIPT' in l.action_type %}
+                        <span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                            <span>💳</span> Receipt
+                        </span>
+                        {% elif 'EXPENSE' in l.action_type %}
+                        <span class="badge badge-warning" style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                            <span>🧾</span> Expense
+                        </span>
+                        {% elif 'NOTICE' in l.action_type %}
+                        <span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                            <span>📢</span> Notice
+                        </span>
+                        {% elif 'RATE' in l.action_type or 'TARIFF' in l.action_type %}
+                        <span class="badge badge-primary" style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                            <span>⚡</span> Tariff
+                        </span>
+                        {% else %}
+                        <span class="badge badge-secondary">{{ l.action_type }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="text-main" style="font-size: 0.9rem; line-height: 1.4; display: block;">
+                            {{ l.description }}
+                        </span>
+                    </td>
+                    <td class="text-muted" style="font-size: 0.8rem; font-family: monospace;">
+                        {{ l.ip_address or '127.0.0.1' }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                        No activity records found matching the specified search criteria.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
