@@ -616,6 +616,9 @@ def expenses_list():
     total_incurred_row = query_db("SELECT COALESCE(SUM(amount), 0) as total FROM tbl_expenses", one=True)
     total_incurred = float(total_incurred_row['total']) if total_incurred_row else 0.0
     
+    next_voucher_row = query_db("SELECT COALESCE(MAX(voucher_no), 0) + 1 as next_v FROM tbl_expenses", one=True)
+    next_voucher_no = int(next_voucher_row['next_v']) if next_voucher_row else 1
+    
     return render_template(
         'expenses.html',
         expenses=expenses,
@@ -624,7 +627,8 @@ def expenses_list():
         total_incurred=total_incurred,
         current_particulars=particulars_filter,
         current_spl_head=spl_head_filter,
-        search_q=search_q
+        search_q=search_q,
+        next_voucher_no=next_voucher_no
     )
 
 @app.route('/admin/expenses/new', methods=['POST'])
@@ -636,18 +640,23 @@ def add_expense():
     spl_head = request.form.get('spl_head', '').strip()
     payment_by = request.form.get('payment_by', 'Cash')
     amount = request.form.get('amount', '0').strip()
+    voucher_no_input = request.form.get('voucher_no', '').strip()
     
     if not expense_description or not amount:
         flash('Description and Amount are required.', 'danger')
         return redirect(url_for('expenses_list'))
         
     try:
+        max_v_row = query_db("SELECT COALESCE(MAX(voucher_no), 0) + 1 as next_v FROM tbl_expenses", one=True)
+        calc_next = int(max_v_row['next_v']) if max_v_row else 1
+        v_no = int(voucher_no_input) if (voucher_no_input and voucher_no_input.isdigit()) else calc_next
+
         execute_db(
-            """INSERT INTO tbl_expenses (voucher_date, expense_description, particulars, spl_head, payment_by, amount)
-               VALUES (%s, %s, %s, %s, %s, %s)""",
-            (voucher_date, expense_description, particulars, spl_head, payment_by, float(amount))
+            """INSERT INTO tbl_expenses (voucher_no, voucher_date, expense_description, particulars, spl_head, payment_by, amount)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (v_no, voucher_date, expense_description, particulars, spl_head, payment_by, float(amount))
         )
-        flash(f"Expense voucher for INR {float(amount):,.2f} recorded successfully.", 'success')
+        flash(f"✓ Expense voucher #{v_no} for INR {float(amount):,.2f} recorded successfully.", 'success')
     except Exception as e:
         flash(f"Error adding expense: {e}", 'danger')
         

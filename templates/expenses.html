@@ -10,9 +10,9 @@
     </div>
 
     <div class="page-header-actions">
-        {% if is_executive %}
+        {% if is_admin or is_executive %}
         <button type="button" class="btn btn-primary" onclick="openModal('addExpenseModal')">
-            ➕ Record Incurred Expense
+            ➕ Record Incurred Expense <span class="badge badge-info" style="margin-left: 0.35rem; background: rgba(255,255,255,0.22); color: #fff; font-weight: 700;">#{{ next_voucher_no }}</span>
         </button>
         {% endif %}
     </div>
@@ -192,13 +192,34 @@
 <div id="addExpenseModal" class="modal-backdrop">
     <div class="modal-card">
         <div class="modal-header">
-            <h3 class="card-title" style="font-size: 1.2rem;">
-                ➕ Record Incurred Society Expense
-            </h3>
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <h3 class="card-title" style="font-size: 1.2rem; margin: 0;">
+                    ➕ Record Incurred Society Expense
+                </h3>
+                <span class="badge badge-info" style="font-size: 0.9rem; padding: 0.3rem 0.65rem; font-weight: 700;">
+                    Voucher #{{ next_voucher_no }}
+                </span>
+            </div>
             <button type="button" class="close-btn" onclick="closeModal('addExpenseModal')">&times;</button>
         </div>
         <form method="POST" action="{{ url_for('add_expense') }}">
             <div class="modal-body">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="exp_vno">Voucher Number *</label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <span style="position: absolute; left: 0.85rem; color: var(--highlight-blue); font-weight: 700; font-size: 1rem;">#</span>
+                            <input type="number" id="exp_vno" name="voucher_no" class="form-control" style="padding-left: 1.85rem; font-weight: 700; color: var(--highlight-blue); background: var(--surface-card);" value="{{ next_voucher_no }}" readonly>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem; display: block;">Auto-assigned next sequence number</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="exp_date">Voucher Date *</label>
+                        <input type="date" id="exp_date" name="voucher_date" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label class="form-label" for="exp_desc">Expense Description *</label>
                     <input type="text" id="exp_desc" name="expense_description" class="form-control" placeholder="e.g. Security Agency Guard Bill for Aug'2026" required>
@@ -238,19 +259,14 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="exp_date">Voucher Date *</label>
-                        <input type="date" id="exp_date" name="voucher_date" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                        <label class="form-label" for="exp_pay">Payment Mode</label>
+                        <select id="exp_pay" name="payment_by" class="form-select">
+                            <option value="Online">Online / NEFT / UPI</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Cheque">Cheque</option>
+                            <option value="Estate Manager">Estate Manager</option>
+                        </select>
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="exp_pay">Payment Mode</label>
-                    <select id="exp_pay" name="payment_by" class="form-select">
-                        <option value="Online">Online / NEFT / UPI</option>
-                        <option value="Cash">Cash</option>
-                        <option value="Cheque">Cheque</option>
-                        <option value="Estate Manager">Estate Manager</option>
-                    </select>
                 </div>
             </div>
             <div class="modal-footer">
@@ -265,13 +281,32 @@
 <div id="editExpenseModal" class="modal-backdrop">
     <div class="modal-card">
         <div class="modal-header">
-            <h3 class="card-title" style="font-size: 1.2rem;">
-                ✏️ Edit Incurred Expense Voucher <span id="editVoucherBadge" class="text-highlight-blue"></span>
-            </h3>
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <h3 class="card-title" style="font-size: 1.2rem; margin: 0;">
+                    ✏️ Edit Incurred Expense Voucher
+                </h3>
+                <span id="editVoucherBadge" class="badge badge-info" style="font-size: 0.9rem; padding: 0.3rem 0.65rem; font-weight: 700;"></span>
+            </div>
             <button type="button" class="close-btn" onclick="closeModal('editExpenseModal')">&times;</button>
         </div>
         <form id="editExpenseForm" method="POST" action="">
             <div class="modal-body">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="edit_exp_vno">Voucher Number</label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <span style="position: absolute; left: 0.85rem; color: var(--highlight-blue); font-weight: 700; font-size: 1rem;">#</span>
+                            <input type="number" id="edit_exp_vno" class="form-control" style="padding-left: 1.85rem; font-weight: 700; color: var(--highlight-blue); background: var(--surface-card);" readonly>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem; display: block;">Immutable ledger identifier</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="edit_exp_date">Voucher Date *</label>
+                        <input type="date" id="edit_exp_date" name="voucher_date" class="form-control" required>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label class="form-label" for="edit_exp_desc">Expense Description *</label>
                     <input type="text" id="edit_exp_desc" name="expense_description" class="form-control" placeholder="e.g. Security Agency Guard Bill for Aug'2026" required>
@@ -311,19 +346,14 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="edit_exp_date">Voucher Date *</label>
-                        <input type="date" id="edit_exp_date" name="voucher_date" class="form-control" required>
+                        <label class="form-label" for="edit_exp_pay">Payment Mode</label>
+                        <select id="edit_exp_pay" name="payment_by" class="form-select">
+                            <option value="Online">Online / NEFT / UPI</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Cheque">Cheque</option>
+                            <option value="Estate Manager">Estate Manager</option>
+                        </select>
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="edit_exp_pay">Payment Mode</label>
-                    <select id="edit_exp_pay" name="payment_by" class="form-select">
-                        <option value="Online">Online / NEFT / UPI</option>
-                        <option value="Cash">Cash</option>
-                        <option value="Cheque">Cheque</option>
-                        <option value="Estate Manager">Estate Manager</option>
-                    </select>
                 </div>
             </div>
             <div class="modal-footer">
@@ -347,6 +377,9 @@ function openEditExpenseModal(btn) {
 
     const badge = document.getElementById('editVoucherBadge');
     if (badge) badge.textContent = '#' + vNo;
+
+    const vNoInput = document.getElementById('edit_exp_vno');
+    if (vNoInput) vNoInput.value = vNo;
 
     const form = document.getElementById('editExpenseForm');
     if (form) form.action = '/admin/expenses/' + vNo + '/edit';
