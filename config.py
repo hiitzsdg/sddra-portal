@@ -26,8 +26,8 @@ class Config:
     SMTP_FROM_NAME = os.environ.get('SMTP_FROM_NAME', "South Dumdum Enclave Residents' Association")
     
     # Association Information
-    ASSOCIATION_NAME = "South Dumdum Enclave Residents' Association"
-    ASSOCIATION_REG_NO = "08A, Dated: 12.04.2016"
-    ASSOCIATION_ADDRESS = "62 RN Guha Road, Dumdum Kolkata 700028"
+    ASSOCIATION_NAME = "SOUTH DUMDUM ENCLAVE RESIDENTS' ASSOCIATION"
+    ASSOCIATION_REG_NO = "Regd. No. 08A, Dated: 12.04.2016"
+    ASSOCIATION_ADDRESS = "62 RN GUHA ROAD, DUMDUM, KOLKATA – 700028"
     ASSOCIATION_EMAIL = "sddenclave@gmail.com"
     ASSOCIATION_PHONE = "+91-801-725-0621"

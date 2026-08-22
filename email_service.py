@@ -613,10 +613,13 @@ def broadcast_notice_email(notice, author_name=None):
         <meta charset="utf-8">
         <style>
             body {{ font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, sans-serif; background-color: #f1f5f9; margin: 0; padding: 24px; color: #1e293b; }}
-            .container {{ max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #cbd5e1; }}
-            .header {{ background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%); color: #ffffff; padding: 28px 24px; text-align: center; }}
-            .header h1 {{ margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.3px; }}
-            .header p {{ margin: 6px 0 0; font-size: 12px; color: #93c5fd; }}
+            .container {{ max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #cbd5e1; }}
+            .letterhead {{ padding: 30px 24px 18px 24px; text-align: center; background: #ffffff; border-bottom: 3px double #000000; }}
+            .letterhead-title {{ margin: 0 0 10px 0; font-size: 20px; font-weight: 900; letter-spacing: 0.5px; color: #334155; text-transform: uppercase; }}
+            .letterhead-pill {{ display: inline-block; background: #000000; color: #ffffff; font-size: 11px; font-weight: 700; padding: 4px 14px; border-radius: 12px; margin-bottom: 8px; letter-spacing: 0.3px; }}
+            .letterhead-address {{ font-size: 13px; font-weight: 700; color: #0f172a; margin: 4px 0; letter-spacing: 0.2px; text-transform: uppercase; }}
+            .letterhead-email {{ font-size: 13px; font-weight: 600; color: #0f172a; margin: 2px 0 0 0; }}
+            .letterhead-email a {{ color: #0284c7; text-decoration: underline; }}
             .body {{ padding: 28px 24px; }}
             .prio-badge {{ display: inline-block; background: {prio_bg}; color: {prio_color}; border: 1px solid {prio_color}; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; margin-bottom: 14px; }}
             .category-tag {{ display: inline-block; background: #e2e8f0; color: #475569; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 12px; margin-left: 6px; }}
@@ -628,10 +631,14 @@ def broadcast_notice_email(notice, author_name=None):
     </head>
     <body>
         <div class="container">
-            <div class="header">
-                <h1>{Config.ASSOCIATION_NAME}</h1>
-                <p>Official Residents' Association Notice &bull; Reg No: {Config.ASSOCIATION_REG_NO}</p>
+            <!-- Official Association Letterhead -->
+            <div class="letterhead">
+                <h1 class="letterhead-title">SOUTH DUMDUM ENCLAVE RESIDENTS’ ASSOCIATION</h1>
+                <div class="letterhead-pill">Regd. No. 08A, Dated: 12.04.2016</div>
+                <div class="letterhead-address">62 RN GUHA ROAD, DUMDUM, KOLKATA – 700028</div>
+                <div class="letterhead-email">Email: <a href="mailto:sddenclave@gmail.com">sddenclave@gmail.com</a></div>
             </div>
+
             <div class="body">
                 <div>
                     <span class="prio-badge">{prio_label}</span>

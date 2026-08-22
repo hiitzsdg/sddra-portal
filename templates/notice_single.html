@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ notice.title }} - Official Circular - SDERA</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            padding: 30px 15px;
+            line-height: 1.6;
+        }
+
+        .no-print {
+            max-width: 780px;
+            margin: 0 auto 20px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .btn-primary { background: #2563eb; color: #ffffff; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-secondary { background: #e2e8f0; color: #334155; border-color: #cbd5e1; }
+        .btn-secondary:hover { background: #cbd5e1; color: #0f172a; }
+
+        .notice-document {
+            max-width: 780px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #cbd5e1;
+            padding: 40px 45px;
+        }
+
+        /* Official Association Letterhead */
+        .official-letterhead {
+            text-align: center;
+            border-bottom: 3px double #000000;
+            padding-bottom: 18px;
+            margin-bottom: 25px;
+        }
+
+        .letterhead-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 900;
+            color: #334155;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .letterhead-pill {
+            display: inline-block;
+            background: #000000;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 16px;
+            border-radius: 20px;
+            margin-bottom: 8px;
+            letter-spacing: 0.3px;
+        }
+
+        .letterhead-address {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: 0.2px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .letterhead-email {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .letterhead-email a {
+            color: #0284c7;
+            text-decoration: underline;
+            font-weight: 700;
+        }
+
+        /* Meta details */
+        .meta-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13.5px;
+            color: #475569;
+            border-bottom: 1px dashed #cbd5e1;
+            padding-bottom: 12px;
+            margin-bottom: 22px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .badge-urgent { background: #fee2e2; color: #dc2626; border: 1px solid #f87171; }
+        .badge-high { background: #fef3c7; color: #d97706; border: 1px solid #fcd34d; }
+        .badge-normal { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+
+        .notice-headline {
+            font-size: 20px;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 16px 0;
+            line-height: 1.4;
+        }
+
+        .notice-content {
+            font-size: 15px;
+            line-height: 1.8;
+            color: #1e293b;
+            white-space: pre-line;
+            margin-bottom: 40px;
+            min-height: 180px;
+        }
+
+        .sign-off-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 25px;
+            margin-top: 40px;
+        }
+
+        .sign-off-text {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .signature-block {
+            text-align: right;
+        }
+
+        .signature-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 30px;
+        }
+
+        .signer-name {
+            font-size: 15px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .signer-role {
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: #ffffff !important; padding: 0 !important; }
+            .notice-document { box-shadow: none !important; border: none !important; padding: 0 !important; max-width: 100% !important; }
+            .letterhead-pill { background: #000000 !important; color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .letterhead-title { color: #334155 !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <a href="{{ url_for('notices_list') }}" class="btn btn-secondary">&larr; Back to Notice Board</a>
+        <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn btn-primary" onclick="window.print()">🖨️ Print Circular</button>
+        </div>
+    </div>
+
+    <div class="notice-document">
+        <!-- Official Association Letterhead -->
+        <div class="official-letterhead">
+            <h1 class="letterhead-title">SOUTH DUMDUM ENCLAVE RESIDENTS’ ASSOCIATION</h1>
+            <div class="letterhead-pill">Regd. No. 08A, Dated: 12.04.2016</div>
+            <div class="letterhead-address">62 RN GUHA ROAD, DUMDUM, KOLKATA – 700028</div>
+            <div class="letterhead-email">Email: <a href="mailto:sddenclave@gmail.com">sddenclave@gmail.com</a></div>
+        </div>
+
+        <!-- Meta Details -->
+        <div class="meta-bar">
+            <div>
+                <strong>Ref No:</strong> SDERA/NOT/2026/{{ "{:03d}".format(notice.id) }}
+            </div>
+            <div>
+                <strong>Date of Issue:</strong> {{ (notice.created_at|string)[:10] }}
+            </div>
+        </div>
+
+        <!-- Category & Priority Tag -->
+        <div>
+            {% if notice.priority == 'URGENT' %}
+            <span class="badge badge-urgent">🚨 URGENT NOTICE</span>
+            {% elif notice.priority == 'HIGH' %}
+            <span class="badge badge-high">⚠️ HIGH PRIORITY</span>
+            {% else %}
+            <span class="badge badge-normal">📢 OFFICIAL CIRCULAR</span>
+            {% endif %}
+            <span class="badge" style="background: #f1f5f9; color: #334155; margin-left: 6px; border: 1px solid #cbd5e1;">
+                📂 {{ notice.category.replace('_', ' ').title() }}
+            </span>
+        </div>
+
+        <!-- Title -->
+        <h2 class="notice-headline">{{ notice.title }}</h2>
+
+        <!-- Content -->
+        <div class="notice-content">
+            {{ notice.content }}
+        </div>
+
+        <!-- Official Sign-off -->
+        <div class="sign-off-box">
+            <div class="sign-off-text">
+                <div><strong>South Dumdum Enclave Residents' Association</strong></div>
+                <div>Regd. No. 08A, Dated: 12.04.2016</div>
+                <div>62 RN Guha Road, Dumdum, Kolkata - 700028</div>
+            </div>
+            <div class="signature-block">
+                <div class="signature-label">For &amp; on behalf of Executive Committee,</div>
+                <div class="signer-name">{{ notice.posted_by }}</div>
+                <div class="signer-role">{{ notice.posted_by_role }}</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

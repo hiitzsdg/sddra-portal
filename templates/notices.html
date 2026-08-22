@@ -4,6 +4,92 @@
 
 {% block extra_head %}
 <style>
+/* ================= OFFICIAL LETTERHEAD STYLING ================= */
+.official-letterhead {
+    background: #ffffff;
+    border-radius: var(--radius-lg, 18px);
+    padding: 2.25rem 2rem 1.25rem 2rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba(203, 213, 225, 0.8);
+    color: #0f172a;
+    transition: all 0.3s ease;
+}
+
+[data-theme="dark"] .official-letterhead {
+    background: rgba(15, 23, 42, 0.95);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.letterhead-title {
+    font-family: var(--font-heading, 'Outfit', sans-serif);
+    font-size: 1.55rem;
+    font-weight: 900;
+    color: #475569;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    margin: 0 0 0.65rem 0;
+    line-height: 1.25;
+}
+
+[data-theme="dark"] .letterhead-title {
+    color: #cbd5e1;
+}
+
+.letterhead-pill {
+    display: inline-block;
+    background: #000000;
+    color: #ffffff;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.35rem 1.25rem;
+    border-radius: var(--radius-pill, 9999px);
+    margin-bottom: 0.65rem;
+    letter-spacing: 0.3px;
+}
+
+.letterhead-address {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+[data-theme="dark"] .letterhead-address {
+    color: #f1f5f9;
+}
+
+.letterhead-email {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 1rem;
+}
+
+[data-theme="dark"] .letterhead-email {
+    color: #e2e8f0;
+}
+
+.letterhead-email a {
+    color: #0284c7;
+    text-decoration: underline;
+    font-weight: 700;
+}
+
+.letterhead-double-rule {
+    border-top: 3px double #000000;
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+[data-theme="dark"] .letterhead-double-rule {
+    border-top: 3px double rgba(255, 255, 255, 0.4);
+}
+
 /* ================= NOTICE BOARD SPECIFIC STYLES ================= */
 .notices-hero {
     display: flex;
@@ -11,7 +97,7 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 1.25rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
 }
 
 .notices-pills-bar {
@@ -145,6 +231,11 @@
     color: var(--text-heading, #ffffff);
     line-height: 1.4;
     margin-bottom: 0.75rem;
+    cursor: pointer;
+}
+
+.notice-title:hover {
+    color: var(--primary-400, #60a5fa);
 }
 
 .notice-body-text {
@@ -224,33 +315,58 @@
     border: 1px solid var(--surface-border, rgba(255, 255, 255, 0.15));
     border-radius: var(--radius-xl, 26px);
     width: 100%;
-    max-width: 620px;
+    max-width: 680px;
     max-height: 90vh;
     overflow-y: auto;
     padding: 2rem;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
+/* Printable Official Document Style */
+#printableNoticeDoc {
+    background: #ffffff;
+    color: #0f172a;
+    padding: 2.5rem 2rem;
+    border-radius: var(--radius-lg, 18px);
+    border: 1px solid #cbd5e1;
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+}
+
 @media print {
-    .navbar, .footer, .notices-hero, .notices-pills-bar, .filter-box, .notice-actions, .no-print {
+    .navbar, .footer, .notices-hero, .notices-pills-bar, .filter-box, .notice-actions, .no-print, .urgent-banner-card {
         display: none !important;
     }
-    body { background: #ffffff !important; color: #000000 !important; }
-    .notice-card { border: 1px solid #000000 !important; box-shadow: none !important; margin-bottom: 2rem; page-break-inside: avoid; }
-    .notice-title, .notice-body-text { color: #000000 !important; }
+    body { background: #ffffff !important; color: #000000 !important; font-size: 11pt !important; }
+    .official-letterhead { box-shadow: none !important; border: none !important; padding: 0 0 1rem 0 !important; }
+    .letterhead-title { color: #334155 !important; }
+    .letterhead-pill { background: #000000 !important; color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .letterhead-address, .letterhead-email { color: #000000 !important; }
+    .letterhead-double-rule { border-top: 3px double #000000 !important; }
+    .notice-card { border: 1px solid #cbd5e1 !important; box-shadow: none !important; margin-bottom: 2rem; page-break-inside: avoid; background: #ffffff !important; color: #000000 !important; }
+    .notice-title { color: #000000 !important; }
+    .notice-body-text { color: #1e293b !important; }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
+<!-- Official Association Letterhead Header -->
+<div class="official-letterhead">
+    <h1 class="letterhead-title">SOUTH DUMDUM ENCLAVE RESIDENTS’ ASSOCIATION</h1>
+    <div class="letterhead-pill">Regd. No. 08A, Dated: 12.04.2016</div>
+    <div class="letterhead-address">62 RN GUHA ROAD, DUMDUM, KOLKATA – 700028</div>
+    <div class="letterhead-email">Email: <a href="mailto:sddenclave@gmail.com">sddenclave@gmail.com</a></div>
+    <div class="letterhead-double-rule"></div>
+</div>
+
+<!-- Page Actions Bar -->
+<div class="notices-hero">
     <div class="page-header-title">
-        <h2>📢 Digital Notice Board & Circulars</h2>
-        <p>Official announcements, maintenance schedules, security advisories, and AGM notifications for SDERA residents.</p>
+        <h2 style="font-size: 1.4rem; font-weight: 800; color: var(--text-heading, #ffffff); margin: 0;">📢 Official Circulars &amp; Notice Board</h2>
+        <p style="font-size: 0.88rem; color: var(--text-muted, #94a3b8); margin: 4px 0 0 0;">Official communications, maintenance notifications, and AGM circulars.</p>
     </div>
 
-    <div class="page-header-actions">
+    <div class="page-header-actions no-print">
         <button type="button" class="btn btn-secondary" onclick="window.print()" title="Print Notice Board">
             🖨️ Print Circulars
         </button>
@@ -272,7 +388,7 @@
                 <span class="badge badge-prio-urgent">🚨 CRITICAL URGENT ALERT</span>
                 <span class="badge badge-warning">📌 Pinned to All Residents</span>
             </div>
-            <h3 style="font-size: 1.35rem; font-weight: 800; color: #ffffff; margin-bottom: 0.5rem;">
+            <h3 style="font-size: 1.35rem; font-weight: 800; color: #ffffff; margin-bottom: 0.5rem; cursor: pointer;" onclick='openViewDocModal({{ un|tojson }})'>
                 {{ un.title }}
             </h3>
             <p style="font-size: 0.95rem; color: #fecaca; line-height: 1.6; margin: 0; white-space: pre-line;">
@@ -281,7 +397,10 @@
         </div>
         <div style="text-align: right; font-size: 0.8rem; color: #fca5a5;">
             <div>Issued by: <strong>{{ un.posted_by }}</strong> ({{ un.posted_by_role }})</div>
-            <div style="margin-top: 4px;">{{ un.created_at }}</div>
+            <div style="margin-top: 4px;">{{ (un.created_at|string)[:10] }}</div>
+            <button type="button" class="btn btn-sm btn-secondary no-print" style="margin-top: 8px; font-size: 0.75rem; background: rgba(0,0,0,0.4);" onclick='openViewDocModal({{ un|tojson }})'>
+                📄 View Official Circular
+            </button>
         </div>
     </div>
 </div>
@@ -289,7 +408,7 @@
 {% endif %}
 
 <!-- Category Pills Navigation -->
-<div class="notices-pills-bar">
+<div class="notices-pills-bar no-print">
     {% for cat_code, cat_label, cat_icon in categories %}
     <a href="{{ url_for('notices_list', category=cat_code, priority=current_priority, q=search_q, status=current_status) }}" 
        class="notice-pill {% if current_category == cat_code %}active{% endif %}">
@@ -301,7 +420,7 @@
 </div>
 
 <!-- Search & Filter Controls -->
-<div class="card filter-box" style="margin-bottom: 1.75rem; padding: 1.25rem;">
+<div class="card filter-box no-print" style="margin-bottom: 1.75rem; padding: 1.25rem;">
     <form method="GET" action="{{ url_for('notices_list') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
         <input type="hidden" name="category" value="{{ current_category }}">
         
@@ -346,7 +465,6 @@
 {% if notices %}
 <div class="notices-grid">
     {% for n in notices %}
-    {% set cat_key = n.category|lower %}
     <div class="notice-card {% if n.is_pinned %}is-pinned{% endif %} {% if n.priority == 'URGENT' %}is-urgent{% endif %}" id="notice-{{ n.id }}">
         <div>
             <!-- Card Header: Badges -->
@@ -420,7 +538,7 @@
             </div>
 
             <!-- Title -->
-            <h3 class="notice-title">{{ n.title }}</h3>
+            <h3 class="notice-title" onclick='openViewDocModal({{ n|tojson }})' title="Click to view full official letterhead circular">{{ n.title }}</h3>
 
             <!-- Content -->
             <div class="notice-body-text">{{ n.content }}</div>
@@ -440,6 +558,9 @@
 
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span title="{{ n.created_at }}">📅 {{ (n.created_at|string)[:10] }}</span>
+                <button type="button" class="btn btn-sm btn-secondary no-print" style="padding: 0.15rem 0.55rem; font-size: 0.75rem;" onclick='openViewDocModal({{ n|tojson }})' title="View in official letterhead format">
+                    📄 View
+                </button>
                 <button type="button" class="btn btn-sm btn-secondary no-print" style="padding: 0.15rem 0.45rem; font-size: 0.75rem;" onclick="copyNoticeText({{ n.id }})" title="Copy text to clipboard">
                     📋 Copy
                 </button>
@@ -461,8 +582,70 @@
 
 <!-- ================= MODALS ================= -->
 
+<!-- 1. View Official Notice Document Modal (Official Letterhead) -->
+<div class="modal-overlay" id="viewDocModal">
+    <div class="modal-container" style="max-width: 740px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;" class="no-print">
+            <span class="badge badge-info">Official Residents' Association Circular</span>
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="button" class="btn btn-sm btn-primary" onclick="printModalDoc()">🖨️ Print Circular</button>
+                <button type="button" class="clear-btn" onclick="closeModal('viewDocModal')" style="font-size: 1.5rem;">&times;</button>
+            </div>
+        </div>
+
+        <div id="printableNoticeDoc">
+            <!-- Official Association Letterhead Header -->
+            <div style="text-align: center; border-bottom: 3px double #000000; padding-bottom: 16px; margin-bottom: 24px;">
+                <h1 style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 900; color: #334155; letter-spacing: 0.6px; text-transform: uppercase; margin: 0 0 8px 0;">SOUTH DUMDUM ENCLAVE RESIDENTS’ ASSOCIATION</h1>
+                <div style="display: inline-block; background: #000000; color: #ffffff; font-size: 12px; font-weight: 700; padding: 4px 16px; border-radius: 20px; margin-bottom: 8px;">Regd. No. 08A, Dated: 12.04.2016</div>
+                <div style="font-size: 13px; font-weight: 700; color: #0f172a; letter-spacing: 0.2px; text-transform: uppercase; margin: 4px 0;">62 RN GUHA ROAD, DUMDUM, KOLKATA – 700028</div>
+                <div style="font-size: 13px; font-weight: 600; color: #0f172a;">Email: <span style="color: #0284c7; text-decoration: underline;">sddenclave@gmail.com</span></div>
+            </div>
+
+            <!-- Meta details row -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 13px; color: #475569; border-bottom: 1px dashed #cbd5e1; padding-bottom: 10px;">
+                <div>
+                    <strong>Ref No:</strong> <span id="docRefNo">SDERA/NOT/2026/01</span>
+                </div>
+                <div>
+                    <strong>Date:</strong> <span id="docDate">-</span>
+                </div>
+            </div>
+
+            <!-- Priority & Category Tag -->
+            <div style="margin-bottom: 14px;">
+                <span id="docPrioBadge" class="badge badge-prio-normal">📢 CIRCULAR</span>
+                <span id="docCatBadge" class="badge" style="background: #e2e8f0; color: #334155; margin-left: 6px;">Category</span>
+            </div>
+
+            <!-- Notice Headline -->
+            <h2 id="docTitle" style="font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0 0 16px 0; line-height: 1.35;">
+                Notice Title
+            </h2>
+
+            <!-- Notice Body Content -->
+            <div id="docContent" style="font-size: 14px; line-height: 1.75; color: #1e293b; white-space: pre-line; margin-bottom: 35px; min-height: 120px;">
+                Content
+            </div>
+
+            <!-- Signature block -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: 30px;">
+                <div style="font-size: 12px; color: #64748b;">
+                    <div>South Dumdum Enclave Residents' Association</div>
+                    <div>62 RN Guha Road, Kolkata - 700028</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 25px;">For and on behalf of SDERA,</div>
+                    <div id="docSignName" style="font-weight: 800; font-size: 14px; color: #0f172a;">Executive Committee</div>
+                    <div id="docSignRole" style="font-size: 12px; font-weight: 600; color: #475569;">Authorized Signatory</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% if is_admin %}
-<!-- 1. Post New Notice Modal -->
+<!-- 2. Post New Notice Modal -->
 <div class="modal-overlay" id="postNoticeModal">
     <div class="modal-container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--surface-border, rgba(255,255,255,0.1)); padding-bottom: 1rem;">
@@ -527,7 +710,7 @@
     </div>
 </div>
 
-<!-- 2. Edit Notice Modal -->
+<!-- 3. Edit Notice Modal -->
 <div class="modal-overlay" id="editNoticeModal">
     <div class="modal-container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--surface-border, rgba(255,255,255,0.1)); padding-bottom: 1rem;">
@@ -621,12 +804,61 @@ function openEditModal(notice) {
     openModal('editNoticeModal');
 }
 
+function openViewDocModal(notice) {
+    document.getElementById('docRefNo').innerText = 'SDERA/NOT/2026/' + String(notice.id).padStart(3, '0');
+    var dt = notice.created_at ? String(notice.created_at).substring(0, 10) : new Date().toISOString().substring(0, 10);
+    document.getElementById('docDate').innerText = dt;
+    document.getElementById('docTitle').innerText = notice.title || 'Official Circular';
+    document.getElementById('docContent').innerText = notice.content || '';
+    document.getElementById('docSignName').innerText = notice.posted_by || 'Executive Committee';
+    document.getElementById('docSignRole').innerText = notice.posted_by_role || 'Authorized Signatory';
+    
+    var prioBadge = document.getElementById('docPrioBadge');
+    if (notice.priority === 'URGENT') {
+        prioBadge.className = 'badge badge-prio-urgent';
+        prioBadge.innerText = '🚨 URGENT NOTICE';
+    } else if (notice.priority === 'HIGH') {
+        prioBadge.className = 'badge badge-prio-high';
+        prioBadge.innerText = '⚠️ HIGH PRIORITY';
+    } else {
+        prioBadge.className = 'badge badge-prio-normal';
+        prioBadge.innerText = '📢 OFFICIAL NOTICE';
+    }
+
+    var catBadge = document.getElementById('docCatBadge');
+    catBadge.innerText = '📂 ' + (notice.category || 'GENERAL').replace('_', ' ');
+
+    openModal('viewDocModal');
+}
+
+function printModalDoc() {
+    var doc = document.getElementById('printableNoticeDoc');
+    if (!doc) return;
+    
+    var printWin = window.open('', '', 'width=800,height=900');
+    printWin.document.write('<!DOCTYPE html><html><head><title>' + (document.getElementById('docTitle').innerText || 'Official Notice') + ' - SDERA</title>');
+    printWin.document.write('<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800;900&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">');
+    printWin.document.write('<style>');
+    printWin.document.write('body { font-family: "Plus Jakarta Sans", sans-serif; padding: 40px; margin: 0; color: #000000; background: #ffffff; }');
+    printWin.document.write('.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid #000; }');
+    printWin.document.write('@media print { body { padding: 0; } }');
+    printWin.document.write('</style></head><body>');
+    printWin.document.write(doc.innerHTML);
+    printWin.document.write('</body></html>');
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(function() {
+        printWin.print();
+        printWin.close();
+    }, 400);
+}
+
 function copyNoticeText(noticeId) {
     var card = document.getElementById('notice-' + noticeId);
     if (!card) return;
     var title = card.querySelector('.notice-title').innerText;
     var body = card.querySelector('.notice-body-text').innerText;
-    var fullText = "📢 " + title + "\n\n" + body + "\n\n— South Dumdum Enclave Residents' Association";
+    var fullText = "📢 " + title + "\n\n" + body + "\n\n— South Dumdum Enclave Residents' Association\nRegd. No. 08A, Dated: 12.04.2016\n62 RN GUHA ROAD, DUMDUM, KOLKATA – 700028";
     
     navigator.clipboard.writeText(fullText).then(function() {
         alert("✓ Notice text copied to clipboard!");

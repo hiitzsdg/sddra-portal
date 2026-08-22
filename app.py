@@ -1344,6 +1344,14 @@ def notices_broadcast(notice_id):
         flash(f"Error broadcasting notice: {e}", 'danger')
     return redirect(url_for('notices_list'))
 
+@app.route('/notices/<int:notice_id>/view')
+@login_required
+def notices_view(notice_id):
+    notice = query_db("SELECT * FROM tbl_notices WHERE id = %s", (notice_id,), one=True)
+    if not notice:
+        abort(404, description="Notice not found")
+    return render_template('notice_single.html', notice=notice)
+
 if __name__ == '__main__':
     init_db()
     print("Starting SDDRA Billing & Residents' Association Web Portal on http://127.0.0.1:5000")

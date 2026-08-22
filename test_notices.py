@@ -38,8 +38,17 @@ class TestDigitalNoticeBoard(unittest.TestCase):
         # GET /notices
         res = self.client.get('/notices')
         self.assertEqual(res.status_code, 200)
-        self.assertIn(b"Digital Notice Board", res.data)
+        self.assertIn(b"Notice Board", res.data)
+        self.assertIn(b"SOUTH DUMDUM ENCLAVE", res.data)
         self.assertIn(b"Water Tank", res.data)
+
+        # GET /notices/<id>/view standalone circular view
+        notices = query_db("SELECT id FROM tbl_notices LIMIT 1")
+        if notices:
+            n_id = notices[0]['id']
+            res_view = self.client.get(f'/notices/{n_id}/view')
+            self.assertEqual(res_view.status_code, 200)
+            self.assertIn(b"Regd. No. 08A", res_view.data)
 
         # GET /notices with category filter
         res_cat = self.client.get('/notices?category=WATER_SUPPLY')
@@ -50,7 +59,7 @@ class TestDigitalNoticeBoard(unittest.TestCase):
         res_dash = self.client.get('/dashboard')
         self.assertEqual(res_dash.status_code, 200)
         self.assertIn(b"Official Society Announcements", res_dash.data)
-        print("[PASS] Test 2: Resident member can view notice board and announcements widget.")
+        print("[PASS] Test 2: Resident member can view notice board, letterhead circular, and announcements widget.")
 
     def test_03_admin_crud_notices(self):
         """Verify committee admin can create, pin, edit, broadcast, and delete notices."""
