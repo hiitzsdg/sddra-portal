@@ -512,35 +512,33 @@ def ensure_mysql_schema(conn):
         mbr_count = row['cnt'] if isinstance(row, dict) else row[0]
         
         if mbr_count == 0:
-            print(f"[DB Init] Populating TiDB Cloud tables from bundled SQLite dataset...")
-            sqlite_candidates = [
-                Config.SQLITE_PATH,
-                os.path.join(os.getcwd(), 'sddra.db'),
-                os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sddra.db'),
-                '/var/task/sddra.db'
-            ]
-            sq_path = next((p for p in sqlite_candidates if p and os.path.exists(p)), None)
-            if sq_path:
-                sq_conn = sqlite3.connect(sq_path)
-                sq_conn.row_factory = sqlite3.Row
-                sq_cur = sq_conn.cursor()
+            print(f"[DB Init] Populating TiDB Cloud tables from embedded seed dataset...")
+            try:
+                from seed_data import SEED_MEMBERSHIP, SEED_CONTACTS, SEED_RECEIPTS, SEED_EXPENSES, SEED_ADMINS, SEED_NOTICES
+                table_map = {
+                    'tbl_membership': SEED_MEMBERSHIP,
+                    'tbl_mbr_cntct': SEED_CONTACTS,
+                    'tbl_receipts': SEED_RECEIPTS,
+                    'tbl_expenses': SEED_EXPENSES,
+                    'tbl_admins': SEED_ADMINS,
+                    'tbl_notices': SEED_NOTICES
+                }
                 
-                for tbl in ['tbl_membership', 'tbl_mbr_cntct', 'tbl_receipts', 'tbl_expenses', 'tbl_admins', 'tbl_notices']:
-                    try:
-                        sq_cur.execute(f"SELECT * FROM {tbl};")
-                        rows = sq_cur.fetchall()
-                        if rows:
-                            cols = rows[0].keys()
+                for tbl, rows in table_map.items():
+                    if rows:
+                        try:
+                            cols = list(rows[0].keys())
                             placeholders = ", ".join(["%s"] * len(cols))
                             col_names = ", ".join([f"`{c}`" for c in cols])
                             insert_sql = f"REPLACE INTO `{tbl}` ({col_names}) VALUES ({placeholders});"
-                            val_list = [tuple(r[c] for c in cols) for r in rows]
+                            val_list = [tuple(r.get(c) for c in cols) for r in rows]
                             cur.executemany(insert_sql, val_list)
-                            print(f"[DB Init] Successfully synced {len(val_list)} rows into `{tbl}`.")
-                    except Exception as e_tbl:
-                        print(f"[DB Init] Table sync note on `{tbl}`: {e_tbl}")
-                sq_conn.close()
+                            print(f"[DB Init] Synced {len(val_list)} records into `{tbl}`.")
+                        except Exception as e_sync:
+                            print(f"[DB Warning] Error seeding `{tbl}`: {e_sync}")
                 conn.commit()
+            except Exception as ex_all:
+                print(f"[DB Warning] Seed data load error: {ex_all}")
 
 def init_db():
     """

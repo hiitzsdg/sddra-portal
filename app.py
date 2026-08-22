@@ -805,35 +805,31 @@ def api_db_status():
 
 @app.route('/api/seed-cloud-db')
 def api_seed_cloud_db():
-    from database import get_mysql_connection, ensure_mysql_schema, init_db, get_writable_sqlite_path
+    from database import get_mysql_connection, ensure_mysql_schema, init_db
     try:
+        from seed_data import SEED_MEMBERSHIP, SEED_CONTACTS, SEED_RECEIPTS, SEED_EXPENSES, SEED_ADMINS, SEED_NOTICES
         conn = get_mysql_connection()
         try:
-            sq_path = get_writable_sqlite_path()
-            if not os.path.exists(sq_path):
-                return jsonify({"success": False, "error": f"SQLite reference database not found at {sq_path}"})
-                
-            sq_conn = sqlite3.connect(sq_path)
-            sq_conn.row_factory = sqlite3.Row
-            sq_cur = sq_conn.cursor()
+            ensure_mysql_schema(conn)
             
             with conn.cursor() as cur:
-                # Force replace all tables from SQLite
-                for tbl in ['tbl_membership', 'tbl_mbr_cntct', 'tbl_receipts', 'tbl_expenses', 'tbl_admins', 'tbl_notices']:
-                    try:
-                        sq_cur.execute(f"SELECT * FROM {tbl};")
-                        rows = sq_cur.fetchall()
-                        if rows:
-                            cols = rows[0].keys()
-                            placeholders = ", ".join(["%s"] * len(cols))
-                            col_names = ", ".join([f"`{c}`" for c in cols])
-                            insert_sql = f"REPLACE INTO `{tbl}` ({col_names}) VALUES ({placeholders});"
-                            val_list = [tuple(r[c] for c in cols) for r in rows]
-                            cur.executemany(insert_sql, val_list)
-                    except Exception as e_tbl:
-                        print(f"Table sync note: {e_tbl}")
+                table_map = {
+                    'tbl_membership': SEED_MEMBERSHIP,
+                    'tbl_mbr_cntct': SEED_CONTACTS,
+                    'tbl_receipts': SEED_RECEIPTS,
+                    'tbl_expenses': SEED_EXPENSES,
+                    'tbl_admins': SEED_ADMINS,
+                    'tbl_notices': SEED_NOTICES
+                }
+                for tbl, rows in table_map.items():
+                    if rows:
+                        cols = list(rows[0].keys())
+                        placeholders = ", ".join(["%s"] * len(cols))
+                        col_names = ", ".join([f"`{c}`" for c in cols])
+                        insert_sql = f"REPLACE INTO `{tbl}` ({col_names}) VALUES ({placeholders});"
+                        val_list = [tuple(r.get(c) for c in cols) for r in rows]
+                        cur.executemany(insert_sql, val_list)
                 conn.commit()
-            sq_conn.close()
             
             init_db()
             
