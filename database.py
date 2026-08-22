@@ -326,6 +326,7 @@ def ensure_notices_table_sqlite():
             cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Debasish Roy', 'Somenath Halder');")
             cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Subhashish Mukherjee', 'Dr. Asit Kumar Bera');")
             cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Bikas Mondal', 'Sanjoy Chakraborty');")
+            cur.execute("UPDATE tbl_mbr_cntct SET email_1 = 'upekshitsharma@gmail.com' WHERE LOWER(TRIM(flat_no)) = 'a/2-d';")
             
         try:
             cur.execute("UPDATE members SET name = 'Somenath Halder' WHERE name = 'Debasish Roy';")
@@ -377,8 +378,7 @@ def ensure_notices_table_mysql(conn):
             cur.execute("UPDATE tbl_notices SET posted_by = 'Sanjoy Chakraborty' WHERE posted_by = 'Bikas Mondal';")
             cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Debasish Roy', 'Somenath Halder');")
             cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Subhashish Mukherjee', 'Dr. Asit Kumar Bera');")
-            cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Bikas Mondal', 'Sanjoy Chakraborty');")
-            
+            cur.execute("UPDATE tbl_mbr_cntct SET email_1 = 'upekshitsharma@gmail.com' WHERE LOWER(TRIM(flat_no)) = 'a/2-d';")
         try:
             cur.execute("UPDATE members SET name = 'Somenath Halder' WHERE name = 'Debasish Roy';")
             cur.execute("UPDATE members SET name = 'Dr. Asit Kumar Bera' WHERE name = 'Subhashish Mukherjee';")

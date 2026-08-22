@@ -198,7 +198,7 @@ def login():
             member = query_db(
                 f"""SELECT m.*, c.email_1, c.email_2, c.mobile_num_1 
                     FROM tbl_membership m
-                    LEFT JOIN tbl_mbr_cntct c ON m.flat_no = c.flat_no
+                    LEFT JOIN tbl_mbr_cntct c ON LOWER(TRIM(m.flat_no)) = LOWER(TRIM(c.flat_no))
                     WHERE m.flat_no IN ({placeholders}) 
                        OR c.email_1 = %s 
                        OR c.email_2 = %s 
