@@ -528,11 +528,6 @@ def dashboard():
                 pinned_notices = []
                 recent_notices = []
                 
-            try:
-                recent_activity_logs = query_db("SELECT * FROM tbl_activity_logs ORDER BY id DESC LIMIT 6") or []
-            except Exception:
-                recent_activity_logs = []
-
             return render_template(
                 'dashboard.html',
                 is_admin=True,
@@ -547,7 +542,6 @@ def dashboard():
                 total_maintenance_overdue=total_maintenance_overdue,
                 recent_receipts=recent_receipts,
                 recent_expenses=recent_expenses,
-                recent_activity_logs=recent_activity_logs,
                 pinned_notices=pinned_notices,
                 recent_notices=recent_notices,
                 search_q=search_q,
