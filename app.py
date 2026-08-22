@@ -84,8 +84,18 @@ def roles_required(*allowed_roles):
                 session.pop('user', None)
                 flash('Please log in to continue.', 'warning')
                 return redirect(url_for('login', next=request.url))
-            user_role = user.get('role', 'MEMBER')
-            has_role = (user_role in allowed_roles) or (user_role == 'super_admin') or (user.get('username') == 'admin')
+            user_role = str(user.get('role', 'MEMBER')).lower()
+            allowed_lowers = [str(r).lower() for r in allowed_roles]
+            is_admin_flag = bool(user.get('is_admin', False))
+            username = str(user.get('username', '')).lower()
+            
+            admin_roles = ['super_admin', 'billing_admin', 'admin', 'treasurer', 'president', 'secretary', 'caretaker']
+            has_role = (
+                (user_role in allowed_lowers) or 
+                (user_role in admin_roles) or 
+                is_admin_flag or 
+                (username in ['admin', 'treasurer', 'president', 'secretary', 'caretaker'])
+            )
             if not has_role:
                 flash('Access Denied: You do not have permission to view this resource.', 'danger')
                 return redirect(url_for('dashboard'))

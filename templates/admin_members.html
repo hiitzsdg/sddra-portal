@@ -65,7 +65,13 @@
                     <td class="text-secondary">
                         <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;">
                             <span>{{ m.mobile_num_1 or m.mobile_num_2 or '-' }}</span>
-                            <button type="button" class="btn btn-sm btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.72rem;" title="Edit Contact Info" onclick="openEditContactModal('{{ m.flat_no }}', '{{ m.member_name }}', '{{ m.email_1 or m.email_2 or '' }}', '{{ m.mobile_num_1 or m.mobile_num_2 or '' }}')">
+                            <button type="button" class="btn btn-sm btn-secondary btn-edit-contact" 
+                                    data-flat="{{ m.flat_no }}" 
+                                    data-name="{{ m.member_name|e }}" 
+                                    data-email="{{ (m.email_1 or m.email_2 or '')|e }}" 
+                                    data-phone="{{ (m.mobile_num_1 or m.mobile_num_2 or '')|e }}" 
+                                    style="padding: 0.15rem 0.4rem; font-size: 0.72rem;" 
+                                    title="Edit Contact Info">
                                 ✏️
                             </button>
                         </div>
@@ -73,7 +79,13 @@
                     <td>
                         <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;">
                             <span class="text-highlight-blue" style="font-size: 0.82rem;">{{ m.email_1 or m.email_2 or '-' }}</span>
-                            <button type="button" class="btn btn-sm btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.72rem;" title="Edit Contact Info" onclick="openEditContactModal('{{ m.flat_no }}', '{{ m.member_name }}', '{{ m.email_1 or m.email_2 or '' }}', '{{ m.mobile_num_1 or m.mobile_num_2 or '' }}')">
+                            <button type="button" class="btn btn-sm btn-secondary btn-edit-contact" 
+                                    data-flat="{{ m.flat_no }}" 
+                                    data-name="{{ m.member_name|e }}" 
+                                    data-email="{{ (m.email_1 or m.email_2 or '')|e }}" 
+                                    data-phone="{{ (m.mobile_num_1 or m.mobile_num_2 or '')|e }}" 
+                                    style="padding: 0.15rem 0.4rem; font-size: 0.72rem;" 
+                                    title="Edit Contact Info">
                                 ✏️
                             </button>
                         </div>
@@ -115,9 +127,9 @@
             <button type="button" class="btn btn-sm btn-secondary" onclick="closeEditContactModal()" style="font-size: 1.2rem; padding: 0.2rem 0.6rem; line-height: 1;">&times;</button>
         </div>
 
-        <form method="POST" action="{{ url_for('admin_update_member_contact') }}">
-            <input type="hidden" id="edit_contact_flat" name="flat_no">
-            
+        <form method="POST" action="{{ url_for('admin_update_member_contact') }}" id="editContactForm">
+            <input type="hidden" id="edit_contact_flat" name="flat_no" required>
+
             <div class="form-group" style="margin-bottom: 1.2rem;">
                 <label class="form-label" for="edit_contact_email">Registered Email for Receipts &amp; Circulars *</label>
                 <input type="email" id="edit_contact_email" name="email" class="form-control" placeholder="e.g. resident@gmail.com" required>
@@ -274,6 +286,10 @@ function openEditContactModal(flatNo, memberName, email, phone) {
     if (modal) {
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
+        setTimeout(() => {
+            const emailInp = document.getElementById('edit_contact_email');
+            if (emailInp) emailInp.focus();
+        }, 100);
     }
 }
 
@@ -282,5 +298,18 @@ function closeEditContactModal() {
     if (modal) modal.style.display = 'none';
     document.body.style.overflow = '';
 }
+
+// Global delegated listener for edit contact buttons
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-edit-contact');
+    if (btn) {
+        e.preventDefault();
+        const flatNo = btn.getAttribute('data-flat') || '';
+        const memberName = btn.getAttribute('data-name') || '';
+        const email = btn.getAttribute('data-email') || '';
+        const phone = btn.getAttribute('data-phone') || '';
+        openEditContactModal(flatNo, memberName, email, phone);
+    }
+});
 </script>
 {% endblock %}
