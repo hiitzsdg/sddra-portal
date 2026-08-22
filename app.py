@@ -780,6 +780,25 @@ def create_receipt():
         
     return redirect(url_for('admin_receipts'))
 
+@app.route('/admin/receipts/<int:receipt_no>/delete', methods=['POST'])
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def delete_receipt(receipt_no):
+    try:
+        rcpt = query_db("SELECT flat_no, member_name FROM tbl_receipts WHERE receipt_no = %s", (receipt_no,), one=True)
+        execute_db("DELETE FROM tbl_receipts WHERE receipt_no = %s", (receipt_no,))
+        try:
+            execute_db("DELETE FROM receipts WHERE receipt_no = %s OR receipt_no = %s", (str(receipt_no), f"SDERA_{receipt_no}"))
+        except Exception:
+            pass
+        if rcpt:
+            flash(f"✓ Receipt #{receipt_no} (SDERA_{receipt_no}) for Flat {rcpt['flat_no']} ({rcpt['member_name']}) was deleted successfully.", 'info')
+        else:
+            flash(f"✓ Receipt #{receipt_no} deleted.", 'info')
+    except Exception as e:
+        flash(f"Error deleting receipt #{receipt_no}: {e}", 'danger')
+        
+    return redirect(url_for('admin_receipts'))
+
 # --- Administrative: Resident Directory ---
 @app.route('/admin/members')
 @roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')

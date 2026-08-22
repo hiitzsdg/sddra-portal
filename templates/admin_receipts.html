@@ -101,16 +101,21 @@
                         <strong class="text-amount-success" style="font-size: 0.95rem;">₹ {{ "{:,.2f}".format(r.amount) }}</strong>
                     </td>
                     <td>
-                        <div style="display: flex; gap: 0.4rem;">
-                            <a href="{{ url_for('view_receipt', receipt_no=r.receipt_no) }}" class="btn btn-sm btn-secondary" title="View Voucher">
+                        <div style="display: flex; gap: 0.35rem; align-items: center;">
+                            <a href="{{ url_for('view_receipt', receipt_no=r.receipt_no) }}" class="btn btn-sm btn-secondary" style="padding: 0.25rem 0.5rem;" title="View Voucher">
                                 👁️
                             </a>
-                            <a href="{{ url_for('download_receipt_pdf', receipt_no=r.receipt_no) }}" class="btn btn-sm btn-outline-success" title="Download Official PDF" target="_blank" download>
+                            <a href="{{ url_for('download_receipt_pdf', receipt_no=r.receipt_no) }}" class="btn btn-sm btn-outline-success" style="padding: 0.25rem 0.5rem;" title="Download Official PDF" target="_blank" download>
                                 📥 PDF
                             </a>
-                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="emailReceiptAjax({{ r.receipt_no }}, this)" title="Email Receipt to Resident">
+                            <button type="button" class="btn btn-sm btn-outline-primary" style="padding: 0.25rem 0.5rem;" onclick="emailReceiptAjax({{ r.receipt_no }}, this)" title="Email Receipt to Resident">
                                 ✉️
                             </button>
+                            <form method="POST" action="{{ url_for('delete_receipt', receipt_no=r.receipt_no) }}" onsubmit="return confirm('Are you sure you want to delete receipt SDERA_{{ r.receipt_no }} (Flat {{ r.flat_no }} - {{ r.member_name }})? This action cannot be undone.');" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-secondary" style="color: var(--amount-danger); padding: 0.25rem 0.5rem;" title="Delete Receipt">
+                                    🗑️
+                                </button>
+                            </form>
                         </div>
                     </td>
                 </tr>
