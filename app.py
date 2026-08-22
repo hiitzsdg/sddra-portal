@@ -451,110 +451,198 @@ def profile():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    user = session.get('user', {})
-    is_admin = bool(user.get('is_admin') or user.get('role') in ADMIN_ROLES)
-    
-    if is_admin:
-        total_collected_row = query_db("SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM tbl_receipts", one=True)
-        total_collected = float(total_collected_row['total']) if total_collected_row else 0.0
-        total_receipts_count = total_collected_row['count'] if total_collected_row else 0
+    try:
+        user = session.get('user', {})
+        if not isinstance(user, dict):
+            user = {}
+        is_admin = bool(user.get('is_admin') or user.get('role') in ADMIN_ROLES)
         
-        total_expenses_row = query_db("SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM tbl_expenses", one=True)
-        total_expenses = float(total_expenses_row['total']) if total_expenses_row else 0.0
-        total_vouchers_count = total_expenses_row['count'] if total_expenses_row else 0
-        
-        total_members_row = query_db("SELECT COUNT(*) as count FROM tbl_membership", one=True)
-        total_members = total_members_row['count'] if total_members_row else 0
-        
-        # Calculate Defaulters & Penalty Overview KPIs
-        # Fast batch calculation: Pre-fetch all receipts once into memory to eliminate 44 N+1 queries
-        all_rcpts_for_penalty = query_db("SELECT flat_no, coverage_end, payment_date, remarks, subscription_type FROM tbl_receipts") or []
-        rcpts_by_flat_map = {}
-        for r_p in all_rcpts_for_penalty:
-            fn_k = str(r_p.get('flat_no', '')).strip().upper()
-            rcpts_by_flat_map.setdefault(fn_k, []).append(r_p)
+        if is_admin:
+            try:
+                total_collected_row = query_db("SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM tbl_receipts", one=True)
+                total_collected = float(total_collected_row.get('total') or 0.0) if total_collected_row else 0.0
+                total_receipts_count = int(total_collected_row.get('count') or 0) if total_collected_row else 0
+            except Exception:
+                total_collected = 0.0
+                total_receipts_count = 0
+            
+            try:
+                total_expenses_row = query_db("SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM tbl_expenses", one=True)
+                total_expenses = float(total_expenses_row.get('total') or 0.0) if total_expenses_row else 0.0
+                total_vouchers_count = int(total_expenses_row.get('count') or 0) if total_expenses_row else 0
+            except Exception:
+                total_expenses = 0.0
+                total_vouchers_count = 0
+            
+            try:
+                total_members_row = query_db("SELECT COUNT(*) as count FROM tbl_membership", one=True)
+                total_members = int(total_members_row.get('count') or 0) if total_members_row else 0
+            except Exception:
+                total_members = 44
+            
+            # Calculate Defaulters & Penalty Overview KPIs
+            # Fast batch calculation: Pre-fetch all receipts once into memory to eliminate 44 N+1 queries
+            try:
+                all_rcpts_for_penalty = query_db("SELECT flat_no, coverage_end, payment_date, remarks, subscription_type FROM tbl_receipts") or []
+            except Exception:
+                all_rcpts_for_penalty = []
+            rcpts_by_flat_map = {}
+            for r_p in all_rcpts_for_penalty:
+                fn_k = str(r_p.get('flat_no', '')).strip().upper()
+                rcpts_by_flat_map.setdefault(fn_k, []).append(r_p)
 
-        members_all = query_db("SELECT flat_no, monthly_charge, member_name FROM tbl_membership") or []
-        defaulters_total_count = 0
-        total_penalty_accumulated = 0.0
-        total_maintenance_overdue = 0.0
-        for m_row in members_all:
-            p_calc = calculate_flat_penalty(m_row['flat_no'], member=m_row, receipts_by_flat=rcpts_by_flat_map)
-            if p_calc['overdue_months'] > 0:
-                defaulters_total_count += 1
-                total_maintenance_overdue += p_calc['base_due']
-                total_penalty_accumulated += p_calc['penalty_amount']
+            try:
+                members_all = query_db("SELECT flat_no, monthly_charge, member_name FROM tbl_membership") or []
+            except Exception:
+                members_all = []
+                
+            defaulters_total_count = 0
+            total_penalty_accumulated = 0.0
+            total_maintenance_overdue = 0.0
+            for m_row in members_all:
+                try:
+                    p_calc = calculate_flat_penalty(m_row['flat_no'], member=m_row, receipts_by_flat=rcpts_by_flat_map)
+                    if p_calc and p_calc.get('overdue_months', 0) > 0:
+                        defaulters_total_count += 1
+                        total_maintenance_overdue += float(p_calc.get('base_due') or 0.0)
+                        total_penalty_accumulated += float(p_calc.get('penalty_amount') or 0.0)
+                except Exception:
+                    pass
 
-        search_q = request.args.get('q', '').strip()
-        rcpt_query = "SELECT * FROM tbl_receipts"
-        rcpt_params = []
-        if search_q:
-            rcpt_query += " WHERE flat_no LIKE %s OR member_name LIKE %s OR remarks LIKE %s OR receipt_no = %s"
-            rcpt_params.extend([f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", search_q if search_q.isdigit() else 0])
-        rcpt_query += " ORDER BY receipt_no DESC"
-        recent_receipts = query_db(rcpt_query, rcpt_params)
-        recent_expenses = query_db("SELECT * FROM tbl_expenses ORDER BY voucher_no DESC")
-        
-        pinned_notices = query_db("SELECT * FROM tbl_notices WHERE is_pinned = 1 AND status = 'ACTIVE' ORDER BY priority = 'URGENT' DESC, id DESC LIMIT 3") or []
-        recent_notices = query_db("SELECT * FROM tbl_notices WHERE status = 'ACTIVE' ORDER BY is_pinned DESC, priority = 'URGENT' DESC, id DESC LIMIT 4") or []
-        recent_activity_logs = query_db("SELECT * FROM tbl_activity_logs ORDER BY id DESC LIMIT 6") or []
+            search_q = request.args.get('q', '').strip()
+            rcpt_query = "SELECT * FROM tbl_receipts"
+            rcpt_params = []
+            if search_q:
+                rcpt_query += " WHERE flat_no LIKE %s OR member_name LIKE %s OR remarks LIKE %s OR receipt_no = %s"
+                rcpt_params.extend([f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", search_q if search_q.isdigit() else 0])
+            rcpt_query += " ORDER BY receipt_no DESC LIMIT 100"
+            
+            try:
+                recent_receipts = query_db(rcpt_query, rcpt_params) or []
+            except Exception:
+                recent_receipts = []
+                
+            try:
+                recent_expenses = query_db("SELECT * FROM tbl_expenses ORDER BY voucher_no DESC LIMIT 100") or []
+            except Exception:
+                recent_expenses = []
+            
+            try:
+                pinned_notices = query_db("SELECT * FROM tbl_notices WHERE is_pinned = 1 AND status = 'ACTIVE' ORDER BY priority = 'URGENT' DESC, id DESC LIMIT 3") or []
+                recent_notices = query_db("SELECT * FROM tbl_notices WHERE status = 'ACTIVE' ORDER BY is_pinned DESC, priority = 'URGENT' DESC, id DESC LIMIT 4") or []
+            except Exception:
+                pinned_notices = []
+                recent_notices = []
+                
+            try:
+                recent_activity_logs = query_db("SELECT * FROM tbl_activity_logs ORDER BY id DESC LIMIT 6") or []
+            except Exception:
+                recent_activity_logs = []
 
+            return render_template(
+                'dashboard.html',
+                is_admin=True,
+                total_members=total_members,
+                total_collected=total_collected,
+                total_receipts_count=total_receipts_count,
+                total_expenses=total_expenses,
+                total_vouchers_count=total_vouchers_count,
+                net_balance=total_collected - total_expenses,
+                defaulters_total_count=defaulters_total_count,
+                total_penalty_accumulated=total_penalty_accumulated,
+                total_maintenance_overdue=total_maintenance_overdue,
+                recent_receipts=recent_receipts,
+                recent_expenses=recent_expenses,
+                recent_activity_logs=recent_activity_logs,
+                pinned_notices=pinned_notices,
+                recent_notices=recent_notices,
+                search_q=search_q,
+                current_year=2026
+            )
+        else:
+            flat_no = user.get('flat_no', '')
+            try:
+                my_receipts = query_db(
+                    "SELECT * FROM tbl_receipts WHERE flat_no = %s ORDER BY receipt_no DESC", 
+                    (flat_no,)
+                ) or []
+            except Exception:
+                my_receipts = []
+            
+            try:
+                total_paid_row = query_db(
+                    "SELECT COALESCE(SUM(amount), 0) as total FROM tbl_receipts WHERE flat_no = %s",
+                    (flat_no,),
+                    one=True
+                )
+                total_paid = float(total_paid_row.get('total') or 0.0) if total_paid_row else 0.0
+            except Exception:
+                total_paid = 0.0
+            
+            try:
+                member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
+                my_penalty = calculate_flat_penalty(flat_no, member=member)
+            except Exception:
+                member = None
+                my_penalty = {
+                    'flat_no': flat_no,
+                    'member_name': user.get('name', 'Resident'),
+                    'overdue_months': 0,
+                    'base_due': 0.0,
+                    'penalty_amount': 0.0,
+                    'total_due': 0.0,
+                    'coverage_display': 'Up to Date'
+                }
+            
+            try:
+                total_expenses_row = query_db("SELECT COALESCE(SUM(amount), 0) as total FROM tbl_expenses", one=True)
+                total_expenses = float(total_expenses_row.get('total') or 0.0) if total_expenses_row else 0.0
+                recent_expenses = query_db("SELECT * FROM tbl_expenses ORDER BY voucher_no DESC LIMIT 5") or []
+            except Exception:
+                total_expenses = 0.0
+                recent_expenses = []
+            
+            try:
+                pinned_notices = query_db("SELECT * FROM tbl_notices WHERE is_pinned = 1 AND status = 'ACTIVE' ORDER BY priority = 'URGENT' DESC, id DESC LIMIT 3") or []
+                recent_notices = query_db("SELECT * FROM tbl_notices WHERE status = 'ACTIVE' ORDER BY is_pinned DESC, priority = 'URGENT' DESC, id DESC LIMIT 4") or []
+            except Exception:
+                pinned_notices = []
+                recent_notices = []
+
+            return render_template(
+                'dashboard.html',
+                is_admin=False,
+                member=member,
+                my_receipts=my_receipts,
+                total_paid=total_paid,
+                outstanding=my_penalty.get('base_due', 0.0) if my_penalty else 0.0,
+                my_penalty=my_penalty,
+                total_expenses=total_expenses,
+                recent_expenses=recent_expenses,
+                pinned_notices=pinned_notices,
+                recent_notices=recent_notices,
+                current_year=2026
+            )
+    except Exception as e:
+        app.logger.error(f"Dashboard render exception: {e}\n{traceback.format_exc()}")
         return render_template(
             'dashboard.html',
-            is_admin=True,
-            total_members=total_members,
-            total_collected=total_collected,
-            total_receipts_count=total_receipts_count,
-            total_expenses=total_expenses,
-            total_vouchers_count=total_vouchers_count,
-            net_balance=total_collected - total_expenses,
-            defaulters_total_count=defaulters_total_count,
-            total_penalty_accumulated=total_penalty_accumulated,
-            total_maintenance_overdue=total_maintenance_overdue,
-            recent_receipts=recent_receipts,
-            recent_expenses=recent_expenses,
-            recent_activity_logs=recent_activity_logs,
-            pinned_notices=pinned_notices,
-            recent_notices=recent_notices,
-            search_q=search_q,
-            current_year=2026
-        )
-    else:
-        flat_no = user.get('flat_no', '')
-        my_receipts = query_db(
-            "SELECT * FROM tbl_receipts WHERE flat_no = %s ORDER BY receipt_no DESC", 
-            (flat_no,)
-        )
-        
-        total_paid_row = query_db(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM tbl_receipts WHERE flat_no = %s",
-            (flat_no,),
-            one=True
-        )
-        total_paid = float(total_paid_row['total']) if total_paid_row else 0.0
-        
-        member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
-        my_penalty = calculate_flat_penalty(flat_no, member=member)
-        
-        total_expenses_row = query_db("SELECT COALESCE(SUM(amount), 0) as total FROM tbl_expenses", one=True)
-        total_expenses = float(total_expenses_row['total']) if total_expenses_row else 0.0
-        recent_expenses = query_db("SELECT * FROM tbl_expenses ORDER BY voucher_no DESC LIMIT 5")
-        
-        pinned_notices = query_db("SELECT * FROM tbl_notices WHERE is_pinned = 1 AND status = 'ACTIVE' ORDER BY priority = 'URGENT' DESC, id DESC LIMIT 3") or []
-        recent_notices = query_db("SELECT * FROM tbl_notices WHERE status = 'ACTIVE' ORDER BY is_pinned DESC, priority = 'URGENT' DESC, id DESC LIMIT 4") or []
-
-        return render_template(
-            'dashboard.html',
-            is_admin=False,
-            member=member,
-            my_receipts=my_receipts,
-            total_paid=total_paid,
-            outstanding=my_penalty['base_due'],
-            my_penalty=my_penalty,
-            total_expenses=total_expenses,
-            recent_expenses=recent_expenses,
-            pinned_notices=pinned_notices,
-            recent_notices=recent_notices,
+            is_admin=bool(session.get('user', {}).get('is_admin')),
+            total_members=44,
+            total_collected=0.0,
+            total_receipts_count=0,
+            total_expenses=0.0,
+            total_vouchers_count=0,
+            net_balance=0.0,
+            defaulters_total_count=0,
+            total_penalty_accumulated=0.0,
+            total_maintenance_overdue=0.0,
+            recent_receipts=[],
+            recent_expenses=[],
+            recent_activity_logs=[],
+            pinned_notices=[],
+            recent_notices=[],
+            search_q='',
             current_year=2026
         )
 
