@@ -297,20 +297,35 @@ def generate_receipt_pdf_bytes(receipt, member_info=None, contact_info=None):
         ParagraphStyle('Note', parent=styles['Normal'], fontSize=7.5, leading=9.5, textColor=colors.HexColor('#475569'))
     )
     
-    sig_p = Paragraph(
-        "<font size=9><b>Swapnadeep Ganguly</b></font><br/>"
-        "<font size=7.5 color='#1E3A8A'><b>Honorary Treasurer</b></font><br/>"
-        f"<font size=6.5 color='#64748B'>{Config.ASSOCIATION_NAME}</font>",
-        ParagraphStyle('Sig', parent=styles['Normal'], alignment=1, leading=9)
+    sig_name = Paragraph(
+        "<b><font size=9.5 color='#0F172A'>Swapnadeep Ganguly</font></b>", 
+        ParagraphStyle('SigName', parent=styles['Normal'], alignment=1, leading=11)
+    )
+    sig_title = Paragraph(
+        "<b><font size=8 color='#1E3A8A'>Honorary Treasurer</font></b><br/>"
+        f"<font size=6.5 color='#64748B'>{Config.ASSOCIATION_NAME}</font>", 
+        ParagraphStyle('SigTitle', parent=styles['Normal'], alignment=1, leading=9)
     )
     
+    sig_box_table = Table([[sig_name], [sig_title]], colWidths=[175])
+    sig_box_table.setStyle(TableStyle([
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('LINEBELOW', (0,0), (0,0), 0.8, colors.HexColor('#64748B')),
+        ('TOPPADDING', (0,0), (-1,-1), 1),
+        ('BOTTOMPADDING', (0,0), (0,0), 3),
+        ('TOPPADDING', (0,1), (0,1), 3),
+        ('BOTTOMPADDING', (0,1), (0,1), 1),
+        ('LEFTPADDING', (0,0), (-1,-1), 0),
+        ('RIGHTPADDING', (0,0), (-1,-1), 0),
+    ]))
+    
     footer_data = [
-        [note_p, sig_p]
+        [note_p, sig_box_table]
     ]
     footer_table = Table(footer_data, colWidths=[340, 180])
     footer_table.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'BOTTOM'),
-        ('LINEABOVE', (1,0), (1,0), 0.8, colors.HexColor('#64748B')),
         ('TOPPADDING', (0,0), (-1,-1), 3),
         ('BOTTOMPADDING', (0,0), (-1,-1), 3),
         ('LEFTPADDING', (0,0), (-1,-1), 4),
