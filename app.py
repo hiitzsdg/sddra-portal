@@ -953,23 +953,34 @@ def admin_audit_logs():
             
     query += " ORDER BY id DESC LIMIT 500"
     
-    logs = query_db(query, params) or []
+    try:
+        logs = query_db(query, params) or []
+    except Exception as err:
+        app.logger.warning(f"Failed to query audit logs: {err}")
+        logs = []
     
     # Calculate stats
-    total_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs", one=True)
-    member_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs WHERE actor_role = 'MEMBER'", one=True)
-    admin_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs WHERE actor_role != 'MEMBER'", one=True)
-    security_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs WHERE action_type IN ('LOGIN', 'LOGOUT', 'PASSWORD_CHANGE')", one=True)
+    try:
+        total_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs", one=True)
+        member_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs WHERE actor_role = 'MEMBER'", one=True)
+        admin_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs WHERE actor_role != 'MEMBER'", one=True)
+        security_logs_cnt = query_db("SELECT COUNT(*) as c FROM tbl_activity_logs WHERE action_type IN ('LOGIN', 'LOGOUT', 'PASSWORD_CHANGE')", one=True)
+        
+        stats = {
+            'total': total_logs_cnt['c'] if total_logs_cnt else 0,
+            'member': member_logs_cnt['c'] if member_logs_cnt else 0,
+            'admin': admin_logs_cnt['c'] if admin_logs_cnt else 0,
+            'security': security_logs_cnt['c'] if security_logs_cnt else 0
+        }
+    except Exception:
+        stats = {'total': len(logs), 'member': 0, 'admin': len(logs), 'security': 0}
     
-    stats = {
-        'total': total_logs_cnt['c'] if total_logs_cnt else 0,
-        'member': member_logs_cnt['c'] if member_logs_cnt else 0,
-        'admin': admin_logs_cnt['c'] if admin_logs_cnt else 0,
-        'security': security_logs_cnt['c'] if security_logs_cnt else 0
-    }
-    
-    distinct_roles = query_db("SELECT DISTINCT actor_role FROM tbl_activity_logs WHERE actor_role IS NOT NULL ORDER BY actor_role") or []
-    distinct_actions = query_db("SELECT DISTINCT action_type FROM tbl_activity_logs WHERE action_type IS NOT NULL ORDER BY action_type") or []
+    try:
+        distinct_roles = query_db("SELECT DISTINCT actor_role FROM tbl_activity_logs WHERE actor_role IS NOT NULL ORDER BY actor_role") or []
+        distinct_actions = query_db("SELECT DISTINCT action_type FROM tbl_activity_logs WHERE action_type IS NOT NULL ORDER BY action_type") or []
+    except Exception:
+        distinct_roles = []
+        distinct_actions = []
     
     return render_template(
         'admin_audit_logs.html',

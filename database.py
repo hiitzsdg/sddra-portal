@@ -347,6 +347,21 @@ def ensure_notices_table_sqlite():
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tbl_activity_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                actor_username TEXT NOT NULL,
+                actor_name TEXT,
+                actor_role TEXT DEFAULT 'MEMBER',
+                flat_no TEXT DEFAULT '-',
+                action_type TEXT NOT NULL,
+                description TEXT NOT NULL,
+                ip_address TEXT DEFAULT '127.0.0.1',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
         cur.execute("SELECT COUNT(*) FROM tbl_notices;")
         count = cur.fetchone()[0]
         if count == 0:
