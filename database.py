@@ -393,6 +393,32 @@ def ensure_notices_table_mysql(conn):
 
         conn.commit()
 
+def ensure_mysql_schema(conn):
+    """Automatically provision complete tables and data if connected to an empty cloud MySQL/TiDB database."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT COUNT(*) as cnt 
+            FROM information_schema.TABLES 
+            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'tbl_membership';
+        """, (Config.DB_NAME,))
+        has_table = cur.fetchone()['cnt'] > 0
+        
+        if not has_table:
+            print(f"[DB Init] Cloud database '{Config.DB_NAME}' is empty. Initializing complete schema from sddra_billing_dump.sql...")
+            dump_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sddra_billing_dump.sql')
+            if os.path.exists(dump_file):
+                with open(dump_file, 'r', encoding='utf-8') as f:
+                    sql_dump = f.read()
+                statements = [s.strip() for s in sql_dump.split(';\n') if s.strip()]
+                for stmt in statements:
+                    if stmt.startswith('/*') or stmt.startswith('--'):
+                        continue
+                    try:
+                        cur.execute(stmt)
+                    except Exception:
+                        pass
+                print(f"[DB Init] Completed automatic cloud database schema & seed provisioning for '{Config.DB_NAME}'.")
+
 def init_db():
     """
     Initialize database extensions and verify tables in sddra_billing / sddra.db.
@@ -418,6 +444,9 @@ def init_db():
         conn = get_mysql_connection()
         try:
             with conn.cursor() as cur:
+                # 0. Ensure schema exists if connected to fresh cloud database
+                ensure_mysql_schema(conn)
+
                 # 1. Non-destructively ensure password_hash column exists on tbl_membership
                 cur.execute("""
                     SELECT COUNT(*) as cnt 
