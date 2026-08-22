@@ -761,7 +761,47 @@ def admin_update_member_contact():
     except Exception as e:
         flash(f"Error updating contact details for Flat {flat_no}: {e}", 'danger')
         
-    return redirect(url_for('admin_members'))
+@app.route('/api/db-status')
+def api_db_status():
+    from database import determine_engine, get_mysql_connection
+    detected_keys = [k for k in ['DATABASE_URL', 'MYSQL_URL', 'TIDB_URL', 'DB_HOST', 'DB_USER', 'DB_NAME', 'DB_PORT', 'DB_SSL', 'TIDB_HOST', 'MYSQLHOST'] if os.environ.get(k)]
+    
+    mysql_ok = False
+    mysql_err = None
+    mysql_version = None
+    mysql_tables = []
+    
+    try:
+        conn = get_mysql_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT VERSION() as v;")
+                row = cur.fetchone()
+                mysql_version = row['v'] if row else 'Unknown'
+                cur.execute("SHOW TABLES;")
+                mysql_tables = [list(r.values())[0] for r in cur.fetchall()]
+            mysql_ok = True
+        finally:
+            conn.close()
+    except Exception as e:
+        mysql_err = str(e)
+        
+    engine = determine_engine()
+    
+    return jsonify({
+        "status": "online",
+        "active_engine": engine,
+        "mysql_connected": mysql_ok,
+        "mysql_error": mysql_err,
+        "mysql_version": mysql_version,
+        "mysql_tables_count": len(mysql_tables),
+        "mysql_tables": mysql_tables,
+        "configured_host": Config.DB_HOST[:8] + "..." if len(Config.DB_HOST) > 8 else Config.DB_HOST,
+        "configured_port": Config.DB_PORT,
+        "configured_db": Config.DB_NAME,
+        "configured_ssl": Config.DB_SSL,
+        "env_vars_detected": detected_keys
+    })
 
 @app.route('/api/member-receipts')
 @app.route('/api/members/<path:flat_no>/receipts')

@@ -9,6 +9,7 @@
           "templates/**",
           "static/**",
           "sddra.db",
+          "sddra_billing_dump.sql",
           "*.py"
         ]
       }
