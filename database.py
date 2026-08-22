@@ -181,38 +181,32 @@ def query_db(query, params=None, one=False):
             return dict(row) if row else None
         return [dict(r) for r in cur.fetchall()]
     else:
-        try:
-            conn = get_db()
-            with conn.cursor() as cur:
-                if params:
-                    cur.execute(query, params)
-                else:
-                    cur.execute(query)
-                if one:
-                    return cur.fetchone()
-                return cur.fetchall()
-        except Exception as e:
+        for attempt in range(2):
             try:
-                from flask import g, has_request_context
-                if has_request_context() and hasattr(g, 'db_conn'):
-                    g.db_conn = get_mysql_connection()
-                    with g.db_conn.cursor() as cur:
-                        if params:
-                            cur.execute(query, params)
-                        else:
-                            cur.execute(query)
-                        if one:
-                            return cur.fetchone()
-                        return cur.fetchall()
-            except Exception:
-                pass
-            print(f"[DB Query Error] MySQL query failed: {e}.")
-            if Config.DB_TYPE != 'mysql':
-                print("[DB Query Fallback] Retrying query against SQLite fallback.")
-                global _ENGINE_MODE
-                _ENGINE_MODE = 'sqlite'
-                return query_db(query, params, one)
-            raise e
+                conn = get_db()
+                if hasattr(conn, 'ping'):
+                    try:
+                        conn.ping(reconnect=True)
+                    except Exception:
+                        pass
+                with conn.cursor() as cur:
+                    if params:
+                        cur.execute(query, params)
+                    else:
+                        cur.execute(query)
+                    if one:
+                        return cur.fetchone()
+                    return cur.fetchall()
+            except Exception as e:
+                print(f"[DB Query Error] Attempt {attempt+1} failed ({e}). Reconnecting...")
+                try:
+                    from flask import g, has_request_context
+                    if has_request_context():
+                        g.db_conn = get_mysql_connection()
+                except Exception:
+                    pass
+                if attempt == 1:
+                    raise e
 
 def execute_db(query, params=None):
     """Execute INSERT, UPDATE, or DELETE query and return last insert id or affected rows."""
@@ -229,36 +223,31 @@ def execute_db(query, params=None):
         conn.commit()
         return cur.lastrowid if cur.lastrowid else cur.rowcount
     else:
-        try:
-            conn = get_db()
-            with conn.cursor() as cur:
-                if params:
-                    cur.execute(query, params)
-                else:
-                    cur.execute(query)
-                conn.commit()
-                return cur.lastrowid if cur.lastrowid else cur.rowcount
-        except Exception as e:
+        for attempt in range(2):
             try:
-                from flask import g, has_request_context
-                if has_request_context() and hasattr(g, 'db_conn'):
-                    g.db_conn = get_mysql_connection()
-                    with g.db_conn.cursor() as cur:
-                        if params:
-                            cur.execute(query, params)
-                        else:
-                            cur.execute(query)
-                        g.db_conn.commit()
-                        return cur.lastrowid if cur.lastrowid else cur.rowcount
-            except Exception:
-                pass
-            print(f"[DB Execute Error] MySQL execute failed: {e}.")
-            if Config.DB_TYPE != 'mysql':
-                print("[DB Execute Fallback] Retrying execute against SQLite fallback.")
-                global _ENGINE_MODE
-                _ENGINE_MODE = 'sqlite'
-                return execute_db(query, params)
-            raise e
+                conn = get_db()
+                if hasattr(conn, 'ping'):
+                    try:
+                        conn.ping(reconnect=True)
+                    except Exception:
+                        pass
+                with conn.cursor() as cur:
+                    if params:
+                        cur.execute(query, params)
+                    else:
+                        cur.execute(query)
+                    conn.commit()
+                    return cur.lastrowid if cur.lastrowid else cur.rowcount
+            except Exception as e:
+                print(f"[DB Execute Error] Attempt {attempt+1} failed ({e}). Reconnecting...")
+                try:
+                    from flask import g, has_request_context
+                    if has_request_context():
+                        g.db_conn = get_mysql_connection()
+                except Exception:
+                    pass
+                if attempt == 1:
+                    raise e
 
 def verify_password(plain_password: str, hashed: str) -> bool:
     """Verify password against bcrypt hash ($2b$...) or werkzeug hash."""

@@ -1033,11 +1033,15 @@ def admin_update_member_contact():
                 "INSERT INTO tbl_mbr_cntct (flat_no, email_1, mobile_num_1) VALUES (%s, %s, %s)",
                 (flat_no, email, phone)
             )
-            
-        try:
-            execute_db("UPDATE members SET email = %s, phone = %s WHERE LOWER(TRIM(flat_number)) = LOWER(TRIM(%s))", (email, phone, flat_no))
-        except Exception:
-            pass
+
+        # Sync officer admin table if flat belongs to a committee bearer
+        officer_flats_map = {'A/4-C': 'treasurer', 'A/2-A': 'president', 'A/1-C': 'secretary', 'Estate Office': 'caretaker', 'Office': 'admin'}
+        u_name = officer_flats_map.get(flat_no)
+        if u_name:
+            try:
+                execute_db("UPDATE tbl_admins SET email = %s, phone = %s WHERE LOWER(username) = LOWER(%s)", (email, phone, u_name))
+            except Exception:
+                pass
             
         log_activity('PROFILE_UPDATE', f"Treasurer/Admin updated official contact registry for Flat {flat_no} (Email: {email}, Phone: {phone})")
         flash(f"✓ Contact details for Flat {flat_no} updated successfully ({email}).", 'success')
