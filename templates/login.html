@@ -72,6 +72,26 @@
 
             <!-- Committee Roles (Password Prompt Required) -->
             <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+                <button type="button" onclick="selectAdminLogin('president', 'Association President (Dr. Asit Kumar Bera)')" class="demo-btn" style="width: 100%; text-align: left; background: var(--surface-card); border: 1px solid var(--surface-border); cursor: pointer;">
+                    <span style="display: flex; align-items: center; gap: 0.6rem;">
+                        <span style="font-size: 1.2rem;">🏛️</span>
+                        <span class="text-main">Association President</span>
+                    </span>
+                    <span class="badge badge-president" style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                        <span>🔒</span> Password Required
+                    </span>
+                </button>
+
+                <button type="button" onclick="selectAdminLogin('secretary', 'General Secretary (Somenath Halder)')" class="demo-btn" style="width: 100%; text-align: left; background: var(--surface-card); border: 1px solid var(--surface-border); cursor: pointer;">
+                    <span style="display: flex; align-items: center; gap: 0.6rem;">
+                        <span style="font-size: 1.2rem;">📋</span>
+                        <span class="text-main">General Secretary</span>
+                    </span>
+                    <span class="badge badge-secretary" style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                        <span>🔒</span> Password Required
+                    </span>
+                </button>
+
                 <button type="button" onclick="selectAdminLogin('treasurer', 'Association Treasurer (Master Admin)')" class="demo-btn" style="width: 100%; text-align: left; background: var(--surface-card); border: 1px solid var(--surface-border); cursor: pointer;">
                     <span style="display: flex; align-items: center; gap: 0.6rem;">
                         <span style="font-size: 1.2rem;">💰</span>
