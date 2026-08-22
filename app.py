@@ -823,7 +823,7 @@ def api_seed_cloud_db():
                 }
                 for tbl, rows in table_map.items():
                     if rows:
-                        cols = list(rows[0].keys())
+                        cols = [c for c in rows[0].keys() if not (tbl == 'tbl_membership' and c == 'monthly_charge')]
                         placeholders = ", ".join(["%s"] * len(cols))
                         col_names = ", ".join([f"`{c}`" for c in cols])
                         insert_sql = f"REPLACE INTO `{tbl}` ({col_names}) VALUES ({placeholders});"
