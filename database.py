@@ -351,6 +351,28 @@ def ensure_notices_table_sqlite():
             );
         """)
 
+        cur.execute("SELECT COUNT(*) FROM tbl_activity_logs;")
+        act_cnt = cur.fetchone()[0]
+        if act_cnt == 0:
+            try:
+                from seed_data import SEED_ACTIVITY_LOGS
+                for log_r in SEED_ACTIVITY_LOGS:
+                    cur.execute("""
+                        INSERT INTO tbl_activity_logs (actor_username, actor_name, actor_role, flat_no, action_type, description, ip_address, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                    """, (
+                        log_r['actor_username'],
+                        log_r['actor_name'],
+                        log_r['actor_role'],
+                        log_r['flat_no'],
+                        log_r['action_type'],
+                        log_r['description'],
+                        log_r.get('ip_address', '127.0.0.1'),
+                        log_r['created_at']
+                    ))
+            except Exception:
+                pass
+
         cur.execute("SELECT COUNT(*) FROM tbl_notices;")
         count = cur.fetchone()[0]
         if count == 0:
@@ -576,14 +598,15 @@ def ensure_mysql_schema(conn):
         if mbr_count == 0:
             print(f"[DB Init] Populating TiDB Cloud tables from embedded seed dataset...")
             try:
-                from seed_data import SEED_MEMBERSHIP, SEED_CONTACTS, SEED_RECEIPTS, SEED_EXPENSES, SEED_ADMINS, SEED_NOTICES
+                from seed_data import SEED_MEMBERSHIP, SEED_CONTACTS, SEED_RECEIPTS, SEED_EXPENSES, SEED_ADMINS, SEED_NOTICES, SEED_ACTIVITY_LOGS
                 table_map = {
                     'tbl_membership': SEED_MEMBERSHIP,
                     'tbl_mbr_cntct': SEED_CONTACTS,
                     'tbl_receipts': SEED_RECEIPTS,
                     'tbl_expenses': SEED_EXPENSES,
                     'tbl_admins': SEED_ADMINS,
-                    'tbl_notices': SEED_NOTICES
+                    'tbl_notices': SEED_NOTICES,
+                    'tbl_activity_logs': SEED_ACTIVITY_LOGS
                 }
                 
                 for tbl, rows in table_map.items():
