@@ -803,6 +803,53 @@ def api_db_status():
         "env_vars_detected": detected_keys
     })
 
+@app.route('/api/seed-cloud-db')
+def api_seed_cloud_db():
+    from database import get_mysql_connection, init_db
+    try:
+        conn = get_mysql_connection()
+        try:
+            dump_candidates = [
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sddra_billing_dump.sql'),
+                os.path.join(os.getcwd(), 'sddra_billing_dump.sql'),
+                '/var/task/sddra_billing_dump.sql'
+            ]
+            dump_file = next((p for p in dump_candidates if os.path.exists(p)), None)
+            if not dump_file:
+                return jsonify({"success": False, "error": "sddra_billing_dump.sql not found on server"})
+            
+            with open(dump_file, 'r', encoding='utf-8') as f:
+                sql_dump = f.read()
+            statements = [s.strip() for s in sql_dump.split(';\n') if s.strip()]
+            
+            success_count = 0
+            with conn.cursor() as cur:
+                for stmt in statements:
+                    if stmt.startswith('/*') or stmt.startswith('--'):
+                        continue
+                    try:
+                        cur.execute(stmt)
+                        success_count += 1
+                    except Exception:
+                        pass
+                conn.commit()
+            
+            init_db()
+            
+            members = query_db("SELECT COUNT(*) as cnt FROM tbl_membership;", one=True)
+            receipts = query_db("SELECT COUNT(*) as cnt FROM tbl_receipts;", one=True)
+            return jsonify({
+                "success": True, 
+                "message": "Cloud database successfully populated with all official association data!",
+                "members_count": members['cnt'] if members else 0,
+                "receipts_count": receipts['cnt'] if receipts else 0,
+                "statements_executed": success_count
+            })
+        finally:
+            conn.close()
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route('/api/member-receipts')
 @app.route('/api/members/<path:flat_no>/receipts')
 @roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')

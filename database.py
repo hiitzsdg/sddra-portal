@@ -424,10 +424,24 @@ def ensure_mysql_schema(conn):
         """, (Config.DB_NAME,))
         has_table = cur.fetchone()['cnt'] > 0
         
-        if not has_table:
-            print(f"[DB Init] Cloud database '{Config.DB_NAME}' is empty. Initializing complete schema from sddra_billing_dump.sql...")
-            dump_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sddra_billing_dump.sql')
-            if os.path.exists(dump_file):
+        mbr_count = 0
+        if has_table:
+            try:
+                cur.execute("SELECT COUNT(*) as cnt FROM tbl_membership;")
+                r = cur.fetchone()
+                mbr_count = r['cnt'] if isinstance(r, dict) else r[0]
+            except Exception:
+                mbr_count = 0
+        
+        if not has_table or mbr_count == 0:
+            print(f"[DB Init] Cloud database '{Config.DB_NAME}' has {mbr_count} members. Initializing complete schema from sddra_billing_dump.sql...")
+            dump_candidates = [
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sddra_billing_dump.sql'),
+                os.path.join(os.getcwd(), 'sddra_billing_dump.sql'),
+                '/var/task/sddra_billing_dump.sql'
+            ]
+            dump_file = next((p for p in dump_candidates if os.path.exists(p)), None)
+            if dump_file:
                 with open(dump_file, 'r', encoding='utf-8') as f:
                     sql_dump = f.read()
                 statements = [s.strip() for s in sql_dump.split(';\n') if s.strip()]
@@ -438,6 +452,7 @@ def ensure_mysql_schema(conn):
                         cur.execute(stmt)
                     except Exception:
                         pass
+                conn.commit()
                 print(f"[DB Init] Completed automatic cloud database schema & seed provisioning for '{Config.DB_NAME}'.")
 
 def init_db():
