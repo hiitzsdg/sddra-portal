@@ -97,10 +97,15 @@ def get_mysql_connection():
         'charset': 'utf8mb4',
         'cursorclass': pymysql.cursors.DictCursor,
         'autocommit': True,
-        'connect_timeout': 10.0
+        'connect_timeout': 15.0
     }
-    if Config.DB_SSL:
-        conn_params['ssl'] = {'check_hostname': False}
+    use_ssl = Config.DB_SSL or any(cloud_dom in Config.DB_HOST.lower() for cloud_dom in ['tidb', 'aiven', 'planetscale', 'aws', 'rds', 'railway', 'supabase', 'neon'])
+    if use_ssl:
+        import ssl
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        conn_params['ssl'] = ctx
     return pymysql.connect(**conn_params)
 
 def determine_engine():
