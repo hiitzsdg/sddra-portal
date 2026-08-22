@@ -181,15 +181,30 @@ def login():
             # 1. Check tbl_admins first (by username)
             admin = query_db("SELECT * FROM tbl_admins WHERE LOWER(username) = LOWER(%s)", (raw_login,), one=True)
             if admin and verify_password(password, admin.get('password_hash', '')):
+                admin_u = admin['username'].lower()
+                officer_names = {
+                    'treasurer': 'Swapnadeep Ganguly',
+                    'president': 'Dr. Asit Kumar Bera',
+                    'secretary': 'Somenath Halder',
+                    'caretaker': 'Sanjoy Chakraborty',
+                    'admin': 'Billing Administrator'
+                }
+                officer_flats = {
+                    'treasurer': 'A/4-C',
+                    'president': 'A/2-A',
+                    'secretary': 'A/1-C',
+                    'caretaker': 'Estate Office',
+                    'admin': 'Office'
+                }
                 session['user'] = {
                     'id': admin['admin_id'],
                     'username': admin['username'],
-                    'name': f"{admin['username'].title()}",
+                    'name': officer_names.get(admin_u, admin['username'].title()),
                     'role': admin.get('role', 'super_admin'),
                     'is_admin': True,
-                    'flat_no': 'Office'
+                    'flat_no': officer_flats.get(admin_u, 'Office')
                 }
-                flash(f"Login successful! Welcome, {admin['username']}.", 'success')
+                flash(f"Login successful! Welcome, {officer_names.get(admin_u, admin['username'])}.", 'success')
                 next_p = request.args.get('next')
                 return redirect(next_p or url_for('dashboard'))
 
