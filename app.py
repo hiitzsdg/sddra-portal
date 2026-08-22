@@ -628,7 +628,7 @@ def expenses_list():
     )
 
 @app.route('/admin/expenses/new', methods=['POST'])
-@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer')
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
 def add_expense():
     voucher_date = request.form.get('voucher_date', str(date.today()))
     expense_description = request.form.get('expense_description', '').strip()
@@ -653,8 +653,40 @@ def add_expense():
         
     return redirect(url_for('expenses_list'))
 
+@app.route('/admin/expenses/<int:voucher_no>/edit', methods=['POST'])
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def edit_expense(voucher_no):
+    voucher_date = request.form.get('voucher_date', '').strip()
+    expense_description = request.form.get('expense_description', '').strip()
+    particulars = request.form.get('particulars', '').strip()
+    spl_head = request.form.get('spl_head', '').strip()
+    payment_by = request.form.get('payment_by', 'Online').strip()
+    amount_str = request.form.get('amount', '').strip()
+    
+    if not expense_description or not amount_str:
+        flash('Description and Amount are required.', 'danger')
+        return redirect(url_for('expenses_list'))
+        
+    try:
+        amount = float(amount_str)
+        if amount <= 0:
+            flash('Amount must be greater than zero.', 'danger')
+            return redirect(url_for('expenses_list'))
+            
+        execute_db(
+            """UPDATE tbl_expenses 
+               SET voucher_date = %s, expense_description = %s, particulars = %s, spl_head = %s, payment_by = %s, amount = %s 
+               WHERE voucher_no = %s""",
+            (voucher_date, expense_description, particulars, spl_head, payment_by, amount, voucher_no)
+        )
+        flash(f"✓ Expense Voucher #{voucher_no} updated successfully.", 'success')
+    except Exception as e:
+        flash(f"Error updating expense voucher #{voucher_no}: {e}", 'danger')
+        
+    return redirect(url_for('expenses_list'))
+
 @app.route('/admin/expenses/<int:voucher_no>/delete', methods=['POST'])
-@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer')
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
 def delete_expense(voucher_no):
     execute_db("DELETE FROM tbl_expenses WHERE voucher_no = %s", (voucher_no,))
     flash(f"Voucher #{voucher_no} deleted.", 'info')

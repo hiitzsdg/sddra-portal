@@ -149,13 +149,29 @@
                     <td>
                         <strong class="text-amount-danger" style="font-size: 0.95rem;">₹ {{ "{:,.2f}".format(e.amount) }}</strong>
                     </td>
-                    {% if is_executive %}
+                    {% if is_admin or is_executive %}
                     <td>
-                        <form method="POST" action="{{ url_for('delete_expense', voucher_no=e.voucher_no) }}" onsubmit="return confirm('Are you sure you want to delete voucher #{{ e.voucher_no }}?');" style="display: inline;">
-                            <button type="submit" class="btn btn-sm btn-secondary" style="color: var(--amount-danger); padding: 0.25rem 0.5rem;" title="Delete Record">
-                                🗑️
+                        <div style="display: flex; gap: 0.35rem; align-items: center;">
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-primary" 
+                                    style="padding: 0.25rem 0.55rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" 
+                                    title="Edit Voucher #{{ e.voucher_no }}"
+                                    onclick="openEditExpenseModal(this)"
+                                    data-voucher-no="{{ e.voucher_no }}"
+                                    data-voucher-date="{{ e.voucher_date }}"
+                                    data-description="{{ e.expense_description }}"
+                                    data-particulars="{{ e.particulars }}"
+                                    data-spl-head="{{ e.spl_head or '' }}"
+                                    data-payment-by="{{ e.payment_by }}"
+                                    data-amount="{{ e.amount }}">
+                                <span>✏️</span> Edit
                             </button>
-                        </form>
+                            <form method="POST" action="{{ url_for('delete_expense', voucher_no=e.voucher_no) }}" onsubmit="return confirm('Are you sure you want to delete voucher #{{ e.voucher_no }}?');" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-secondary" style="color: var(--amount-danger); padding: 0.25rem 0.5rem;" title="Delete Record">
+                                    🗑️
+                                </button>
+                            </form>
+                        </div>
                     </td>
                     {% endif %}
                 </tr>
@@ -171,7 +187,7 @@
     </div>
 </div>
 
-{% if is_executive %}
+{% if is_admin or is_executive %}
 <!-- Modal: Add New Incurred Expense -->
 <div id="addExpenseModal" class="modal-backdrop">
     <div class="modal-card">
@@ -233,6 +249,7 @@
                         <option value="Online">Online / NEFT / UPI</option>
                         <option value="Cash">Cash</option>
                         <option value="Cheque">Cheque</option>
+                        <option value="Estate Manager">Estate Manager</option>
                     </select>
                 </div>
             </div>
@@ -243,5 +260,151 @@
         </form>
     </div>
 </div>
+
+<!-- Modal: Edit Existing Incurred Expense -->
+<div id="editExpenseModal" class="modal-backdrop">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="card-title" style="font-size: 1.2rem;">
+                ✏️ Edit Incurred Expense Voucher <span id="editVoucherBadge" class="text-highlight-blue"></span>
+            </h3>
+            <button type="button" class="close-btn" onclick="closeModal('editExpenseModal')">&times;</button>
+        </div>
+        <form id="editExpenseForm" method="POST" action="">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="edit_exp_desc">Expense Description *</label>
+                    <input type="text" id="edit_exp_desc" name="expense_description" class="form-control" placeholder="e.g. Security Agency Guard Bill for Aug'2026" required>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="edit_exp_part">Particulars *</label>
+                        <select id="edit_exp_part" name="particulars" class="form-select" required>
+                            <option value="Accounting Charges">Accounting Charges</option>
+                            <option value="AGM">AGM</option>
+                            <option value="AMC Lift">AMC Lift</option>
+                            <option value="Cultural Program & Milonotsav">Cultural Program & Milonotsav</option>
+                            <option value="Electricity Charges">Electricity Charges</option>
+                            <option value="Misc & Other Expenses">Misc & Other Expenses</option>
+                            <option value="Repair & Maintenance">Repair & Maintenance</option>
+                            <option value="Service Charges">Service Charges</option>
+                            <option value="Stationary">Stationary</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="edit_exp_spl">Special Head (Sorted A-Z)</label>
+                        <input type="text" id="edit_exp_spl" name="spl_head" class="form-control" list="splHeadSuggestionsEdit" placeholder="e.g. Security, Caretaker, Lift, Water">
+                        <datalist id="splHeadSuggestionsEdit">
+                            {% for s in spl_heads_list %}
+                            <option value="{{ s.spl_head }}">
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="edit_exp_amount">Amount (INR) *</label>
+                        <input type="number" step="0.01" id="edit_exp_amount" name="amount" class="form-control" placeholder="e.g. 18500.00" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="edit_exp_date">Voucher Date *</label>
+                        <input type="date" id="edit_exp_date" name="voucher_date" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="edit_exp_pay">Payment Mode</label>
+                    <select id="edit_exp_pay" name="payment_by" class="form-select">
+                        <option value="Online">Online / NEFT / UPI</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Cheque">Cheque</option>
+                        <option value="Estate Manager">Estate Manager</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editExpenseModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">💾 Update Expense Voucher</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEditExpenseModal(btn) {
+    if (!btn) return;
+    const vNo = btn.getAttribute('data-voucher-no');
+    const vDate = btn.getAttribute('data-voucher-date') || '';
+    const vDesc = btn.getAttribute('data-description') || '';
+    const vPart = btn.getAttribute('data-particulars') || 'Misc & Other Expenses';
+    const vSpl = btn.getAttribute('data-spl-head') || '';
+    const vPay = btn.getAttribute('data-payment-by') || 'Online';
+    const vAmt = btn.getAttribute('data-amount') || '0';
+
+    const badge = document.getElementById('editVoucherBadge');
+    if (badge) badge.textContent = '#' + vNo;
+
+    const form = document.getElementById('editExpenseForm');
+    if (form) form.action = '/admin/expenses/' + vNo + '/edit';
+
+    const descInput = document.getElementById('edit_exp_desc');
+    if (descInput) descInput.value = vDesc;
+
+    const partSelect = document.getElementById('edit_exp_part');
+    if (partSelect) {
+        let found = false;
+        for (let i = 0; i < partSelect.options.length; i++) {
+            if (partSelect.options[i].value === vPart) {
+                partSelect.selectedIndex = i;
+                found = true;
+                break;
+            }
+        }
+        if (!found && vPart) {
+            const opt = new Option(vPart, vPart, true, true);
+            partSelect.add(opt);
+        }
+    }
+
+    const splInput = document.getElementById('edit_exp_spl');
+    if (splInput) splInput.value = vSpl;
+
+    const amtInput = document.getElementById('edit_exp_amount');
+    if (amtInput) amtInput.value = parseFloat(vAmt) || 0;
+
+    const dateInput = document.getElementById('edit_exp_date');
+    if (dateInput) {
+        // Normalize date to YYYY-MM-DD
+        const dStr = vDate.trim();
+        if (dStr.length >= 10) {
+            dateInput.value = dStr.substring(0, 10);
+        } else {
+            dateInput.value = dStr;
+        }
+    }
+
+    const paySelect = document.getElementById('edit_exp_pay');
+    if (paySelect) {
+        let foundPay = false;
+        for (let i = 0; i < paySelect.options.length; i++) {
+            if (paySelect.options[i].value.toLowerCase() === vPay.toLowerCase()) {
+                paySelect.selectedIndex = i;
+                foundPay = true;
+                break;
+            }
+        }
+        if (!foundPay && vPay) {
+            const opt = new Option(vPay, vPay, true, true);
+            paySelect.add(opt);
+        }
+    }
+
+    openModal('editExpenseModal');
+}
+</script>
 {% endif %}
 {% endblock %}
