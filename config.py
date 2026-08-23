@@ -110,10 +110,10 @@ class Config:
     ASSOCIATION_PHONE = "+91-801-725-0621"
     
     # Official Committee WhatsApp Contacts
-    CARETAKER_PHONE = os.environ.get('CARETAKER_PHONE', '+91-983-000-1122')
-    SECRETARY_PHONE = os.environ.get('SECRETARY_PHONE', '+91-983-111-2233')
-    TREASURER_PHONE = os.environ.get('TREASURER_PHONE', '+91-801-725-0621')
-    PRESIDENT_PHONE = os.environ.get('PRESIDENT_PHONE', '+91-983-222-3344')
+    CARETAKER_PHONE = os.environ.get('CARETAKER_PHONE', '+91-801-725-0621')
+    SECRETARY_PHONE = os.environ.get('SECRETARY_PHONE', '+91-943-337-5506')
+    PRESIDENT_PHONE = os.environ.get('PRESIDENT_PHONE', '+91-629-084-7982')
+    TREASURER_PHONE = os.environ.get('TREASURER_PHONE', '+91-987-480-2000')
 
     # WhatsApp Integration Settings (Supports Direct wa.me Linking, Meta Cloud API & Twilio)
     WHATSAPP_DEFAULT_COUNTRY_CODE = os.environ.get('WHATSAPP_DEFAULT_COUNTRY_CODE', '91')

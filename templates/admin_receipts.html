@@ -72,7 +72,7 @@
                     <th>Flat Number</th>
                     <th>Resident Name</th>
                     <th>Period / Remarks</th>
-                    <th>Date Paid</th>
+                    <th>Payment Date &amp; Issue Date</th>
                     <th>Payment Mode</th>
                     <th>Amount</th>
                     <th>Actions</th>
@@ -93,7 +93,22 @@
                     <td>
                         <span class="badge badge-warning">{{ r.remarks or 'Monthly' }}</span>
                     </td>
-                    <td class="text-secondary">{{ r.payment_date or r.receipt_date }}</td>
+                    <td>
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                            <span style="font-size: 0.88rem; font-weight: 600; color: var(--text-main);">
+                                💰 Paid: {{ r.payment_date or r.receipt_date or '-' }}
+                            </span>
+                            {% if r.receipt_date and r.receipt_date != r.payment_date %}
+                            <span class="text-muted" style="font-size: 0.76rem;">
+                                📅 Issued: {{ r.receipt_date }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted" style="font-size: 0.76rem;">
+                                📅 Issued: Same day
+                            </span>
+                            {% endif %}
+                        </div>
+                    </td>
                     <td>
                         <span class="badge badge-info">{{ r.pymnt_mode }}</span>
                     </td>
@@ -101,7 +116,7 @@
                         <strong class="text-amount-success" style="font-size: 0.95rem;">₹ {{ "{:,.2f}".format(r.amount) }}</strong>
                     </td>
                     <td>
-                        <div style="display: flex; gap: 0.35rem; align-items: center;">
+                        <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
                             <a href="{{ url_for('view_receipt', receipt_no=r.receipt_no) }}" class="btn btn-sm btn-secondary" style="padding: 0.25rem 0.5rem;" title="View Voucher">
                                 👁️
                             </a>
@@ -113,6 +128,9 @@
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-primary" style="padding: 0.25rem 0.5rem;" onclick="emailReceiptAjax({{ r.receipt_no }}, this)" title="Email Receipt to Resident">
                                 ✉️
+                            </button>
+                            <button type="button" class="btn btn-sm btn-secondary" style="padding: 0.25rem 0.5rem; color: #3b82f6;" onclick="openEditReceiptModal({{ r.receipt_no }})" title="Edit Receipt Details &amp; Dates">
+                                ✏️
                             </button>
                             <form method="POST" action="{{ url_for('delete_receipt', receipt_no=r.receipt_no) }}" onsubmit="return confirm('Are you sure you want to delete receipt SDERA_{{ r.receipt_no }} (Flat {{ r.flat_no }} - {{ r.member_name }})? This action cannot be undone.');" style="display: inline;">
                                 <button type="submit" class="btn btn-sm btn-secondary" style="color: var(--amount-danger); padding: 0.25rem 0.5rem;" title="Delete Receipt">
@@ -136,7 +154,7 @@
 
 <!-- Modal: Issue New Receipt -->
 <div id="createReceiptModal" class="modal-backdrop">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 620px;">
         <div class="modal-header">
             <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                 <h3 class="card-title" style="font-size: 1.2rem; margin: 0;">
@@ -157,25 +175,54 @@
                             <span style="position: absolute; left: 0.85rem; color: var(--highlight-blue); font-weight: 700; font-size: 0.95rem;">SDERA_</span>
                             <input type="number" id="rcpt_no" name="receipt_no" class="form-control" style="padding-left: 4.6rem; font-weight: 700; color: var(--highlight-blue); background: var(--surface-card);" value="{{ next_receipt_no }}" readonly>
                         </div>
-                        <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem; display: block;">Auto-assigned next official receipt sequence</small>
+                        <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem; display: block;">Auto-assigned next official sequence</small>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="rcpt_date">Payment Date *</label>
-                        <input type="date" id="rcpt_date" name="payment_date" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                        <label class="form-label" for="rcpt_flat">Select Flat Resident *</label>
+                        <select id="rcpt_flat" name="flat_no" class="form-select" onchange="onReceiptFlatOrDateChange('create')" required>
+                            <option value="">-- Choose Flat Resident --</option>
+                            {% for f in all_flats %}
+                            <option value="{{ f.flat_no }}" data-monthly-charge="{{ f.monthly_charge or 2000.00 }}" {% if flat_filter == f.flat_no %}selected{% endif %}>
+                                Flat {{ f.flat_no }} - {{ f.member_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem; display: block;">Resident account to credit</small>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label" for="rcpt_flat">Select Flat Resident *</label>
-                    <select id="rcpt_flat" name="flat_no" class="form-select" onchange="updateReceiptFlatCharge(this)" required>
-                        <option value="">-- Choose Flat Resident --</option>
-                        {% for f in all_flats %}
-                        <option value="{{ f.flat_no }}" data-monthly-charge="{{ f.monthly_charge or 2000.00 }}" {% if flat_filter == f.flat_no %}selected{% endif %}>
-                            Flat {{ f.flat_no }} - {{ f.member_name }}
-                        </option>
-                        {% endfor %}
-                    </select>
+                <!-- Dual Date Provision -->
+                <div class="grid-2" style="background: rgba(37, 99, 235, 0.04); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed rgba(59, 130, 246, 0.35); margin-bottom: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="rcpt_payment_date" style="display: flex; align-items: center; justify-content: space-between;">
+                            <span>💰 Payment Date *</span>
+                            <span class="badge badge-warning" style="font-size: 0.68rem; padding: 2px 6px;">Penalty Basis</span>
+                        </label>
+                        <input type="date" id="rcpt_payment_date" name="payment_date" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" onchange="onReceiptFlatOrDateChange('create')" required>
+                        <small class="text-muted" style="font-size: 0.73rem; margin-top: 0.25rem; display: block;">Date resident made payment (basis for late fee)</small>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="rcpt_receipt_date" style="display: flex; align-items: center; justify-content: space-between;">
+                            <span>📅 Receipt Issue Date *</span>
+                            <span class="badge badge-info" style="font-size: 0.68rem; padding: 2px 6px;">System Entry</span>
+                        </label>
+                        <input type="date" id="rcpt_receipt_date" name="receipt_date" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                        <small class="text-muted" style="font-size: 0.73rem; margin-top: 0.25rem; display: block;">Date voucher is generated in system</small>
+                    </div>
+                </div>
+
+                <!-- Live Penalty Assessment Box based on Payment Date -->
+                <div id="createPenaltyBox" style="display: none; background: rgba(30, 58, 138, 0.07); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.35rem;">
+                        <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 0.35rem;">
+                            ⚖️ Late Fee &amp; Overdue Status (on Payment Date):
+                        </span>
+                        <span id="createPenaltyBadge" class="badge badge-success">Checking...</span>
+                    </div>
+                    <div id="createPenaltyDetails" style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;"></div>
+                    <div id="createPenaltyActions" style="display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap;"></div>
                 </div>
 
                 <div class="grid-2">
@@ -213,7 +260,102 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('createReceiptModal')">Cancel</button>
-                <button type="submit" class="btn btn-primary">Generate & Issue Receipt</button>
+                <button type="submit" class="btn btn-primary">Generate &amp; Issue Receipt</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Edit Existing Receipt -->
+<div id="editReceiptModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 620px;">
+        <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <h3 class="card-title" style="font-size: 1.2rem; margin: 0;">
+                    ✏️ Edit Receipt Voucher
+                </h3>
+                <span id="editReceiptNoBadge" class="badge badge-info" style="font-size: 0.9rem; padding: 0.3rem 0.65rem; font-weight: 700;">
+                    SDERA_...
+                </span>
+            </div>
+            <button type="button" class="close-btn" onclick="closeModal('editReceiptModal')">&times;</button>
+        </div>
+        <form id="editReceiptForm" method="POST" action="">
+            <div class="modal-body">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Receipt Number</label>
+                        <input type="text" id="edit_rcpt_no_display" class="form-control" style="background: var(--surface-card); font-weight: 700; color: var(--highlight-blue);" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Flat Resident</label>
+                        <input type="text" id="edit_flat_member_display" class="form-control" style="background: var(--surface-card); font-weight: 600;" readonly>
+                        <input type="hidden" id="edit_flat_no" name="flat_no">
+                    </div>
+                </div>
+
+                <!-- Dual Date Provision for Edit -->
+                <div class="grid-2" style="background: rgba(37, 99, 235, 0.04); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed rgba(59, 130, 246, 0.35); margin-bottom: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="edit_payment_date" style="display: flex; align-items: center; justify-content: space-between;">
+                            <span>💰 Payment Date *</span>
+                            <span class="badge badge-warning" style="font-size: 0.68rem; padding: 2px 6px;">Penalty Basis</span>
+                        </label>
+                        <input type="date" id="edit_payment_date" name="payment_date" class="form-control" onchange="onReceiptFlatOrDateChange('edit')" required>
+                        <small class="text-muted" style="font-size: 0.73rem; margin-top: 0.25rem; display: block;">Date resident actually made payment</small>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="edit_receipt_date" style="display: flex; align-items: center; justify-content: space-between;">
+                            <span>📅 Receipt Issue Date *</span>
+                            <span class="badge badge-info" style="font-size: 0.68rem; padding: 2px 6px;">Date of Issue</span>
+                        </label>
+                        <input type="date" id="edit_receipt_date" name="receipt_date" class="form-control" required>
+                        <small class="text-muted" style="font-size: 0.73rem; margin-top: 0.25rem; display: block;">Date voucher was generated in system</small>
+                    </div>
+                </div>
+
+                <!-- Live Penalty Assessment Box for Edit -->
+                <div id="editPenaltyBox" style="display: none; background: rgba(30, 58, 138, 0.07); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.35rem;">
+                        <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 0.35rem;">
+                            ⚖️ Late Fee Status as of Payment Date:
+                        </span>
+                        <span id="editPenaltyBadge" class="badge badge-success">Checking...</span>
+                    </div>
+                    <div id="editPenaltyDetails" style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;"></div>
+                    <div id="editPenaltyActions" style="display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap;"></div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="edit_amount">Amount Received (INR) *</label>
+                        <input type="number" step="0.01" id="edit_amount" name="amount" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="edit_pymnt_mode">Payment Mode *</label>
+                        <select id="edit_pymnt_mode" name="pymnt_mode" class="form-select">
+                            <option value="Online">Online (UPI / NEFT / Net Banking)</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Cheque">Cheque</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="edit_remarks">Month / Remarks *</label>
+                        <input type="text" id="edit_remarks" name="remarks" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="edit_sub_type">Subscription Type</label>
+                        <input type="text" id="edit_sub_type" name="subscription_type" class="form-control">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editReceiptModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update Receipt Details</button>
             </div>
         </form>
     </div>
@@ -258,16 +400,147 @@
 </div>
 
 <script>
-function updateReceiptFlatCharge(selectEl) {
-    if (!selectEl) return;
-    const opt = selectEl.options[selectEl.selectedIndex];
-    if (opt && opt.getAttribute('data-monthly-charge')) {
-        const chg = parseFloat(opt.getAttribute('data-monthly-charge'));
-        const amtInput = document.getElementById('rcpt_amount');
-        if (amtInput && chg > 0) {
-            amtInput.value = chg.toFixed(2);
+// Live Penalty & Overdue Calculator on Payment Date change
+function onReceiptFlatOrDateChange(mode) {
+    const isCreate = (mode === 'create');
+    const flatSelect = isCreate ? document.getElementById('rcpt_flat') : null;
+    const flatNo = isCreate ? (flatSelect ? flatSelect.value : '') : document.getElementById('edit_flat_no').value;
+    const payDateInput = document.getElementById(isCreate ? 'rcpt_payment_date' : 'edit_payment_date');
+    const payDate = payDateInput ? payDateInput.value : '';
+    const amtInput = document.getElementById(isCreate ? 'rcpt_amount' : 'edit_amount');
+    const remarksInput = document.getElementById(isCreate ? 'rcpt_remarks' : 'edit_remarks');
+    const box = document.getElementById(isCreate ? 'createPenaltyBox' : 'editPenaltyBox');
+    const badge = document.getElementById(isCreate ? 'createPenaltyBadge' : 'editPenaltyBadge');
+    const details = document.getElementById(isCreate ? 'createPenaltyDetails' : 'editPenaltyDetails');
+    const actions = document.getElementById(isCreate ? 'createPenaltyActions' : 'editPenaltyActions');
+
+    if (isCreate && flatSelect && flatSelect.selectedIndex > 0) {
+        const opt = flatSelect.options[flatSelect.selectedIndex];
+        const monthlyCharge = parseFloat(opt.getAttribute('data-monthly-charge') || 0);
+        if (amtInput && (!amtInput.dataset.userEdited || amtInput.value === '2000.00')) {
+            if (monthlyCharge > 0) amtInput.value = monthlyCharge.toFixed(2);
         }
     }
+
+    if (!flatNo || !payDate) {
+        if (box) box.style.display = 'none';
+        return;
+    }
+
+    if (box) {
+        box.style.display = 'block';
+        if (badge) {
+            badge.className = 'badge badge-info';
+            badge.textContent = 'Calculating as of ' + payDate + '...';
+        }
+        if (details) details.innerHTML = '<em>Checking previous coverage and overdue status on ' + payDate + '...</em>';
+        if (actions) actions.innerHTML = '';
+    }
+
+    fetch('/api/penalties/calculate?flat=' + encodeURIComponent(flatNo) + '&payment_date=' + encodeURIComponent(payDate))
+        .then(res => res.json())
+        .then(res => {
+            if (!res.success || !res.data) {
+                if (box) box.style.display = 'none';
+                return;
+            }
+            const d = res.data;
+            const overdueN = d.overdue_months || 0;
+            const penaltyAmt = d.penalty_amount || 0;
+            const monthlyChg = d.monthly_charge || 2000;
+
+            if (overdueN > 0) {
+                badge.className = 'badge badge-warning';
+                badge.textContent = overdueN + ' Month' + (overdueN > 1 ? 's' : '') + ' Overdue (Penalty ₹' + penaltyAmt.toLocaleString('en-IN') + ')';
+                
+                details.innerHTML = `
+                    Flat <strong>${flatNo}</strong> was covered till <strong>${d.last_covered_text || d.coverage_display}</strong>.
+                    As of the Payment Date (<strong>${payDate}</strong>), <strong>${overdueN} month(s)</strong> of maintenance was overdue.
+                    Late Fee Penalty: <strong class="text-amount-danger">₹ ${penaltyAmt.toLocaleString('en-IN')}</strong> [Formula: (${overdueN}×${overdueN+1}/2)×100].
+                    Total Due: <strong>₹ ${d.total_due.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>.
+                `;
+
+                actions.innerHTML = `
+                    <button type="button" class="btn btn-sm btn-outline-primary" style="padding: 0.2rem 0.55rem; font-size: 0.78rem;" onclick="addPenaltyToAmount('${isCreate ? 'rcpt_amount' : 'edit_amount'}', ${penaltyAmt})">
+                        ➕ Add Penalty to Amount (+₹${penaltyAmt})
+                    </button>
+                    <button type="button" class="btn btn-sm btn-secondary" style="padding: 0.2rem 0.55rem; font-size: 0.78rem;" onclick="appendPenaltyToRemarks('${isCreate ? 'rcpt_remarks' : 'edit_remarks'}', ${penaltyAmt})">
+                        📝 Append Penalty to Remarks
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-success" style="padding: 0.2rem 0.55rem; font-size: 0.78rem;" onclick="setTotalDue('${isCreate ? 'rcpt_amount' : 'edit_amount'}', ${d.total_due})">
+                        ⚡ Auto-Fill Full Due (₹${d.total_due.toFixed(2)})
+                    </button>
+                `;
+            } else {
+                badge.className = 'badge badge-success';
+                badge.textContent = '🟢 No Penalty on Payment Date';
+                details.innerHTML = `
+                    Flat <strong>${flatNo}</strong> was covered till <strong>${d.last_covered_text || d.coverage_display}</strong>.
+                    On the Payment Date (<strong>${payDate}</strong>), no maintenance was overdue. Late fee is <strong class="text-amount-success">₹ 0.00</strong>.
+                `;
+                actions.innerHTML = '';
+            }
+        })
+        .catch(err => {
+            if (details) details.innerHTML = '<span class="text-muted">Could not evaluate penalty: ' + err.message + '</span>';
+        });
+}
+
+function addPenaltyToAmount(inputFieldId, penAmt) {
+    const amtEl = document.getElementById(inputFieldId);
+    if (amtEl) {
+        const cur = parseFloat(amtEl.value) || 0;
+        amtEl.value = (cur + penAmt).toFixed(2);
+        amtEl.dataset.userEdited = "1";
+    }
+}
+
+function setTotalDue(inputFieldId, totalDue) {
+    const amtEl = document.getElementById(inputFieldId);
+    if (amtEl) {
+        amtEl.value = parseFloat(totalDue).toFixed(2);
+        amtEl.dataset.userEdited = "1";
+    }
+}
+
+function appendPenaltyToRemarks(remarksFieldId, penAmt) {
+    const remEl = document.getElementById(remarksFieldId);
+    if (remEl) {
+        const val = remEl.value.trim();
+        if (!val.toLowerCase().includes('penalty')) {
+            remEl.value = val + ' + Penalty ₹' + penAmt;
+        }
+    }
+}
+
+// Edit Receipt Modal Handler
+function openEditReceiptModal(receiptNo) {
+    fetch('/api/receipts/' + receiptNo)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success || !data.receipt) {
+                alert(data.message || 'Receipt not found');
+                return;
+            }
+            const r = data.receipt;
+            document.getElementById('editReceiptForm').action = '/admin/receipts/' + receiptNo + '/edit';
+            document.getElementById('editReceiptNoBadge').textContent = 'SDERA_' + receiptNo;
+            document.getElementById('edit_rcpt_no_display').value = 'SDERA_' + receiptNo;
+            document.getElementById('edit_flat_member_display').value = 'Flat ' + r.flat_no + ' (' + r.member_name + ')';
+            document.getElementById('edit_flat_no').value = r.flat_no;
+            document.getElementById('edit_payment_date').value = r.payment_date || '';
+            document.getElementById('edit_receipt_date').value = r.receipt_date || r.payment_date || '';
+            document.getElementById('edit_amount').value = parseFloat(r.amount || 0).toFixed(2);
+            document.getElementById('edit_pymnt_mode').value = r.pymnt_mode || 'Online';
+            document.getElementById('edit_remarks').value = r.remarks || '';
+            document.getElementById('edit_sub_type').value = r.subscription_type || 'Monthly Subscription';
+
+            openModal('editReceiptModal');
+            onReceiptFlatOrDateChange('edit');
+        })
+        .catch(err => {
+            alert('Failed to load receipt details: ' + err.message);
+        });
 }
 </script>
 {% endblock %}

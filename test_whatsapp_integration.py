@@ -93,11 +93,11 @@ class TestWhatsAppIntegration(unittest.TestCase):
     def test_committee_contacts(self):
         contacts = get_whatsapp_committee_contacts()
         self.assertTrue(len(contacts) >= 4)
-        roles = [c['role'] for c in contacts]
-        self.assertTrue(any('Caretaker' in r for r in roles))
-        self.assertTrue(any('Treasurer' in r for r in roles))
-        self.assertTrue(any('Secretary' in r for r in roles))
-        self.assertTrue(any('President' in r for r in roles))
+        c_map = {c['name']: c['clean_phone'] for c in contacts}
+        self.assertEqual(c_map.get("Mr. Sanjoy Chakraborty"), "918017250621")
+        self.assertEqual(c_map.get("Mr. Somenath Halder"), "919433375506")
+        self.assertEqual(c_map.get("Dr. Asit Kumar Bera"), "916290847982")
+        self.assertEqual(c_map.get("Mr. Swapnadeep Ganguly"), "919874802000")
         print("[PASS] Committee WhatsApp contacts test passed.")
 
     def test_whatsapp_routes(self):

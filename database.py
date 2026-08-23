@@ -275,7 +275,7 @@ def hash_password(plain_password: str) -> str:
 SEED_NOTICES = [
     (
         "Overhead Water Tank Deep Cleaning & Disinfection Schedule",
-        "Dear Residents,\n\nPlease be informed that annual chemical cleaning and pressure-washing of both Block A and Block B overhead and underground water reservoirs is scheduled for Sunday, August 30, from 8:00 AM to 3:00 PM.\n\n• Water supply will be temporarily interrupted during these hours.\n• Please store sufficient water in advance for morning household requirements.\n• Normal water supply will resume by 4:00 PM post-disinfection.\n\nFor any urgent queries, contact Caretaker Sanjoy Chakraborty (+91 98300 12345).",
+        "Dear Residents,\n\nPlease be informed that annual chemical cleaning and pressure-washing of both Block A and Block B overhead and underground water reservoirs is scheduled for Sunday, August 30, from 8:00 AM to 3:00 PM.\n\n• Water supply will be temporarily interrupted during these hours.\n• Please store sufficient water in advance for morning household requirements.\n• Normal water supply will resume by 4:00 PM post-disinfection.\n\nFor any urgent queries, contact Caretaker Sanjoy Chakraborty (+91 80172 50621).",
         "WATER_SUPPLY",
         "URGENT",
         1,
@@ -311,7 +311,7 @@ SEED_NOTICES = [
     ),
     (
         "Updated Security Protocols & Caretaker Intercom Extensions",
-        "To bolster perimeter safety and smooth visitor entry:\n\n• Night Delivery Protocol: All food (Swiggy/Zomato) and courier deliveries after 10:00 PM will require prior gate clearance via intercom.\n• Intercom Speed Dial: Guard Cabin (#100), Caretaker Office (#101).\n• Caretaker Mobile: +91 98300 12345.\n\nVisitors without resident verification will be requested to register their contact numbers at the main security desk.",
+        "To bolster perimeter safety and smooth visitor entry:\n\n• Night Delivery Protocol: All food (Swiggy/Zomato) and courier deliveries after 10:00 PM will require prior gate clearance via intercom.\n• Intercom Speed Dial: Guard Cabin (#100), Caretaker Office (#101).\n• Caretaker Mobile: +91 80172 50621.\n\nVisitors without resident verification will be requested to register their contact numbers at the main security desk.",
         "SECURITY",
         "NORMAL",
         0,

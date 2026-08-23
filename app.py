@@ -1174,6 +1174,67 @@ def create_receipt():
         
     return redirect(url_for('admin_receipts'))
 
+@app.route('/api/receipts/<int:receipt_no>')
+@login_required
+def api_get_receipt(receipt_no):
+    user = session.get('user', {})
+    is_admin = bool(user.get('is_admin') or user.get('role') in ADMIN_ROLES)
+    rcpt = query_db("SELECT * FROM tbl_receipts WHERE receipt_no = %s", (receipt_no,), one=True)
+    if not rcpt:
+        return jsonify({'success': False, 'message': f'Receipt #{receipt_no} not found'}), 404
+    if not is_admin and str(rcpt.get('flat_no')).strip().lower() != str(user.get('flat_no')).strip().lower():
+        return jsonify({'success': False, 'message': 'Access Denied'}), 403
+    
+    rcpt_dict = dict(rcpt)
+    if rcpt_dict.get('payment_date'):
+        rcpt_dict['payment_date'] = str(rcpt_dict['payment_date'])
+    if rcpt_dict.get('receipt_date'):
+        rcpt_dict['receipt_date'] = str(rcpt_dict['receipt_date'])
+    if rcpt_dict.get('coverage_start'):
+        rcpt_dict['coverage_start'] = str(rcpt_dict['coverage_start'])
+    if rcpt_dict.get('coverage_end'):
+        rcpt_dict['coverage_end'] = str(rcpt_dict['coverage_end'])
+    rcpt_dict['amount'] = float(rcpt_dict.get('amount') or 0)
+    
+    return jsonify({'success': True, 'receipt': rcpt_dict})
+
+@app.route('/admin/receipts/<int:receipt_no>/edit', methods=['POST'])
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def edit_receipt(receipt_no):
+    rcpt = query_db("SELECT * FROM tbl_receipts WHERE receipt_no = %s", (receipt_no,), one=True)
+    if not rcpt:
+        flash(f"Receipt #{receipt_no} not found.", 'danger')
+        return redirect(url_for('admin_receipts'))
+        
+    payment_date = request.form.get('payment_date', '').strip() or str(date.today())
+    receipt_date = request.form.get('receipt_date', '').strip() or str(date.today())
+    amount_str = request.form.get('amount', '').strip()
+    pymnt_mode = request.form.get('pymnt_mode', 'Online').strip()
+    subscription_type = request.form.get('subscription_type', 'Monthly Subscription').strip()
+    remarks = request.form.get('remarks', '').strip()
+    coverage_start = request.form.get('coverage_start', '').strip() or payment_date
+    coverage_end = request.form.get('coverage_end', '').strip() or payment_date
+    
+    try:
+        amount = float(amount_str)
+        if amount <= 0:
+            flash("Amount must be greater than zero.", 'danger')
+            return redirect(url_for('admin_receipts'))
+            
+        execute_db(
+            """UPDATE tbl_receipts 
+               SET payment_date = %s, receipt_date = %s, amount = %s, pymnt_mode = %s, 
+                   subscription_type = %s, remarks = %s, coverage_start = %s, coverage_end = %s 
+               WHERE receipt_no = %s""",
+            (payment_date, receipt_date, amount, pymnt_mode, subscription_type, remarks, coverage_start, coverage_end, receipt_no)
+        )
+        log_activity('RECEIPT_UPDATED', f"Updated Receipt #{receipt_no} (SDERA_{receipt_no}) for Flat {rcpt.get('flat_no')} - Payment Date: {payment_date}, Issue Date: {receipt_date}, Amount: INR {amount:,.2f}")
+        flash(f"✓ Receipt SDERA_{receipt_no} updated successfully (Payment Date: {payment_date}, Issue Date: {receipt_date}).", 'success')
+    except Exception as e:
+        flash(f"Error updating receipt #{receipt_no}: {e}", 'danger')
+        
+    return redirect(url_for('admin_receipts'))
+
 @app.route('/admin/receipts/<int:receipt_no>/delete', methods=['POST'])
 @roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
 def delete_receipt(receipt_no):
@@ -1688,12 +1749,14 @@ def admin_penalties():
 @login_required
 def api_calculate_penalty():
     flat_no = request.args.get('flat', '').strip()
+    payment_date = request.args.get('payment_date', '').strip()
     as_of = request.args.get('as_of', '').strip()
+    target_date = payment_date or as_of or None
     
     if not flat_no:
         return jsonify({'success': False, 'error': 'Missing flat number parameter'}), 400
         
-    calc = calculate_flat_penalty(flat_no, target_date=as_of if as_of else None)
+    calc = calculate_flat_penalty(flat_no, target_date=target_date)
     return jsonify({
         'success': True,
         'data': calc

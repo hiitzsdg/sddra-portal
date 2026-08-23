@@ -67,6 +67,7 @@ def format_receipt_whatsapp_message(receipt, member_info=None, contact_info=None
     flat_no = receipt.get('flat_no', 'N/A')
     amount = float(receipt.get('amount', 0.0) or 0.0)
     payment_date = str(receipt.get('payment_date') or receipt.get('receipt_date') or datetime.now().strftime('%Y-%m-%d'))
+    receipt_date = str(receipt.get('receipt_date') or receipt.get('payment_date') or datetime.now().strftime('%Y-%m-%d'))
     mode = str(receipt.get('pymnt_mode', 'Online UPI'))
     period = receipt.get('remarks') or f"{receipt.get('coverage_start', '')} to {receipt.get('coverage_end', '')}" or 'Monthly Maintenance'
     sub_type = receipt.get('subscription_type', 'Monthly Subscription')
@@ -80,6 +81,10 @@ def format_receipt_whatsapp_message(receipt, member_info=None, contact_info=None
 
     divider = "----------------------------------------"
 
+    date_block = f"*Payment Date:* {payment_date}\n"
+    if receipt_date and receipt_date != payment_date:
+        date_block += f"*Date of Issue:* {receipt_date}\n"
+
     msg = (
         f"*{Config.ASSOCIATION_NAME}*\n"
         f"*OFFICIAL PAYMENT RECEIPT*\n"
@@ -88,7 +93,7 @@ def format_receipt_whatsapp_message(receipt, member_info=None, contact_info=None
         f"*Resident Name:* {member_name}\n"
         f"*Flat Number:* Flat {flat_no}\n"
         f"*Amount Received:* INR {amount:,.2f}\n"
-        f"*Payment Date:* {payment_date}\n"
+        f"{date_block}"
         f"*Payment Mode:* {mode}\n"
         f"*Subscription:* {sub_type}\n"
         f"*Period / Remarks:* {period}\n"
@@ -324,34 +329,34 @@ def get_whatsapp_committee_contacts():
         {
             "role": "Caretaker / Estate Office",
             "name": "Mr. Sanjoy Chakraborty",
-            "phone": getattr(Config, 'CARETAKER_PHONE', '+91-983-000-1122'),
-            "clean_phone": normalize_whatsapp_phone(getattr(Config, 'CARETAKER_PHONE', '9830001122')),
+            "phone": getattr(Config, 'CARETAKER_PHONE', '+91-801-725-0621'),
+            "clean_phone": normalize_whatsapp_phone(getattr(Config, 'CARETAKER_PHONE', '8017250621')),
             "purpose": "Maintenance queries, emergency water/lift issues, gate passes",
             "icon": "🔧"
         },
         {
             "role": "General Secretary",
             "name": "Mr. Somenath Halder",
-            "phone": getattr(Config, 'SECRETARY_PHONE', '+91-983-111-2233'),
-            "clean_phone": normalize_whatsapp_phone(getattr(Config, 'SECRETARY_PHONE', '9831112233')),
+            "phone": getattr(Config, 'SECRETARY_PHONE', '+91-943-337-5506'),
+            "clean_phone": normalize_whatsapp_phone(getattr(Config, 'SECRETARY_PHONE', '9433375506')),
             "purpose": "Administrative requests, AGM items, official circulars",
             "icon": "📜"
         },
         {
-            "role": "Treasurer",
-            "name": "Mr. Swapnadeep Ganguly",
-            "phone": getattr(Config, 'TREASURER_PHONE', '+91-801-725-0621'),
-            "clean_phone": normalize_whatsapp_phone(getattr(Config, 'TREASURER_PHONE', '8017250621')),
-            "purpose": "Subscription billing, receipt verification, online payment queries",
-            "icon": "💰"
-        },
-        {
             "role": "President",
             "name": "Dr. Asit Kumar Bera",
-            "phone": getattr(Config, 'PRESIDENT_PHONE', '+91-983-222-3344'),
-            "clean_phone": normalize_whatsapp_phone(getattr(Config, 'PRESIDENT_PHONE', '9832223344')),
+            "phone": getattr(Config, 'PRESIDENT_PHONE', '+91-629-084-7982'),
+            "clean_phone": normalize_whatsapp_phone(getattr(Config, 'PRESIDENT_PHONE', '6290847982')),
             "purpose": "Association policy, disputes, resident welfare",
             "icon": "🏢"
+        },
+        {
+            "role": "Treasurer",
+            "name": "Mr. Swapnadeep Ganguly",
+            "phone": getattr(Config, 'TREASURER_PHONE', '+91-987-480-2000'),
+            "clean_phone": normalize_whatsapp_phone(getattr(Config, 'TREASURER_PHONE', '9874802000')),
+            "purpose": "Subscription billing, receipt verification, online payment queries",
+            "icon": "💰"
         }
     ]
     
