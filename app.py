@@ -490,7 +490,7 @@ def dashboard():
             defaulters_total_count = 0
             total_penalty_accumulated = 0.0
             total_maintenance_overdue = 0.0
-            building_blocks = {'Block A': {}, 'Block B': {}}
+            building_blocks = {'Block A': {}, 'Block B': {}, 'Block C': {}}
             for m_row in members_all:
                 try:
                     fn = str(m_row.get('flat_no', '')).strip()
@@ -509,21 +509,30 @@ def dashboard():
                     else:
                         stat = 'critical'
 
-                    # Extract block and floor
+                    # Extract block and floor across 3 Wings (Block A, Block B, Block C)
                     blk = 'Block A'
                     flr = '1'
                     unt = fn
                     if '/' in fn:
                         parts = fn.split('/')
                         b_letter = parts[0].strip().upper()
-                        blk = f"Block {b_letter}" if b_letter in ['A', 'B'] else 'Block A'
+                        blk = f"Block {b_letter}" if b_letter in ['A', 'B', 'C'] else 'Block A'
                         if '-' in parts[1]:
                             flr_part, unt_part = parts[1].split('-', 1)
-                            flr = flr_part.strip().upper()
+                            flr = 'GR' if 'GR' in flr_part.upper() else flr_part.strip().upper()
                             unt = unt_part.strip().upper()
                         else:
-                            flr = parts[1][:1].upper()
-                            unt = parts[1][1:].upper()
+                            p1 = parts[1].strip().upper()
+                            if 'GR' in p1:
+                                flr = 'GR'
+                                unt = 'GR'
+                            else:
+                                flr = p1[:1]
+                                unt = p1[1:] if len(p1) > 1 else p1
+                    elif fn == '-':
+                        blk = 'Block A'
+                        flr = 'GR'
+                        unt = 'Office'
                     
                     unit_obj = {
                         'flat_no': fn,

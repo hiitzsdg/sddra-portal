@@ -49,6 +49,7 @@ class TestModernWebElevations(unittest.TestCase):
         self.assertIn(b'Society Wing &amp; Floor Visualizer', resp.data)
         self.assertIn(b'Block A', resp.data)
         self.assertIn(b'Block B', resp.data)
+        self.assertIn(b'Block C', resp.data)
         self.assertIn(b'matrix-popover', resp.data)
         self.assertIn(b'unit-cell-btn', resp.data)
 

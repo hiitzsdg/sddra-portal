@@ -144,7 +144,7 @@
             <span style="font-size: 1.5rem;">🏢</span>
             <div>
                 <h3>Society Wing &amp; Floor Visualizer</h3>
-                <p>Interactive 2D unit map across Block A &amp; Block B. Hover on any flat for live dues and resident summary.</p>
+                <p>Interactive 2D unit map across Block A, Block B &amp; Block C. Hover on any flat for live dues and resident summary.</p>
             </div>
         </div>
 
@@ -153,6 +153,7 @@
             <button type="button" class="matrix-filter-pill active" data-filter="all">All Units ({{ total_members }})</button>
             <button type="button" class="matrix-filter-pill" data-filter="block_a">Block A</button>
             <button type="button" class="matrix-filter-pill" data-filter="block_b">Block B</button>
+            <button type="button" class="matrix-filter-pill" data-filter="block_c">Block C</button>
             <button type="button" class="matrix-filter-pill" data-filter="paid">✓ Paid ({{ total_members - defaulters_total_count }})</button>
             <button type="button" class="matrix-filter-pill" data-filter="overdue" style="border-color: rgba(239, 68, 68, 0.4); color: #f87171;">⚠️ Overdue ({{ defaulters_total_count }})</button>
         </div>

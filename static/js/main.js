@@ -909,6 +909,8 @@ function initBuildingVisualizer() {
                     btn.style.display = (block === 'Block A') ? 'flex' : 'none';
                 } else if (filterType === 'block_b') {
                     btn.style.display = (block === 'Block B') ? 'flex' : 'none';
+                } else if (filterType === 'block_c') {
+                    btn.style.display = (block === 'Block C') ? 'flex' : 'none';
                 }
             });
         });
