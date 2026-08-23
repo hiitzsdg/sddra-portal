@@ -156,6 +156,13 @@
             </nav>
 
             <div class="navbar-right">
+                <!-- Command Palette Trigger Button -->
+                <button type="button" class="command-palette-trigger" id="openCommandPaletteBtn" title="Omnisearch (Ctrl+K / Cmd+K)">
+                    <span>🔍</span>
+                    <span class="cmd-text" style="font-size: 0.8rem;">Search...</span>
+                    <kbd>⌘K</kbd>
+                </button>
+
                 <!-- Theme Switcher Button -->
                 <button type="button" class="theme-toggle-btn" onclick="toggleSiteTheme(event)" aria-label="Toggle Light/Dark Theme" title="Toggle Theme">
                     <span class="theme-toggle-icon">☀️</span>
@@ -255,9 +262,36 @@
         </div>
     </footer>
 
+    {% if current_user %}
+    <!-- Global Omnisearch Command Palette Modal -->
+    <div class="cmd-palette-backdrop" id="commandPaletteModal" role="dialog" aria-modal="true" aria-label="Command Palette">
+        <div class="cmd-palette-modal">
+            <div class="cmd-input-header">
+                <span class="cmd-search-icon">🔍</span>
+                <input type="text" class="cmd-search-input" id="commandPaletteInput" placeholder="Type a command, page, flat (e.g. A/4-C), receipt, or notice..." autocomplete="off" spellcheck="false">
+                <button type="button" class="cmd-close-tag" id="closeCommandPaletteBtn">ESC</button>
+            </div>
+            <div class="cmd-results-body" id="commandPaletteResults">
+                <!-- Dynamically rendered by JS -->
+            </div>
+            <div class="cmd-footer-bar">
+                <div class="cmd-shortcuts-tips">
+                    <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span>
+                    <span><kbd>↵</kbd> Select</span>
+                    <span><kbd>ESC</kbd> Close</span>
+                </div>
+                <span style="font-size: 0.72rem; color: var(--text-muted);">SDERA OmniSearch 2.0</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Global Floating Toast Container -->
+    <div class="global-toast-container" id="globalToastContainer"></div>
+
     <!-- Master Scripts -->
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=20260820_v9"></script>
-    <script src="{{ url_for('static', filename='js/charts.js') }}?v=20260820_v9"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=20260820_v10"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}?v=20260820_v10"></script>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

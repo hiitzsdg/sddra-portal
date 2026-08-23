@@ -3,22 +3,46 @@
 {% block title %}Dashboard - SDDRA Portal{% endblock %}
 
 {% block content %}
-<div class="page-header">
+<div class="page-header" style="align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
     <div class="page-header-title">
         {% if is_admin %}
-        <h2>📊 Executive Management Console</h2>
-        <p>Welcome, <strong>{{ current_user.title or current_user.name }}</strong> (Flat <strong>{{ current_user.flat_no }}</strong>). Official administrative status and financial records.</p>
+        <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <span style="font-size: 1.6rem;">📊</span>
+            <div>
+                <h2 style="margin: 0; font-size: 1.45rem;">Executive Management Console</h2>
+                <p style="margin: 2px 0 0 0; color: var(--text-secondary); font-size: 0.86rem;">
+                    Official status for <strong>{{ current_user.title or current_user.name }}</strong> (Flat <strong>{{ current_user.flat_no }}</strong>)
+                </p>
+            </div>
+        </div>
         {% else %}
-        <h2>🏠 Resident Dashboard & Payment Portal</h2>
-        <p>Welcome, <strong>{{ member.member_name or current_user.name }}</strong> (Flat <strong>{{ current_user.flat_no }}</strong>). Official maintenance status and bills.</p>
+        <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <span style="font-size: 1.6rem;">🏠</span>
+            <div>
+                <h2 style="margin: 0; font-size: 1.45rem;">Resident Dashboard &amp; Portal</h2>
+                <p style="margin: 2px 0 0 0; color: var(--text-secondary); font-size: 0.86rem;">
+                    Welcome back, <strong>{{ member.member_name or current_user.name }}</strong> (Flat <strong>{{ current_user.flat_no }}</strong>)
+                </p>
+            </div>
+        </div>
         {% endif %}
     </div>
-    <div class="page-header-actions">
+
+    <!-- Quick Action Hub -->
+    <div class="page-header-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
         {% if is_admin %}
-        <a href="{{ url_for('admin_penalties') }}" class="btn btn-outline-primary">⚖️ Penalties & Defaulters</a>
-        <a href="{{ url_for('expenses_list') }}" class="btn btn-primary">➕ Record Society Expense</a>
+        <button type="button" class="btn btn-secondary" onclick="window.openCommandPalette && window.openCommandPalette()" title="Omnisearch (⌘K)">
+            🔍 <kbd style="font-size: 0.72rem; padding: 1px 4px; background: rgba(0,0,0,0.25); border-radius: 3px;">⌘K</kbd>
+        </button>
+        <a href="{{ url_for('notices_list') }}#new-notice" class="btn btn-outline-primary">📢 Post Notice</a>
+        <a href="{{ url_for('admin_penalties') }}" class="btn btn-outline-primary">⚖️ Penalties</a>
+        <a href="{{ url_for('expenses_list') }}#new-expense" class="btn btn-primary">➕ Record Expense</a>
         {% else %}
-        <a href="{{ url_for('profile') }}" class="btn btn-secondary">⚙️ Account Settings</a>
+        <button type="button" class="btn btn-secondary" onclick="window.openCommandPalette && window.openCommandPalette()" title="Omnisearch (⌘K)">
+            🔍 Search <kbd style="font-size: 0.72rem; padding: 1px 4px; background: rgba(0,0,0,0.25); border-radius: 3px;">⌘K</kbd>
+        </button>
+        <button type="button" class="btn btn-outline-primary" id="openHelpdeskBtn">🛠️ Report Issue</button>
+        <button type="button" class="btn btn-primary btn-open-upi-pay">📱 Pay via UPI QR</button>
         {% endif %}
     </div>
 </div>
@@ -69,7 +93,7 @@
 {% if is_admin %}
 <!-- ================= SUPERADMIN / COMMITTEE DASHBOARD ================= -->
 
-<!-- Executive Stats Grid (5 KPI Cards) -->
+<!-- Executive Stats Grid (4 KPI Cards) -->
 <div class="stats-grid" style="margin-bottom: 2rem;">
     <div class="stat-card" style="--stat-accent: #3b82f6; --stat-icon-bg: rgba(59, 130, 246, 0.18); --stat-icon-border: rgba(59, 130, 246, 0.35); --stat-icon-color: #3b82f6;">
         <div class="stat-icon">🏢</div>
@@ -111,6 +135,77 @@
         </div>
     </div>
 </div>
+
+<!-- Interactive 2D Building & Floor Matrix Visualizer Widget -->
+{% if building_blocks %}
+<div class="building-visualizer-card">
+    <div class="building-matrix-header">
+        <div class="building-matrix-title">
+            <span style="font-size: 1.5rem;">🏢</span>
+            <div>
+                <h3>Society Wing &amp; Floor Visualizer</h3>
+                <p>Interactive 2D unit map across Block A &amp; Block B. Hover on any flat for live dues and resident summary.</p>
+            </div>
+        </div>
+
+        <div class="building-filters-toolbar">
+            <span style="font-size: 0.76rem; color: var(--text-muted); font-weight: 600;">FILTER:</span>
+            <button type="button" class="matrix-filter-pill active" data-filter="all">All Units ({{ total_members }})</button>
+            <button type="button" class="matrix-filter-pill" data-filter="block_a">Block A</button>
+            <button type="button" class="matrix-filter-pill" data-filter="block_b">Block B</button>
+            <button type="button" class="matrix-filter-pill" data-filter="paid">✓ Paid ({{ total_members - defaulters_total_count }})</button>
+            <button type="button" class="matrix-filter-pill" data-filter="overdue" style="border-color: rgba(239, 68, 68, 0.4); color: #f87171;">⚠️ Overdue ({{ defaulters_total_count }})</button>
+        </div>
+    </div>
+
+    <div class="building-grid-columns">
+        {% for b_name, floors_list in building_blocks.items() %}
+        <div class="block-column" id="blockCol_{{ b_name|replace(' ', '_') }}">
+            <div class="block-column-header">
+                <div class="block-column-title">
+                    <span>🏛️</span> {{ b_name }}
+                </div>
+                <span class="badge badge-info" style="font-size: 0.72rem;">
+                    {% set unit_sum = [] %}
+                    {% for flr in floors_list %}{% set _ = unit_sum.extend(flr.units) %}{% endfor %}
+                    {{ unit_sum|length }} Flats
+                </span>
+            </div>
+
+            <div class="block-floors-stack">
+                {% for flr in floors_list %}
+                <div class="floor-level-row">
+                    <div class="floor-badge">{{ flr.floor_label }}</div>
+                    <div class="floor-units-cluster">
+                        {% for u in flr.units %}
+                        <div class="unit-cell-btn unit-status-{{ u.status }}"
+                             data-flat="{{ u.flat_no }}"
+                             data-name="{{ u.member_name }}"
+                             data-status="{{ u.status }}"
+                             data-block="{{ b_name }}"
+                             data-rate="{{ u.monthly_charge }}"
+                             data-sqft="{{ u.sq_feet }}"
+                             data-overdue="{{ u.overdue_months }}"
+                             data-total-due="{{ u.total_due }}"
+                             data-coverage="{{ u.coverage_display }}"
+                             title="Flat {{ u.flat_no }} ({{ u.member_name }})">
+                            <span class="unit-status-dot"></span>
+                            <span class="unit-cell-flat">{{ u.unit }}</span>
+                            <span class="unit-cell-sub">{{ u.member_name.split(' ')[0] }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Floating Matrix Popover Element (Positioned dynamically via JS) -->
+<div class="matrix-popover" id="matrixUnitPopover"></div>
+{% endif %}
 
 <!-- Charts Row -->
 <div class="grid-2" style="margin-bottom: 2rem;">
@@ -165,7 +260,7 @@
                 <thead>
                     <tr>
                         <th>Receipt #</th>
-                        <th>Flat & Member</th>
+                        <th>Flat &amp; Member</th>
                         <th>Period</th>
                         <th>Amount</th>
                         <th>Action</th>
@@ -298,7 +393,7 @@
     <div class="stat-card" style="--stat-accent: {% if my_penalty.overdue_months == 0 %}#10b981{% else %}#ef4444{% endif %}; --stat-icon-bg: {% if my_penalty.overdue_months == 0 %}rgba(16, 185, 129, 0.18){% else %}rgba(239, 68, 68, 0.18){% endif %}; --stat-icon-border: {% if my_penalty.overdue_months == 0 %}rgba(52, 211, 153, 0.35){% else %}rgba(248, 113, 113, 0.35){% endif %}; --stat-icon-color: {% if my_penalty.overdue_months == 0 %}#10b981{% else %}#ef4444{% endif %};">
         <div class="stat-icon">⚖️</div>
         <div class="stat-info">
-            <div class="stat-label">Maintenance & Penalty Status</div>
+            <div class="stat-label">Maintenance &amp; Penalty Status</div>
             {% if my_penalty.overdue_months == 0 %}
             <div class="stat-value text-amount-success" style="font-size: 1.45rem;">✓ Paid Up to Date</div>
             <div class="stat-sub">Covered through {{ my_penalty.coverage_display }}</div>
@@ -316,34 +411,104 @@
     <div class="stat-card" style="--stat-accent: #3b82f6; --stat-icon-bg: rgba(59, 130, 246, 0.18); --stat-icon-border: rgba(59, 130, 246, 0.35); --stat-icon-color: #3b82f6;">
         <div class="stat-icon">🏛️</div>
         <div class="stat-info">
-            <div class="stat-label">Monthly Rate & Flat Size</div>
+            <div class="stat-label">Monthly Rate &amp; Flat Size</div>
             <div class="stat-value">₹ {{ "{:,.2f}".format(member.monthly_charge if member else 2000) }}/mo</div>
             <div class="stat-sub">{{ member.RvsdFlatSize or '-' }} sq. ft. • Flat {{ current_user.flat_no }}</div>
         </div>
     </div>
 </div>
 
-{% if my_penalty.overdue_months > 0 %}
-<!-- Resident Overdue Warning Banner -->
-<div class="card" style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(136, 19, 55, 0.25) 0%, rgba(15, 23, 42, 0.85) 100%); border: 1px solid rgba(244, 63, 94, 0.35);">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-        <div>
-            <h3 class="text-main" style="font-size: 1.15rem; margin-bottom: 0.25rem;">
-                ⚠️ Overdue Maintenance Notice: <strong style="color: #f43f5e;">{{ my_penalty.overdue_months }} Months Unpaid</strong>
-            </h3>
-            <p class="text-secondary" style="font-size: 0.88rem; margin: 0;">
-                Your last covered subscription was through <strong>{{ my_penalty.coverage_display }}</strong>. Base maintenance: <strong>₹ {{ "{:,.2f}".format(my_penalty.base_due) }}</strong> + Late penalty: <strong>₹ {{ "{:,.2f}".format(my_penalty.penalty_amount) }}</strong> (Formula: N*(N+1)/2*100).
-            </p>
+<!-- Resident UPI Hero Quick Pay Card -->
+<div class="card upi-payment-card" style="margin-bottom: 2rem;">
+    <div class="upi-hero-grid">
+        <div class="upi-qr-wrapper">
+            <canvas id="upiQrCanvas" class="upi-qr-canvas" width="170" height="170"></canvas>
+            <div class="upi-qr-caption">Scan to Pay with UPI</div>
         </div>
-        <div style="text-align: right;">
-            <span class="text-muted" style="font-size: 0.78rem;">Total Payable:</span>
-            <div class="text-amount-danger" style="font-size: 1.5rem; font-weight: 800;">
-                ₹ {{ "{:,.2f}".format(my_penalty.total_due) }}
+
+        <div class="upi-details-col">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <h3 style="margin: 0; font-size: 1.25rem; color: var(--text-main); font-weight: 700;">
+                    Instant Maintenance Payment (Flat {{ current_user.flat_no }})
+                </h3>
+                <span class="badge badge-success" style="font-size: 0.78rem;">⚡ Zero Convenience Fee</span>
+            </div>
+
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin: 0; line-height: 1.5;">
+                Scan with any UPI App (Google Pay, PhonePe, Paytm, BHIM) to settle your flat's maintenance dues. All transactions are logged instantly.
+            </p>
+
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                <div class="upi-badge-container btn-copy-upi" data-copy="sdera.maintenance@icici" title="Click to copy official UPI ID">
+                    <span>🏦 UPI ID:</span>
+                    <span class="upi-badge-text">sdera.maintenance@icici</span>
+                    <span class="upi-copy-btn">📋 Copy</span>
+                </div>
+
+                <button type="button" class="btn btn-primary btn-open-upi-pay" style="padding: 0.55rem 1.2rem;">
+                    📱 Open Payment Gateway &rarr;
+                </button>
+            </div>
+
+            <div class="upi-apps-row">
+                <span style="font-size: 0.76rem; color: var(--text-muted); align-self: center;">Supported Apps:</span>
+                <span class="badge badge-secondary">Google Pay</span>
+                <span class="badge badge-secondary">PhonePe</span>
+                <span class="badge badge-secondary">Paytm</span>
+                <span class="badge badge-secondary">BHIM UPI</span>
+                <span class="badge badge-secondary">Cred</span>
             </div>
         </div>
     </div>
 </div>
-{% endif %}
+
+<!-- Resident Helpdesk & Maintenance Ticketing Widget -->
+<div class="card" style="margin-bottom: 2rem;">
+    <div class="card-header">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <span style="font-size: 1.25rem;">🛠️</span>
+            <h3 class="card-title">Society Helpdesk &amp; Maintenance Requests</h3>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="openHelpdeskBtnSecondary" onclick="document.getElementById('helpdeskModal').classList.add('active'); document.body.style.overflow = 'hidden';">
+            + Raise New Ticket
+        </button>
+    </div>
+
+    <!-- Active Ticket Demo Card -->
+    <div class="helpdesk-ticket-card">
+        <div class="ticket-header-line">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <strong class="text-main" style="font-size: 0.95rem;">Corridor Light &amp; MCB Inspection</strong>
+                <span class="ticket-category-pill cat-electrical">⚡ Electrical</span>
+            </div>
+            <span class="badge badge-info">Ticket #SD-4182</span>
+        </div>
+
+        <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0 0 0.5rem 0;">
+            Assigned to Caretaker Mr. Sanjoy Chakraborty for 4th floor Block A inspection.
+        </p>
+
+        <!-- 4-Stage Status Stepper -->
+        <div class="status-stepper-container">
+            <div class="stepper-node done">
+                <div class="stepper-icon-circle">✓</div>
+                <div class="stepper-label">Submitted</div>
+            </div>
+            <div class="stepper-node done">
+                <div class="stepper-icon-circle">✓</div>
+                <div class="stepper-label">Assigned</div>
+            </div>
+            <div class="stepper-node active">
+                <div class="stepper-icon-circle">⚙️</div>
+                <div class="stepper-label">In Progress</div>
+            </div>
+            <div class="stepper-node">
+                <div class="stepper-icon-circle">4</div>
+                <div class="stepper-label">Resolved</div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- My Personal Receipts Table -->
 <div class="card" style="margin-bottom: 2rem;">
@@ -420,7 +585,7 @@
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">🔍 Association Expenditure Transparency</h3>
-        <a href="{{ url_for('expenses_list') }}" class="btn btn-sm btn-outline-primary">Full Financial Ledger (81 Vouchers) &rarr;</a>
+        <a href="{{ url_for('expenses_list') }}" class="btn btn-sm btn-outline-primary">Full Financial Ledger &rarr;</a>
     </div>
 
     <div style="margin-bottom: 1rem;">
@@ -465,4 +630,105 @@
 </div>
 
 {% endif %}
+
+<!-- ================= MODALS ================= -->
+
+<!-- UPI Payment Dialog Modal -->
+<div class="modal-backdrop" id="upiPaymentModal" role="dialog" aria-modal="true" aria-labelledby="upiModalTitle">
+    <div class="modal-dialog" style="max-width: 520px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="upiModalTitle">📱 Pay Society Maintenance via UPI</h3>
+            <button type="button" class="close-btn" onclick="document.getElementById('upiPaymentModal').classList.remove('active'); document.body.style.overflow = '';">&times;</button>
+        </div>
+        <div class="modal-body" style="text-align: center;">
+            <div style="background: #ffffff; padding: 1rem; border-radius: var(--radius-md); display: inline-block; box-shadow: 0 10px 30px rgba(0,0,0,0.3); margin-bottom: 1.25rem;">
+                <canvas id="upiQrCanvasModal" width="180" height="180" style="display: block;"></canvas>
+                <div style="color: #0f172a; font-size: 0.74rem; font-weight: 700; margin-top: 0.4rem; letter-spacing: 0.04em;">
+                    SCAN WITH ANY UPI APP
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.6rem; text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.88rem;">
+                    <span class="text-muted">Flat Unit:</span>
+                    <strong class="text-main">Flat {{ current_user.flat_no }} ({{ current_user.name }})</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.88rem;">
+                    <span class="text-muted">Account Head:</span>
+                    <strong class="text-main">General Maintenance Subscription</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.88rem; border-top: 1px dashed var(--surface-border); padding-top: 0.4rem;">
+                    <span class="text-muted">Payee UPI VPA:</span>
+                    <strong class="text-highlight-blue btn-copy-upi" data-copy="sdera.maintenance@icici" style="cursor: pointer;" title="Click to copy">sdera.maintenance@icici 📋</strong>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                <a href="upi://pay?pa=sdera.maintenance@icici&pn=South+Dumdum+Enclave&cu=INR&tn=SDERA-{{ current_user.flat_no }}" class="btn btn-primary" style="flex: 1; padding: 0.6rem 1rem;">
+                    🚀 Open UPI App on Mobile
+                </a>
+                <button type="button" class="btn btn-secondary btn-copy-upi" data-copy="sdera.maintenance@icici" style="padding: 0.6rem 1rem;">
+                    📋 Copy VPA
+                </button>
+            </div>
+        </div>
+        <div class="modal-footer" style="justify-content: center;">
+            <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0; text-align: center;">
+                🔒 Receipts are logged into the ledger automatically upon transaction settlement.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Helpdesk Ticket Submission Modal -->
+<div class="modal-backdrop" id="helpdeskModal" role="dialog" aria-modal="true" aria-labelledby="helpdeskModalTitle">
+    <div class="modal-dialog" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="helpdeskModalTitle">🛠️ Raise Maintenance / Grievance Ticket</h3>
+            <button type="button" class="close-btn" onclick="document.getElementById('helpdeskModal').classList.remove('active'); document.body.style.overflow = '';">&times;</button>
+        </div>
+        <form id="helpdeskTicketForm">
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label class="form-label">Issue Category</label>
+                    <select class="form-control" id="ticketCategory" required>
+                        <option value="Plumbing">🚰 Plumbing &amp; Water Supply</option>
+                        <option value="Electrical">⚡ Electrical &amp; Corridor Lights</option>
+                        <option value="Lift">🛗 Lift Maintenance</option>
+                        <option value="Cleaning">🧹 Common Area Cleaning &amp; Garbage</option>
+                        <option value="Security">🛡️ Security &amp; Gate Access</option>
+                        <option value="Other">📌 Other General Enquiry</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label class="form-label">Flat / Location</label>
+                    <input type="text" class="form-control" value="Flat {{ current_user.flat_no }}" readonly style="opacity: 0.8;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label class="form-label">Issue Description</label>
+                    <textarea class="form-control" id="ticketDescription" rows="4" placeholder="Describe the maintenance issue or request with specifics (e.g. 4th floor corridor light fused)..." required></textarea>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0.5rem;">
+                    <label class="form-label">Urgency Level</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.84rem; cursor: pointer;">
+                            <input type="radio" name="ticketPriority" value="Normal" checked> Normal (48 hrs)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.84rem; cursor: pointer;">
+                            <input type="radio" name="ticketPriority" value="Urgent"> 🚨 Urgent (24 hrs)
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('helpdeskModal').classList.remove('active'); document.body.style.overflow = '';">Cancel</button>
+                <button type="submit" class="btn btn-primary">Submit Ticket &rarr;</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}

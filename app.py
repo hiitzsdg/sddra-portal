@@ -122,15 +122,12 @@ def roles_required(*allowed_roles):
                 return redirect(url_for('login', next=request.url))
             user_role = str(user.get('role', 'MEMBER')).lower()
             allowed_lowers = [str(r).lower() for r in allowed_roles]
-            is_admin_flag = bool(user.get('is_admin', False))
             username = str(user.get('username', '')).lower()
             
-            admin_roles = ['super_admin', 'billing_admin', 'admin', 'treasurer', 'president', 'secretary', 'caretaker']
             has_role = (
                 (user_role in allowed_lowers) or 
-                (user_role in admin_roles) or 
-                is_admin_flag or 
-                (username in ['admin', 'treasurer', 'president', 'secretary', 'caretaker'])
+                (user_role == 'super_admin') or
+                (username == 'admin')
             )
             if not has_role:
                 flash('Access Denied: You do not have permission to view this resource.', 'danger')
@@ -493,15 +490,80 @@ def dashboard():
             defaulters_total_count = 0
             total_penalty_accumulated = 0.0
             total_maintenance_overdue = 0.0
+            building_blocks = {'Block A': {}, 'Block B': {}}
             for m_row in members_all:
                 try:
-                    p_calc = calculate_flat_penalty(m_row['flat_no'], member=m_row, receipts_by_flat=rcpts_by_flat_map)
-                    if p_calc and p_calc.get('overdue_months', 0) > 0:
+                    fn = str(m_row.get('flat_no', '')).strip()
+                    p_calc = calculate_flat_penalty(fn, member=m_row, receipts_by_flat=rcpts_by_flat_map)
+                    overdue_m = int(p_calc.get('overdue_months', 0)) if p_calc else 0
+                    
+                    if overdue_m > 0:
                         defaulters_total_count += 1
                         total_maintenance_overdue += float(p_calc.get('base_due') or 0.0)
                         total_penalty_accumulated += float(p_calc.get('penalty_amount') or 0.0)
+
+                    if overdue_m == 0:
+                        stat = 'paid'
+                    elif overdue_m <= 2:
+                        stat = 'due'
+                    else:
+                        stat = 'critical'
+
+                    # Extract block and floor
+                    blk = 'Block A'
+                    flr = '1'
+                    unt = fn
+                    if '/' in fn:
+                        parts = fn.split('/')
+                        b_letter = parts[0].strip().upper()
+                        blk = f"Block {b_letter}" if b_letter in ['A', 'B'] else 'Block A'
+                        if '-' in parts[1]:
+                            flr_part, unt_part = parts[1].split('-', 1)
+                            flr = flr_part.strip().upper()
+                            unt = unt_part.strip().upper()
+                        else:
+                            flr = parts[1][:1].upper()
+                            unt = parts[1][1:].upper()
+                    
+                    unit_obj = {
+                        'flat_no': fn,
+                        'unit': unt,
+                        'member_name': m_row.get('member_name', 'Resident'),
+                        'monthly_charge': float(m_row.get('monthly_charge', 0.0) or 0.0),
+                        'sq_feet': m_row.get('RvsdFlatSize', 1200),
+                        'status': stat,
+                        'overdue_months': overdue_m,
+                        'base_due': float(p_calc.get('base_due', 0.0) or 0.0),
+                        'penalty_amount': float(p_calc.get('penalty_amount', 0.0) or 0.0),
+                        'total_due': float(p_calc.get('total_due', 0.0) or 0.0),
+                        'coverage_display': p_calc.get('coverage_display', 'Up to date')
+                    }
+                    
+                    building_blocks.setdefault(blk, {}).setdefault(flr, []).append(unit_obj)
                 except Exception:
                     pass
+
+            # Sort floors descending for realistic building elevation (4, 3, 2, 1, GR)
+            floor_order = ['4', '3', '2', '1', 'GR']
+            sorted_building_blocks = {}
+            for b_name, flr_dict in building_blocks.items():
+                sorted_building_blocks[b_name] = []
+                for f_code in floor_order:
+                    if f_code in flr_dict:
+                        f_label = 'Ground' if f_code == 'GR' else f"{f_code}F"
+                        sorted_building_blocks[b_name].append({
+                            'floor_code': f_code,
+                            'floor_label': f_label,
+                            'units': sorted(flr_dict[f_code], key=lambda u: u['unit'])
+                        })
+                # Add any extra floors not in standard list
+                for f_code, u_list in flr_dict.items():
+                    if f_code not in floor_order:
+                        sorted_building_blocks[b_name].append({
+                            'floor_code': f_code,
+                            'floor_label': f_code,
+                            'units': sorted(u_list, key=lambda u: u['unit'])
+                        })
 
             search_q = request.args.get('q', '').strip()
             rcpt_query = "SELECT * FROM tbl_receipts"
@@ -540,6 +602,7 @@ def dashboard():
                 defaulters_total_count=defaulters_total_count,
                 total_penalty_accumulated=total_penalty_accumulated,
                 total_maintenance_overdue=total_maintenance_overdue,
+                building_blocks=sorted_building_blocks,
                 recent_receipts=recent_receipts,
                 recent_expenses=recent_expenses,
                 pinned_notices=pinned_notices,
@@ -633,6 +696,87 @@ def dashboard():
             search_q='',
             current_year=2026
         )
+
+# --- Modern Web App APIs (Command Palette & Helpdesk) ---
+@app.route('/api/command-palette-data')
+@login_required
+def command_palette_data():
+    """Provides instant JSON search indexing for the global Command Palette (Ctrl+K)."""
+    user = session.get('user', {})
+    if not isinstance(user, dict):
+        user = {}
+    is_admin = bool(user.get('is_admin') or user.get('role') in ADMIN_ROLES)
+    
+    # 1. Navigation items
+    nav_items = [
+        {'id': 'nav-dash', 'title': 'Dashboard', 'desc': 'Overview, financials & announcements', 'category': 'Navigation', 'icon': '📊', 'url': url_for('dashboard')},
+        {'id': 'nav-notices', 'title': 'Notice Board', 'desc': 'Official circulars & broadcasts', 'category': 'Navigation', 'icon': '📢', 'url': url_for('notices_list')},
+        {'id': 'nav-expenses', 'title': 'Society Expenses', 'desc': 'Audited outlays & monthly charts', 'category': 'Navigation', 'icon': '🧾', 'url': url_for('expenses_list')},
+        {'id': 'nav-profile', 'title': 'My Profile', 'desc': 'Account settings & contact info', 'category': 'Navigation', 'icon': '⚙️', 'url': url_for('profile')}
+    ]
+    
+    if is_admin:
+        nav_items.extend([
+            {'id': 'nav-members', 'title': 'Resident Directory', 'desc': '44 Flat roster & contacts', 'category': 'Admin Console', 'icon': '👥', 'url': url_for('admin_members')},
+            {'id': 'nav-receipts', 'title': 'Receipts Ledger', 'desc': 'Issue & print official slips', 'category': 'Admin Console', 'icon': '💳', 'url': url_for('admin_receipts')},
+            {'id': 'nav-penalties', 'title': 'Penalties & Defaulters', 'desc': 'Track overdue accounts', 'category': 'Admin Console', 'icon': '⚖️', 'url': url_for('admin_penalties')},
+            {'id': 'nav-audit', 'title': 'Activity & Audit Logs', 'desc': 'Trace system actions & IPs', 'category': 'Admin Console', 'icon': '🛡️', 'url': url_for('admin_audit_logs')},
+            {'id': 'nav-tariffs', 'title': 'Tariff & Rates Engine', 'desc': 'Per sq-ft and penalty rules', 'category': 'Admin Console', 'icon': '⚡', 'url': url_for('admin_billing_rates')}
+        ])
+
+    # 2. Quick Actions
+    action_items = [
+        {'id': 'act-theme', 'title': 'Toggle Dark / Light Theme', 'desc': 'Switch visual color palette', 'category': 'Actions', 'icon': '🌓', 'action': 'toggle_theme'}
+    ]
+    if is_admin:
+        action_items.extend([
+            {'id': 'act-expense', 'title': 'Record New Society Expense', 'desc': 'Log vendor invoice or voucher', 'category': 'Actions', 'icon': '➕', 'url': url_for('expenses_list') + '#new-expense'},
+            {'id': 'act-notice', 'title': 'Post New Notice Broadcast', 'desc': 'Draft official circular', 'category': 'Actions', 'icon': '📢', 'url': url_for('notices_list') + '#new-notice'},
+            {'id': 'act-receipt', 'title': 'Issue Maintenance Receipt', 'desc': 'Generate verified payment slip', 'category': 'Actions', 'icon': '💳', 'url': url_for('admin_receipts') + '#issue-receipt'}
+        ])
+    else:
+        action_items.append({
+            'id': 'act-pay', 'title': 'Pay Maintenance via UPI QR', 'desc': 'Instant QR code payment', 'category': 'Actions', 'icon': '📱', 'action': 'open_upi_modal'
+        })
+
+    # 3. Flats & Residents Directory
+    flat_items = []
+    try:
+        members_data = query_db("SELECT flat_no, member_name FROM tbl_membership ORDER BY flat_no") or []
+        for m in members_data:
+            flat_items.append({
+                'id': f"flat-{m['flat_no']}",
+                'title': f"Flat {m['flat_no']} - {m['member_name']}",
+                'desc': 'Resident directory record',
+                'category': 'Residents',
+                'icon': '🏠',
+                'url': url_for('admin_members') if is_admin else url_for('dashboard')
+            })
+    except Exception:
+        pass
+
+    # 4. Recent Notices
+    notice_items = []
+    try:
+        notices_data = query_db("SELECT id, title, category, priority FROM tbl_notices WHERE status = 'ACTIVE' ORDER BY id DESC LIMIT 8") or []
+        for n in notices_data:
+            notice_items.append({
+                'id': f"notice-{n['id']}",
+                'title': n['title'],
+                'desc': f"Notice #{n['id']} • {n.get('category', 'GENERAL')}",
+                'category': 'Announcements',
+                'icon': '📌' if n.get('priority') == 'URGENT' else '📄',
+                'url': url_for('notices_list') + f"#notice-{n['id']}"
+            })
+    except Exception:
+        pass
+
+    return jsonify({
+        'navigation': nav_items,
+        'actions': action_items,
+        'residents': flat_items,
+        'notices': notice_items
+    })
 
 # --- Receipt View & Email Dispatch ---
 @app.route('/receipts/<int:receipt_no>')
@@ -1556,7 +1700,7 @@ def admin_billing_rates():
                     
                     new_total += compute_flat_monthly_charge(sq_ft, flat_charges, capital_fund, common_expenses, cps_chg, tws_chg)
                 
-                log_activity('RATES_UPDATED', f"Applied new global maintenance rates: Flat SqFt Rs {flat_charges}, Common Rs {common_expenses}, CPS Rs {cps_rate}, TwS Rs {tws_rate}")
+                log_activity('RATES_UPDATED', f"Applied new global maintenance rates: Flat SqFt Rs {flat_charges}, Common Rs {common_expenses}, CPS Rs {cps_base_rate}, TwS Rs {tws_base_rate}")
                 flash(f"⚡ Tariff Rate Scale applied to all 44 flats! Monthly society inflow updated: ₹{old_total:,.2f} ➔ ₹{new_total:,.2f} (Delta: {'+' if new_total >= old_total else ''}₹{new_total - old_total:,.2f})", 'success')
                 return redirect(url_for('admin_billing_rates'))
             except Exception as e:

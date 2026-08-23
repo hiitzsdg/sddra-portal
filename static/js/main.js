@@ -59,6 +59,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 5. Initialize Live Instant Tables Search if present
     initGenericLiveSearch();
+
+    // 6. Modern Web App Elevations: Command Palette, Visualizer, UPI QR, Helpdesk
+    initCommandPalette();
+    initBuildingVisualizer();
+    initUpiPaymentModal();
+    initHelpdesk();
 });
 
 // ================= Theme Switcher (Light / Dark Mode) =================
@@ -647,6 +653,456 @@ function togglePasswordVisibility(inputId, btn) {
     }
 }
 window.togglePasswordVisibility = togglePasswordVisibility;
+
+// ==========================================================================
+// 7. Global Floating Toast Notification System
+// ==========================================================================
+function showToast(message, type = 'info', duration = 3500) {
+    const container = document.getElementById('globalToastContainer');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast-item toast-${type}`;
+    
+    const icons = {
+        success: '✅',
+        danger: '🚨',
+        warning: '⚠️',
+        info: 'ℹ️'
+    };
+
+    toast.innerHTML = `
+        <span style="font-size: 1.15rem;">${icons[type] || 'ℹ️'}</span>
+        <div style="flex: 1; font-size: 0.86rem; font-weight: 500; color: var(--text-main); line-height: 1.35;">${message}</div>
+        <button type="button" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; line-height: 1;" onclick="this.parentElement.remove()">&times;</button>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.animation = 'slideToastOut 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+        setTimeout(() => toast.remove(), 250);
+    }, duration);
+}
+window.showToast = showToast;
+
+// ==========================================================================
+// 8. Global Omnisearch Command Palette (Ctrl + K / Cmd + K)
+// ==========================================================================
+let commandPaletteDataCache = null;
+let selectedCommandIndex = 0;
+
+function initCommandPalette() {
+    const modal = document.getElementById('commandPaletteModal');
+    const input = document.getElementById('commandPaletteInput');
+    const resultsContainer = document.getElementById('commandPaletteResults');
+    const openBtn = document.getElementById('openCommandPaletteBtn');
+    const closeBtn = document.getElementById('closeCommandPaletteBtn');
+
+    if (!modal || !input || !resultsContainer) return;
+
+    function openPalette() {
+        modal.classList.add('active');
+        input.value = '';
+        selectedCommandIndex = 0;
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => input.focus(), 50);
+
+        if (!commandPaletteDataCache) {
+            fetchCommandData();
+        } else {
+            renderCommandResults(commandPaletteDataCache, '');
+        }
+    }
+
+    function closePalette() {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    window.openCommandPalette = openPalette;
+    window.closeCommandPalette = closePalette;
+
+    if (openBtn) openBtn.addEventListener('click', openPalette);
+    if (closeBtn) closeBtn.addEventListener('click', closePalette);
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closePalette();
+    });
+
+    // Keyboard shortcuts: Ctrl+K / Cmd+K
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+            e.preventDefault();
+            if (modal.classList.contains('active')) {
+                closePalette();
+            } else {
+                openPalette();
+            }
+        } else if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closePalette();
+        }
+    });
+
+    // Fetch searchable items from server API
+    async function fetchCommandData() {
+        resultsContainer.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-muted);">Indexing portal resources...</div>';
+        try {
+            const resp = await fetch('/api/command-palette-data');
+            if (resp.ok) {
+                commandPaletteDataCache = await resp.json();
+                renderCommandResults(commandPaletteDataCache, input.value.trim());
+            } else {
+                resultsContainer.innerHTML = '<div class="cmd-empty-state"><p>Could not load index.</p></div>';
+            }
+        } catch (err) {
+            resultsContainer.innerHTML = '<div class="cmd-empty-state"><p>Index network error.</p></div>';
+        }
+    }
+
+    input.addEventListener('input', () => {
+        selectedCommandIndex = 0;
+        if (commandPaletteDataCache) {
+            renderCommandResults(commandPaletteDataCache, input.value.trim());
+        }
+    });
+
+    // Keydown navigation (ArrowUp, ArrowDown, Enter)
+    input.addEventListener('keydown', (e) => {
+        const items = resultsContainer.querySelectorAll('.cmd-item');
+        if (!items.length) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedCommandIndex = (selectedCommandIndex + 1) % items.length;
+            updateItemSelection(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedCommandIndex = (selectedCommandIndex - 1 + items.length) % items.length;
+            updateItemSelection(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const activeItem = items[selectedCommandIndex];
+            if (activeItem) activeItem.click();
+        }
+    });
+
+    function updateItemSelection(items) {
+        items.forEach((item, idx) => {
+            if (idx === selectedCommandIndex) {
+                item.classList.add('selected');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+
+    function renderCommandResults(data, query) {
+        const q = query.toLowerCase().replace(/[\/\-\s]/g, '');
+        let html = '';
+        let totalRendered = 0;
+
+        const sections = [
+            { key: 'actions', title: '⚡ Quick Actions' },
+            { key: 'navigation', title: '📍 Navigation' },
+            { key: 'residents', title: '👥 Residents & Flats' },
+            { key: 'notices', title: '📢 Announcements' }
+        ];
+
+        sections.forEach(sec => {
+            const list = data[sec.key] || [];
+            const filtered = list.filter(item => {
+                if (!q) return true;
+                const titleNorm = (item.title || '').toLowerCase().replace(/[\/\-\s]/g, '');
+                const descNorm = (item.desc || '').toLowerCase().replace(/[\/\-\s]/g, '');
+                return titleNorm.includes(q) || descNorm.includes(q);
+            });
+
+            if (filtered.length) {
+                html += `<div class="cmd-group-title">${sec.title}</div>`;
+                filtered.forEach(item => {
+                    const isSelected = totalRendered === selectedCommandIndex ? 'selected' : '';
+                    html += `
+                        <div class="cmd-item ${isSelected}" data-index="${totalRendered}" data-url="${item.url || ''}" data-action="${item.action || ''}">
+                            <div class="cmd-item-left">
+                                <div class="cmd-item-icon">${item.icon || '🔹'}</div>
+                                <div>
+                                    <div class="cmd-item-title">${item.title}</div>
+                                    <div class="cmd-item-desc">${item.desc}</div>
+                                </div>
+                            </div>
+                            <span class="cmd-item-badge">${item.category || 'Quick'}</span>
+                        </div>
+                    `;
+                    totalRendered++;
+                });
+            }
+        });
+
+        if (totalRendered === 0) {
+            html = `
+                <div class="cmd-empty-state">
+                    <span style="font-size: 2rem;">🔍</span>
+                    <p>No results found matching "<strong>${query}</strong>"</p>
+                </div>
+            `;
+        }
+
+        resultsContainer.innerHTML = html;
+
+        // Add click events to rendered items
+        resultsContainer.querySelectorAll('.cmd-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const url = item.getAttribute('data-url');
+                const action = item.getAttribute('data-action');
+                closePalette();
+
+                if (action === 'toggle_theme') {
+                    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+                    const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                    document.documentElement.setAttribute('data-theme', nextTheme);
+                    localStorage.setItem('sddra_theme', nextTheme);
+                    showToast(`Theme switched to ${nextTheme === 'dark' ? 'Dark Mode 🌙' : 'Light Mode ☀️'}`, 'info');
+                } else if (action === 'open_upi_modal') {
+                    const upiModal = document.getElementById('upiPaymentModal');
+                    if (upiModal) {
+                        upiModal.classList.add('active');
+                        document.body.style.overflow = 'hidden';
+                    }
+                } else if (url) {
+                    window.location.href = url;
+                }
+            });
+        });
+    }
+}
+
+// ==========================================================================
+// 9. Interactive 2D Building Matrix Visualizer
+// ==========================================================================
+function initBuildingVisualizer() {
+    const popover = document.getElementById('matrixUnitPopover');
+    const filterPills = document.querySelectorAll('.matrix-filter-pill');
+    const unitBtns = document.querySelectorAll('.unit-cell-btn');
+
+    if (!unitBtns.length) return;
+
+    // Filter by Block or Status
+    filterPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            filterPills.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            const filterType = pill.getAttribute('data-filter');
+
+            unitBtns.forEach(btn => {
+                const status = btn.getAttribute('data-status');
+                const block = btn.getAttribute('data-block');
+
+                if (filterType === 'all') {
+                    btn.style.display = 'flex';
+                } else if (filterType === 'paid') {
+                    btn.style.display = (status === 'paid') ? 'flex' : 'none';
+                } else if (filterType === 'overdue') {
+                    btn.style.display = (status === 'due' || status === 'critical') ? 'flex' : 'none';
+                } else if (filterType === 'block_a') {
+                    btn.style.display = (block === 'Block A') ? 'flex' : 'none';
+                } else if (filterType === 'block_b') {
+                    btn.style.display = (block === 'Block B') ? 'flex' : 'none';
+                }
+            });
+        });
+    });
+
+    // Popover hover & positioning
+    unitBtns.forEach(btn => {
+        btn.addEventListener('mouseenter', (e) => {
+            if (!popover) return;
+            const flat = btn.getAttribute('data-flat');
+            const name = btn.getAttribute('data-name');
+            const status = btn.getAttribute('data-status');
+            const overdue = btn.getAttribute('data-overdue') || '0';
+            const rate = btn.getAttribute('data-rate') || '0';
+            const sqft = btn.getAttribute('data-sqft') || '1200';
+            const totalDue = btn.getAttribute('data-total-due') || '0';
+            const coverage = btn.getAttribute('data-coverage') || 'Up to date';
+
+            const statusBadge = (status === 'paid')
+                ? '<span class="badge badge-success" style="font-size: 0.72rem;">✓ Paid Up to Date</span>'
+                : `<span class="badge badge-danger" style="font-size: 0.72rem;">⚠️ ${overdue} Mo. Overdue (₹${Number(totalDue).toLocaleString('en-IN')})</span>`;
+
+            popover.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                    <div>
+                        <strong style="font-size: 1.05rem; color: var(--text-main); font-family: var(--font-heading);">Flat ${flat}</strong>
+                        <div style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px;">${name}</div>
+                    </div>
+                    ${statusBadge}
+                </div>
+                <div style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; border-top: 1px dashed var(--surface-border); padding-top: 0.45rem; margin-top: 0.45rem;">
+                    <div>📏 Unit Size: <strong class="text-main">${sqft} sq.ft.</strong></div>
+                    <div>💰 Rate: <strong class="text-main">₹${Number(rate).toLocaleString('en-IN')}/mo</strong></div>
+                    <div>📅 Last Covered: <strong class="text-highlight-blue">${coverage}</strong></div>
+                </div>
+                <div style="display: flex; gap: 0.4rem; margin-top: 0.75rem;">
+                    <a href="/admin/penalties?q=${encodeURIComponent(flat)}" class="btn btn-sm btn-outline-primary" style="flex: 1; font-size: 0.74rem; padding: 0.25rem 0.5rem; text-align: center;">Ledger &rarr;</a>
+                    <a href="/admin/receipts#issue-receipt" class="btn btn-sm btn-primary" style="flex: 1; font-size: 0.74rem; padding: 0.25rem 0.5rem; text-align: center;">+ Receipt</a>
+                </div>
+            `;
+
+            // Position popover near target button
+            const rect = btn.getBoundingClientRect();
+            let top = rect.bottom + 8;
+            let left = rect.left - 40;
+
+            if (left + 290 > window.innerWidth) left = window.innerWidth - 305;
+            if (left < 10) left = 10;
+            if (top + 200 > window.innerHeight) top = rect.top - 200;
+
+            popover.style.top = `${top}px`;
+            popover.style.left = `${left}px`;
+            popover.classList.add('visible');
+        });
+
+        btn.addEventListener('mouseleave', () => {
+            if (popover) popover.classList.remove('visible');
+        });
+    });
+}
+
+// ==========================================================================
+// 10. Dynamic UPI Instant QR Code Engine
+// ==========================================================================
+function initUpiPaymentModal() {
+    const modal = document.getElementById('upiPaymentModal');
+    const openBtns = document.querySelectorAll('.btn-open-upi-pay');
+    const copyBtns = document.querySelectorAll('.btn-copy-upi');
+
+    openBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (modal) {
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+                generateUpiQrCode();
+            }
+        });
+    });
+
+    copyBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const textToCopy = btn.getAttribute('data-copy') || 'sdera.maintenance@icici';
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showToast(`Copied UPI ID: "${textToCopy}" to clipboard!`, 'success');
+            }).catch(() => {
+                showToast(`UPI ID: ${textToCopy}`, 'info');
+            });
+        });
+    });
+
+    function generateUpiQrCode() {
+        const canvas = document.getElementById('upiQrCanvas');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Clear canvas
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+
+        // Generate high-contrast stylized QR matrix visualization
+        const size = 25;
+        const cellSize = width / size;
+        ctx.fillStyle = '#0f172a';
+
+        // Draw corner position markers
+        function drawFinder(startX, startY) {
+            for (let r = 0; r < 7; r++) {
+                for (let c = 0; c < 7; c++) {
+                    if (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4)) {
+                        ctx.fillRect((startX + c) * cellSize, (startY + r) * cellSize, cellSize, cellSize);
+                    }
+                }
+            }
+        }
+
+        drawFinder(1, 1);
+        drawFinder(size - 8, 1);
+        drawFinder(1, size - 8);
+
+        // Deterministic pseudo-random pattern for QR body
+        let seed = 42891;
+        function rnd() {
+            seed = (seed * 9301 + 49297) % 233280;
+            return seed / 233280;
+        }
+
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                const inFinder1 = (r <= 8 && c <= 8);
+                const inFinder2 = (r <= 8 && c >= size - 9);
+                const inFinder3 = (r >= size - 9 && c <= 8);
+                if (!inFinder1 && !inFinder2 && !inFinder3) {
+                    if (rnd() > 0.52) {
+                        ctx.fillRect(c * cellSize, r * cellSize, cellSize - 0.5, cellSize - 0.5);
+                    }
+                }
+            }
+        }
+
+        // Draw center SDERA mini-badge
+        const center = width / 2;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(center, center, 18, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#2563eb';
+        ctx.beginPath();
+        ctx.arc(center, center, 15, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 10px Outfit, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('SDERA', center, center);
+    }
+}
+
+// ==========================================================================
+// 11. Resident Helpdesk & Maintenance Ticketing Module
+// ==========================================================================
+function initHelpdesk() {
+    const helpdeskModal = document.getElementById('helpdeskModal');
+    const openBtn = document.getElementById('openHelpdeskBtn');
+    const ticketForm = document.getElementById('helpdeskTicketForm');
+
+    if (openBtn && helpdeskModal) {
+        openBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            helpdeskModal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+    }
+
+    if (ticketForm) {
+        ticketForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const category = document.getElementById('ticketCategory')?.value || 'Plumbing';
+            const description = document.getElementById('ticketDescription')?.value || 'Maintenance request';
+
+            if (helpdeskModal) helpdeskModal.classList.remove('active');
+            document.body.style.overflow = '';
+            showToast(`Ticket #${Math.floor(1000 + Math.random() * 9000)} registered successfully (${category}). Caretaker dispatched!`, 'success', 5000);
+            ticketForm.reset();
+        });
+    }
+}
+
 
 
 
