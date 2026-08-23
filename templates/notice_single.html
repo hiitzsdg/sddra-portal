@@ -233,11 +233,16 @@
             <span class="badge badge-normal">📢 OFFICIAL CIRCULAR</span>
             {% endif %}
             <span class="badge" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">
-                📂 {{ notice.category.replace('_', ' ').title() }}
+                📂 {{ 'Meeting' if notice.category == 'AGM_MEETING' else notice.category.replace('_', ' ').title() }}
             </span>
             {% if notice.meeting_type %}
             <span class="badge" style="background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd;">
-                🏛️ Meeting: {{ notice.meeting_type }}
+                🏛️ {{ notice.meeting_type }}
+            </span>
+            {% endif %}
+            {% if notice.meeting_date %}
+            <span class="badge" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">
+                📅 Meeting Date: {{ notice.meeting_date }}
             </span>
             {% endif %}
         </div>

@@ -624,7 +624,8 @@ def broadcast_notice_email(notice, author_name=None):
     """
     title = notice.get('title', 'Society Announcement')
     content = notice.get('content', '')
-    category = notice.get('category', 'GENERAL').replace('_', ' ').title()
+    category_raw = notice.get('category', 'GENERAL')
+    category = "Meeting" if category_raw == 'AGM_MEETING' else category_raw.replace('_', ' ').title()
     priority = notice.get('priority', 'NORMAL').upper()
     posted_by = notice.get('posted_by') or author_name or 'Executive Committee'
     posted_by_role = notice.get('posted_by_role', 'Committee Official')

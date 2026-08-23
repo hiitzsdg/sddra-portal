@@ -541,7 +541,7 @@
                     {% elif n.category == 'MAINTENANCE' %}
                         <span class="badge badge-cat-maintenance">⚡ Maintenance</span>
                     {% elif n.category == 'AGM_MEETING' %}
-                        <span class="badge badge-cat-agm">🏛️ AGM &amp; Meetings</span>
+                        <span class="badge badge-cat-agm">🏛️ Meeting</span>
                         {% if n.meeting_type %}
                             <span class="badge badge-cat-meeting-type" title="Meeting Type: {{ n.meeting_type }}">🏛️ {{ n.meeting_type }}</span>
                         {% endif %}
@@ -698,6 +698,7 @@
                 <span id="docPrioBadge" class="badge badge-prio-normal">📢 CIRCULAR</span>
                 <span id="docCatBadge" class="badge" style="background: #e2e8f0; color: #334155;">Category</span>
                 <span id="docMeetingBadge" class="badge" style="display: none; background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd;">Meeting Type</span>
+                <span id="docMeetingDateBadge" class="badge" style="display: none; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">📅 Meeting Date</span>
             </div>
 
             <!-- Notice Headline -->
@@ -770,12 +771,13 @@
             <div id="new_meeting_type_wrap" style="display: none; margin-bottom: 1.25rem; background: rgba(168, 85, 247, 0.08); padding: 0.95rem 1rem; border-radius: var(--radius-md); border: 1px solid rgba(168, 85, 247, 0.35);">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
                     <label class="form-label" for="new_meeting_type" style="margin: 0; color: #d8b4fe; font-weight: 700; font-size: 0.9rem;">
-                        🏛️ Meeting Type Sub-Category *
+                        🏛️ Meeting Type Sub-Category &amp; Date *
                     </label>
-                    <span style="font-size: 0.76rem; color: #c084fc;">Placeholder sub-category</span>
+                    <span style="font-size: 0.76rem; color: #c084fc;">Meeting placeholder settings</span>
                 </div>
                 <div class="grid-2" style="gap: 0.75rem;">
                     <div>
+                        <label class="form-label" for="new_meeting_type" style="font-size: 0.8rem; color: #d8b4fe; margin-bottom: 4px;">Meeting Type</label>
                         <select id="new_meeting_type" name="meeting_type" class="form-select" onchange="onNoticeMeetingTypeChange('new')">
                             <option value="AGM" selected>🏛️ Annual General Meeting (AGM)</option>
                             <option value="GB">👥 General Body Meeting (GB)</option>
@@ -787,9 +789,14 @@
                             <option value="CUSTOM">✍️ Custom Meeting Type...</option>
                         </select>
                     </div>
-                    <div id="new_custom_meeting_wrap" style="display: none;">
-                        <input type="text" id="new_custom_meeting_type" name="custom_meeting_type" class="form-control" placeholder="e.g. Ad-hoc Building Committee">
+                    <div>
+                        <label class="form-label" for="new_meeting_date" style="font-size: 0.8rem; color: #d8b4fe; margin-bottom: 4px;">📅 Meeting Date</label>
+                        <input type="date" id="new_meeting_date" name="meeting_date" class="form-control">
                     </div>
+                </div>
+                <div id="new_custom_meeting_wrap" style="display: none; margin-top: 0.75rem;">
+                    <label class="form-label" for="new_custom_meeting_type" style="font-size: 0.8rem; color: #d8b4fe; margin-bottom: 4px;">Custom Meeting Title</label>
+                    <input type="text" id="new_custom_meeting_type" name="custom_meeting_type" class="form-control" placeholder="e.g. Ad-hoc Building Committee">
                 </div>
             </div>
 
@@ -886,12 +893,13 @@
             <div id="edit_meeting_type_wrap" style="display: none; margin-bottom: 1.25rem; background: rgba(168, 85, 247, 0.08); padding: 0.95rem 1rem; border-radius: var(--radius-md); border: 1px solid rgba(168, 85, 247, 0.35);">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
                     <label class="form-label" for="edit_meeting_type" style="margin: 0; color: #d8b4fe; font-weight: 700; font-size: 0.9rem;">
-                        🏛️ Meeting Type Sub-Category *
+                        🏛️ Meeting Type Sub-Category &amp; Date *
                     </label>
-                    <span style="font-size: 0.76rem; color: #c084fc;">Placeholder sub-category</span>
+                    <span style="font-size: 0.76rem; color: #c084fc;">Meeting placeholder settings</span>
                 </div>
                 <div class="grid-2" style="gap: 0.75rem;">
                     <div>
+                        <label class="form-label" for="edit_meeting_type" style="font-size: 0.8rem; color: #d8b4fe; margin-bottom: 4px;">Meeting Type</label>
                         <select id="edit_meeting_type" name="meeting_type" class="form-select" onchange="onNoticeMeetingTypeChange('edit')">
                             <option value="AGM">🏛️ Annual General Meeting (AGM)</option>
                             <option value="GB">👥 General Body Meeting (GB)</option>
@@ -903,9 +911,14 @@
                             <option value="CUSTOM">✍️ Custom Meeting Type...</option>
                         </select>
                     </div>
-                    <div id="edit_custom_meeting_wrap" style="display: none;">
-                        <input type="text" id="edit_custom_meeting_type" name="custom_meeting_type" class="form-control" placeholder="e.g. Ad-hoc Building Committee">
+                    <div>
+                        <label class="form-label" for="edit_meeting_date" style="font-size: 0.8rem; color: #d8b4fe; margin-bottom: 4px;">📅 Meeting Date</label>
+                        <input type="date" id="edit_meeting_date" name="meeting_date" class="form-control">
                     </div>
+                </div>
+                <div id="edit_custom_meeting_wrap" style="display: none; margin-top: 0.75rem;">
+                    <label class="form-label" for="edit_custom_meeting_type" style="font-size: 0.8rem; color: #d8b4fe; margin-bottom: 4px;">Custom Meeting Title</label>
+                    <input type="text" id="edit_custom_meeting_type" name="custom_meeting_type" class="form-control" placeholder="e.g. Ad-hoc Building Committee">
                 </div>
             </div>
 
@@ -1005,12 +1018,17 @@ function openEditModal(notice) {
     document.getElementById('edit_content').value = notice.content || '';
     document.getElementById('edit_is_pinned').checked = (notice.is_pinned == 1);
 
-    // Dynamic category and meeting type
+    // Dynamic category and meeting type & meeting date
     onNoticeCategoryChange('edit');
     var mtSelect = document.getElementById('edit_meeting_type');
     var customMtWrap = document.getElementById('edit_custom_meeting_wrap');
     var customMtInput = document.getElementById('edit_custom_meeting_type');
+    var mtDateInput = document.getElementById('edit_meeting_date');
     var mtVal = notice.meeting_type || '';
+
+    if (mtDateInput) {
+        mtDateInput.value = notice.meeting_date || '';
+    }
 
     var standardMeetingTypes = ['AGM', 'GB', 'SGB', 'GOVERNING_BODY', 'EGM', 'MANAGING_COMMITTEE', 'EMERGENCY'];
     if (standardMeetingTypes.includes(mtVal)) {
@@ -1080,16 +1098,27 @@ function openViewDocModal(notice) {
     }
 
     var catBadge = document.getElementById('docCatBadge');
-    catBadge.innerText = '📂 ' + (notice.category || 'GENERAL').replace('_', ' ');
+    var catName = (notice.category === 'AGM_MEETING') ? 'Meeting' : (notice.category || 'GENERAL').replace('_', ' ');
+    catBadge.innerText = '📂 ' + catName;
 
     var mtBadge = document.getElementById('docMeetingBadge');
     if (notice.meeting_type) {
         if (mtBadge) {
             mtBadge.style.display = 'inline-block';
-            mtBadge.innerText = '🏛️ Meeting: ' + notice.meeting_type;
+            mtBadge.innerText = '🏛️ ' + notice.meeting_type;
         }
     } else {
         if (mtBadge) mtBadge.style.display = 'none';
+    }
+
+    var mtDateBadge = document.getElementById('docMeetingDateBadge');
+    if (notice.meeting_date) {
+        if (mtDateBadge) {
+            mtDateBadge.style.display = 'inline-block';
+            mtDateBadge.innerText = '📅 Meeting Date: ' + notice.meeting_date;
+        }
+    } else {
+        if (mtDateBadge) mtDateBadge.style.display = 'none';
     }
 
     openModal('viewDocModal');

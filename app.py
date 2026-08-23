@@ -2148,13 +2148,16 @@ def notices_create():
     # Meeting Type Sub-Category resolution
     meeting_type_opt = request.form.get('meeting_type', '').strip()
     custom_meeting_type = request.form.get('custom_meeting_type', '').strip()
+    meeting_date_raw = request.form.get('meeting_date', '').strip()
     if category == 'AGM_MEETING':
         if meeting_type_opt == 'CUSTOM':
             meeting_type = custom_meeting_type or 'Meeting'
         else:
             meeting_type = meeting_type_opt or 'AGM'
+        meeting_date = meeting_date_raw or None
     else:
         meeting_type = None
+        meeting_date = None
 
     if not title or not content:
         flash('Please provide both a Title and Content for the notice.', 'danger')
@@ -2183,9 +2186,9 @@ def notices_create():
     
     try:
         notice_id = execute_db(
-            """INSERT INTO tbl_notices (title, content, category, meeting_type, priority, is_pinned, posted_by, posted_by_role, status)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ACTIVE')""",
-            (title, content, category, meeting_type, priority, is_pinned, posted_by, posted_by_role)
+            """INSERT INTO tbl_notices (title, content, category, meeting_type, meeting_date, priority, is_pinned, posted_by, posted_by_role, status)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'ACTIVE')""",
+            (title, content, category, meeting_type, meeting_date, priority, is_pinned, posted_by, posted_by_role)
         )
         
         notice_dict = {
@@ -2194,6 +2197,7 @@ def notices_create():
             'content': content,
             'category': category,
             'meeting_type': meeting_type,
+            'meeting_date': meeting_date,
             'priority': priority,
             'posted_by': posted_by,
             'posted_by_role': posted_by_role
@@ -2230,13 +2234,16 @@ def notices_edit(notice_id):
     # Meeting Type Sub-Category resolution
     meeting_type_opt = request.form.get('meeting_type', '').strip()
     custom_meeting_type = request.form.get('custom_meeting_type', '').strip()
+    meeting_date_raw = request.form.get('meeting_date', '').strip()
     if category == 'AGM_MEETING':
         if meeting_type_opt == 'CUSTOM':
             meeting_type = custom_meeting_type or 'Meeting'
         else:
             meeting_type = meeting_type_opt or 'AGM'
+        meeting_date = meeting_date_raw or None
     else:
         meeting_type = None
+        meeting_date = None
     
     caller_role = request.form.get('caller_role', '').strip()
     custom_posted_by = request.form.get('posted_by', '').strip()
@@ -2267,17 +2274,17 @@ def notices_edit(notice_id):
         if posted_by and posted_by_role:
             execute_db(
                 """UPDATE tbl_notices 
-                   SET title = %s, content = %s, category = %s, meeting_type = %s, priority = %s, is_pinned = %s, status = %s,
+                   SET title = %s, content = %s, category = %s, meeting_type = %s, meeting_date = %s, priority = %s, is_pinned = %s, status = %s,
                        posted_by = %s, posted_by_role = %s, updated_at = CURRENT_TIMESTAMP
                    WHERE id = %s""",
-                (title, content, category, meeting_type, priority, is_pinned, status, posted_by, posted_by_role, notice_id)
+                (title, content, category, meeting_type, meeting_date, priority, is_pinned, status, posted_by, posted_by_role, notice_id)
             )
         else:
             execute_db(
                 """UPDATE tbl_notices 
-                   SET title = %s, content = %s, category = %s, meeting_type = %s, priority = %s, is_pinned = %s, status = %s, updated_at = CURRENT_TIMESTAMP
+                   SET title = %s, content = %s, category = %s, meeting_type = %s, meeting_date = %s, priority = %s, is_pinned = %s, status = %s, updated_at = CURRENT_TIMESTAMP
                    WHERE id = %s""",
-                (title, content, category, meeting_type, priority, is_pinned, status, notice_id)
+                (title, content, category, meeting_type, meeting_date, priority, is_pinned, status, notice_id)
             )
         log_activity('NOTICE_UPDATED', f"Updated official notice #{notice_id}: '{title}'")
         flash(f"Notice #{notice_id} updated successfully.", 'success')

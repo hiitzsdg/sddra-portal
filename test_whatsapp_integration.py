@@ -76,7 +76,7 @@ class TestWhatsAppIntegration(unittest.TestCase):
         notice = {
             'id': 1,
             'title': 'Emergency Water Shutdown',
-            'content': 'Tank cleaning scheduled for Sunday morning.',
+            'content': 'Water supply suspended due to main line pipe repair from 2 PM to 5 PM today.',
             'category': 'WATER_SUPPLY',
             'priority': 'URGENT',
             'posted_by': 'Sanjoy Chakraborty',
@@ -88,6 +88,25 @@ class TestWhatsAppIntegration(unittest.TestCase):
         self.assertIn("Emergency Water Shutdown", msg)
         self.assertIn("Sanjoy Chakraborty", msg)
         self.assertIn("/notices/1/view", msg)
+
+        # Meeting Notice formatting: Category should be "Meeting" and date should be the meeting date
+        meeting_notice = {
+            'id': 2,
+            'title': 'Notification: 18th Annual General Meeting (AGM 2026)',
+            'content': '18th AGM of SDERA will be held at Community Hall.',
+            'category': 'AGM_MEETING',
+            'meeting_type': 'AGM',
+            'meeting_date': '2026-09-14',
+            'priority': 'HIGH',
+            'posted_by': 'Dr. Asit Kumar Bera',
+            'posted_by_role': 'President',
+            'created_at': '2026-08-23'
+        }
+        msg_meeting = format_notice_whatsapp_message(meeting_notice, base_url="http://localhost:5000")
+        self.assertIn("*Category:* Meeting | *Date:* 2026-09-14", msg_meeting)
+        self.assertNotIn("Agm Meeting", msg_meeting)
+        self.assertNotIn("AGM Meeting", msg_meeting)
+        self.assertIn("*Meeting Type:* AGM", msg_meeting)
         print("[PASS] Notice template formatting tests passed.")
 
     def test_committee_contacts(self):

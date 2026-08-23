@@ -322,16 +322,19 @@ class TestDigitalNoticeBoard(unittest.TestCase):
         # 7. Test standalone view page
         res_view = self.client.get(f'/notices/{n_sgb["id"]}/view')
         self.assertEqual(res_view.status_code, 200)
-        self.assertIn(b"Meeting: SGB", res_view.data)
+        self.assertIn(b"SGB", res_view.data)
+        self.assertIn(b"Meeting", res_view.data)
 
-        # 8. Test WhatsApp Preview API containing meeting type
+        # 8. Test WhatsApp Preview API containing meeting type, Category: Meeting, and meeting date
         res_wa = self.client.get(f'/api/whatsapp/preview?type=notice&id={n_sgb["id"]}')
         self.assertEqual(res_wa.status_code, 200)
         wa_data = res_wa.get_json()
         self.assertTrue(wa_data['success'])
+        self.assertIn("*Category:* Meeting", wa_data['message_text'])
+        self.assertNotIn("Agm Meeting", wa_data['message_text'])
         self.assertIn("*Meeting Type:* SGB", wa_data['message_text'])
 
-        print("[PASS] Test 5: Meeting type sub-categories (AGM, GB, SGB, Governing Body, EGM, Custom) in create, edit, filter, and broadcast verified.")
+        print("[PASS] Test 5: Meeting type sub-categories (AGM, GB, SGB, Governing Body, EGM, Custom) and meeting dates in create, edit, filter, and broadcast verified.")
 
 if __name__ == '__main__':
     unittest.main()

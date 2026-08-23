@@ -163,11 +163,17 @@ def format_notice_whatsapp_message(notice, base_url=""):
     notice_id = notice.get('id', '')
     title = notice.get('title', 'Official Circular')
     content = notice.get('content', '')
-    category = notice.get('category', 'GENERAL').replace('_', ' ').title()
+    category_raw = notice.get('category', 'GENERAL')
+    if category_raw == 'AGM_MEETING':
+        category = "Meeting"
+        date_str = str(notice.get('meeting_date') or notice.get('created_at', datetime.now().strftime('%Y-%m-%d'))).strip()
+    else:
+        category = category_raw.replace('_', ' ').title()
+        date_str = str(notice.get('created_at', datetime.now().strftime('%Y-%m-%d')))[:10]
+
     priority = notice.get('priority', 'NORMAL').upper()
     posted_by = notice.get('posted_by', 'Executive Committee')
     posted_by_role = notice.get('posted_by_role', 'Committee Official')
-    date_str = str(notice.get('created_at', datetime.now().strftime('%Y-%m-%d')))[:10]
     
     prio_header = "*URGENT ALERT*" if priority == 'URGENT' else ("*HIGH PRIORITY*" if priority == 'HIGH' else "*OFFICIAL NOTICE*")
     
