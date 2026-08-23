@@ -286,7 +286,8 @@
     </div>
     {% endif %}
 
-    <!-- Floating Society WhatsApp Helpdesk Launcher -->
+    {% if current_user %}
+    <!-- Floating Society WhatsApp Helpdesk Launcher (Visible only to authenticated members) -->
     <div class="wa-floating-widget no-print" id="waFloatingWidget">
         <!-- Expandable Helpdesk Card -->
         <div class="wa-floating-card" id="waFloatingCard">
@@ -332,6 +333,7 @@
             <span class="wa-pulse-dot"></span>
         </button>
     </div>
+    {% endif %}
 
     <!-- Global Floating Toast Container -->
     <div class="global-toast-container" id="globalToastContainer"></div>

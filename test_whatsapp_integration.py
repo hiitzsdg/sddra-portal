@@ -100,6 +100,35 @@ class TestWhatsAppIntegration(unittest.TestCase):
         self.assertEqual(c_map.get("Mr. Swapnadeep Ganguly"), "919874802000")
         print("[PASS] Committee WhatsApp contacts test passed.")
 
+    def test_helpdesk_privacy_for_unauthenticated_users(self):
+        """Verify WhatsApp helpdesk widget and phone numbers are hidden from unauthenticated visitors."""
+        # 1. Unauthenticated request to login/home screen
+        resp_public = self.app.get('/login')
+        self.assertEqual(resp_public.status_code, 200)
+        self.assertNotIn(b'waFloatingWidget', resp_public.data)
+        self.assertNotIn(b'wa-contacts-list', resp_public.data)
+        self.assertNotIn(b'8017250621', resp_public.data)
+        self.assertNotIn(b'9433375506', resp_public.data)
+        self.assertNotIn(b'6290847982', resp_public.data)
+        self.assertNotIn(b'9874802000', resp_public.data)
+
+        # 2. Authenticated member session
+        with self.app.session_transaction() as sess:
+            sess['user'] = {
+                'id': 10,
+                'username': 'A/4-C',
+                'name': 'Swapnadeep Ganguly',
+                'role': 'resident',
+                'is_admin': False,
+                'flat_no': 'A/4-C'
+            }
+        resp_auth = self.app.get('/dashboard')
+        self.assertEqual(resp_auth.status_code, 200)
+        self.assertIn(b'waFloatingWidget', resp_auth.data)
+        self.assertIn(b'wa-contacts-list', resp_auth.data)
+        self.assertIn(b'918017250621', resp_auth.data)
+        print("[PASS] Helpdesk privacy test passed: Hidden before login, visible after login.")
+
     def test_whatsapp_routes(self):
         with self.app.session_transaction() as sess:
             sess['user'] = {
