@@ -529,10 +529,10 @@ def dashboard():
                             else:
                                 flr = p1[:1]
                                 unt = p1[1:] if len(p1) > 1 else p1
-                    elif fn == '-':
-                        blk = 'Block A'
+                    elif fn == '-' or 'ROUTH' in str(m_row.get('member_name', '')).upper():
+                        blk = 'Block C'
                         flr = 'GR'
-                        unt = 'Office'
+                        unt = 'Staff'
                     
                     unit_obj = {
                         'flat_no': fn,
