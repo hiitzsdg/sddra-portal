@@ -889,6 +889,23 @@ function initBuildingVisualizer() {
 
     if (!unitBtns.length) return;
 
+    let hideTimeout = null;
+
+    if (popover) {
+        popover.addEventListener('mouseenter', () => {
+            if (hideTimeout) {
+                clearTimeout(hideTimeout);
+                hideTimeout = null;
+            }
+        });
+
+        popover.addEventListener('mouseleave', () => {
+            hideTimeout = setTimeout(() => {
+                popover.classList.remove('visible');
+            }, 300);
+        });
+    }
+
     // Filter by Block or Status
     filterPills.forEach(pill => {
         pill.addEventListener('click', () => {
@@ -917,10 +934,69 @@ function initBuildingVisualizer() {
         });
     });
 
+    // Helper function to populate and open flat modal
+    function openVisualizerModalForUnit(btn) {
+        const flat = btn.getAttribute('data-flat') || '';
+        const name = btn.getAttribute('data-name') || '';
+        const status = btn.getAttribute('data-status') || 'paid';
+        const block = btn.getAttribute('data-block') || '';
+        const overdue = btn.getAttribute('data-overdue') || '0';
+        const rate = btn.getAttribute('data-rate') || '0';
+        const sqft = btn.getAttribute('data-sqft') || '1200';
+        const totalDue = btn.getAttribute('data-total-due') || '0';
+        const coverage = btn.getAttribute('data-coverage') || 'Up to date';
+
+        const modal = document.getElementById('flatVisualizerModal');
+        if (!modal) return;
+
+        const titleEl = document.getElementById('visModalFlatTitle');
+        const memberEl = document.getElementById('visModalMemberName');
+        const badgeEl = document.getElementById('visModalStatusBadge');
+        const blockEl = document.getElementById('visModalBlock');
+        const sqftEl = document.getElementById('visModalSqft');
+        const rateEl = document.getElementById('visModalRate');
+        const covEl = document.getElementById('visModalCoverage');
+        const dueEl = document.getElementById('visModalTotalDue');
+        const ledgerLink = document.getElementById('visModalLedgerLink');
+        const rcptLink = document.getElementById('visModalReceiptsLink');
+        const newRcptLink = document.getElementById('visModalNewReceiptLink');
+
+        if (titleEl) titleEl.textContent = `Flat ${flat} (${block})`;
+        if (memberEl) memberEl.textContent = name;
+        if (blockEl) blockEl.textContent = block;
+        if (sqftEl) sqftEl.textContent = `${sqft} Sq. Ft.`;
+        if (rateEl) rateEl.textContent = `₹ ${Number(rate).toLocaleString('en-IN')} / month`;
+        if (covEl) covEl.textContent = coverage;
+        if (dueEl) {
+            dueEl.textContent = (Number(totalDue) > 0) ? `₹ ${Number(totalDue).toLocaleString('en-IN')}` : '₹ 0.00 (All Cleared)';
+            dueEl.className = (Number(totalDue) > 0) ? 'text-amount-danger' : 'text-amount-success';
+        }
+
+        if (badgeEl) {
+            if (status === 'paid') {
+                badgeEl.innerHTML = '<span class="badge badge-success" style="font-size: 0.82rem; padding: 0.35rem 0.75rem;">✓ Paid Up to Date &bull; Advance Account</span>';
+            } else {
+                badgeEl.innerHTML = `<span class="badge badge-danger" style="font-size: 0.82rem; padding: 0.35rem 0.75rem;">⚠️ Overdue: ${overdue} Unpaid Month(s) (Total ₹${Number(totalDue).toLocaleString('en-IN')})</span>`;
+            }
+        }
+
+        if (ledgerLink) ledgerLink.href = `/admin/penalties?q=${encodeURIComponent(flat)}`;
+        if (rcptLink) rcptLink.href = `/admin/receipts?flat=${encodeURIComponent(flat)}`;
+        if (newRcptLink) newRcptLink.href = `/admin/receipts?action=new&flat=${encodeURIComponent(flat)}`;
+
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
     // Popover hover & positioning
     unitBtns.forEach(btn => {
         btn.addEventListener('mouseenter', (e) => {
             if (!popover) return;
+            if (hideTimeout) {
+                clearTimeout(hideTimeout);
+                hideTimeout = null;
+            }
+
             const flat = btn.getAttribute('data-flat');
             const name = btn.getAttribute('data-name');
             const status = btn.getAttribute('data-status');
@@ -947,9 +1023,10 @@ function initBuildingVisualizer() {
                     <div>💰 Rate: <strong class="text-main">₹${Number(rate).toLocaleString('en-IN')}/mo</strong></div>
                     <div>📅 Last Covered: <strong class="text-highlight-blue">${coverage}</strong></div>
                 </div>
-                <div style="display: flex; gap: 0.4rem; margin-top: 0.75rem;">
-                    <a href="/admin/penalties?q=${encodeURIComponent(flat)}" class="btn btn-sm btn-outline-primary" style="flex: 1; font-size: 0.74rem; padding: 0.25rem 0.5rem; text-align: center;">Ledger &rarr;</a>
-                    <a href="/admin/receipts#issue-receipt" class="btn btn-sm btn-primary" style="flex: 1; font-size: 0.74rem; padding: 0.25rem 0.5rem; text-align: center;">+ Receipt</a>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.35rem; margin-top: 0.75rem;">
+                    <a href="/admin/penalties?q=${encodeURIComponent(flat)}" class="btn btn-sm btn-outline-primary" style="font-size: 0.72rem; padding: 0.3rem 0.2rem; text-align: center; justify-content: center;" title="View Overdue & Penalty Ledger">📊 Ledger</a>
+                    <a href="/admin/receipts?flat=${encodeURIComponent(flat)}" class="btn btn-sm btn-outline-success" style="font-size: 0.72rem; padding: 0.3rem 0.2rem; text-align: center; justify-content: center;" title="View Receipts History">🧾 Receipts</a>
+                    <a href="/admin/receipts?action=new&flat=${encodeURIComponent(flat)}" class="btn btn-sm btn-primary" style="font-size: 0.72rem; padding: 0.3rem 0.2rem; text-align: center; justify-content: center;" title="Issue New Receipt">+ Receipt</a>
                 </div>
             `;
 
@@ -958,9 +1035,9 @@ function initBuildingVisualizer() {
             let top = rect.bottom + 8;
             let left = rect.left - 40;
 
-            if (left + 290 > window.innerWidth) left = window.innerWidth - 305;
+            if (left + 310 > window.innerWidth) left = window.innerWidth - 325;
             if (left < 10) left = 10;
-            if (top + 200 > window.innerHeight) top = rect.top - 200;
+            if (top + 210 > window.innerHeight) top = rect.top - 210;
 
             popover.style.top = `${top}px`;
             popover.style.left = `${left}px`;
@@ -968,7 +1045,18 @@ function initBuildingVisualizer() {
         });
 
         btn.addEventListener('mouseleave', () => {
+            if (popover) {
+                hideTimeout = setTimeout(() => {
+                    popover.classList.remove('visible');
+                }, 300);
+            }
+        });
+
+        // Click handler to open full inspector modal
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
             if (popover) popover.classList.remove('visible');
+            openVisualizerModalForUnit(btn);
         });
     });
 }

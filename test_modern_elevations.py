@@ -52,6 +52,9 @@ class TestModernWebElevations(unittest.TestCase):
         self.assertIn(b'Block C', resp.data)
         self.assertIn(b'matrix-popover', resp.data)
         self.assertIn(b'unit-cell-btn', resp.data)
+        self.assertIn(b'flatVisualizerModal', resp.data)
+        self.assertIn(b'visModalLedgerLink', resp.data)
+        self.assertIn(b'visModalReceiptsLink', resp.data)
 
     def test_03_resident_upi_and_helpdesk_dashboard(self):
         """Verify resident dashboard renders UPI hero card and helpdesk ticketing stepper."""

@@ -206,6 +206,64 @@
 
 <!-- Floating Matrix Popover Element (Positioned dynamically via JS) -->
 <div class="matrix-popover" id="matrixUnitPopover"></div>
+
+<!-- Flat Resident Details & Actions Modal -->
+<div id="flatVisualizerModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 520px;">
+        <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span style="font-size: 1.5rem;">🏢</span>
+                <div>
+                    <h3 class="card-title" id="visModalFlatTitle" style="margin: 0; font-size: 1.15rem;">Flat Details</h3>
+                    <span id="visModalMemberName" class="text-secondary" style="font-size: 0.84rem;">Resident Name</span>
+                </div>
+            </div>
+            <button type="button" class="close-btn" onclick="closeModal('flatVisualizerModal')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.25rem;">
+            <div id="visModalStatusBadge" style="margin-bottom: 1rem;"></div>
+
+            <div style="background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.25rem; font-size: 0.88rem; line-height: 1.6;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--surface-border); padding-bottom: 0.4rem; margin-bottom: 0.4rem;">
+                    <span class="text-muted">Building Block:</span>
+                    <strong id="visModalBlock" class="text-main">-</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--surface-border); padding-bottom: 0.4rem; margin-bottom: 0.4rem;">
+                    <span class="text-muted">Unit Size:</span>
+                    <strong id="visModalSqft" class="text-main">-</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--surface-border); padding-bottom: 0.4rem; margin-bottom: 0.4rem;">
+                    <span class="text-muted">Monthly Maintenance Rate:</span>
+                    <strong id="visModalRate" class="text-main">-</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--surface-border); padding-bottom: 0.4rem; margin-bottom: 0.4rem;">
+                    <span class="text-muted">Last Covered Billing Period:</span>
+                    <strong id="visModalCoverage" class="text-highlight-blue">-</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span class="text-muted">Total Outstanding Dues:</span>
+                    <strong id="visModalTotalDue" class="text-amount-danger">-</strong>
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem;">
+                    <a id="visModalLedgerLink" href="#" class="btn btn-outline-primary" style="justify-content: center; font-size: 0.85rem; padding: 0.6rem 0.8rem;">
+                        📊 Overdue Ledger &rarr;
+                    </a>
+                    <a id="visModalReceiptsLink" href="#" class="btn btn-outline-success" style="justify-content: center; font-size: 0.85rem; padding: 0.6rem 0.8rem;">
+                        🧾 Past Receipts &rarr;
+                    </a>
+                </div>
+                {% if is_admin %}
+                <a id="visModalNewReceiptLink" href="#" class="btn btn-primary" style="justify-content: center; font-size: 0.88rem; padding: 0.65rem 1rem;">
+                    💳 Issue New Receipt for this Flat
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 {% endif %}
 
 <!-- Charts Row -->

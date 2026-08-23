@@ -542,5 +542,24 @@ function openEditReceiptModal(receiptNo) {
             alert('Failed to load receipt details: ' + err.message);
         });
 }
+
+// Auto-open Issue Receipt Modal if requested via URL or hash
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hash = window.location.hash;
+    const prefillFlat = urlParams.get('flat') || urlParams.get('prefill');
+    const isNew = urlParams.get('action') === 'new' || hash === '#issue-receipt';
+
+    if (isNew || hash === '#issue-receipt') {
+        openModal('createReceiptModal');
+        if (prefillFlat) {
+            const flatSelect = document.getElementById('rcpt_flat_no');
+            if (flatSelect) {
+                flatSelect.value = prefillFlat;
+                onReceiptFlatOrDateChange('create');
+            }
+        }
+    }
+});
 </script>
 {% endblock %}
