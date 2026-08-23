@@ -369,18 +369,6 @@ def generate_receipt_html(receipt, member_info, contact_info, attachment_filenam
     tws_charges = float(member_info.get('tws_charges', 0)) if member_info else 0.0
     tws_display = f"{tws_count} Space(s) (INR {tws_charges:,.2f})" if tws_count > 0 or tws_charges > 0 else "None (INR 0.00)"
 
-    att_badge = ""
-    if attachment_filename:
-        att_badge = f"""
-        <div style="background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 8px; padding: 12px 16px; margin: 18px 0; font-size: 13.5px; color: #1e3a8a; display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 20px;">📄</span>
-            <div>
-                <strong>Official PDF Receipt Attached:</strong> <code>{attachment_filename}</code>
-                <div style="font-size: 11.5px; color: #475569; margin-top: 2px;">Vector PDF Money Receipt voucher ready for download, printing, or tax records.</div>
-            </div>
-        </div>
-        """
-
     return f"""
     <!DOCTYPE html>
     <html>
@@ -409,9 +397,7 @@ def generate_receipt_html(receipt, member_info, contact_info, attachment_filenam
             </div>
             <div class="body">
                 <p class="greeting">Dear <strong>{member_name}</strong> (Flat <strong>{flat_no}</strong>),</p>
-                <p>Thank you for your payment. Your official maintenance receipt has been generated and attached to this email in PDF format:</p>
-                
-                {att_badge}
+                <p>Thank you for your payment. Please find the details of your official maintenance receipt below:</p>
 
                 <div class="receipt-card">
                     <table width="100%" cellpadding="6" cellspacing="0" style="font-size: 14px;">
