@@ -3,7 +3,7 @@ import re
 import calendar
 import traceback
 from functools import wraps
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort, Response
 from config import Config
@@ -20,6 +20,13 @@ from whatsapp_service import (
     get_whatsapp_committee_contacts,
     log_whatsapp_dispatch
 )
+
+# --- Standard Timezone: Indian Standard Time (IST, UTC+05:30) ---
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_now():
+    """Return current datetime in Indian Standard Time (IST, UTC+05:30)."""
+    return datetime.now(IST)
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -66,6 +73,82 @@ def get_app_base_url():
     host = request.headers.get('X-Forwarded-Host', request.host)
     return f"{proto}://{host}".rstrip('/')
 
+# --- Jinja Template Filters for Timestamps & Dates ---
+def _parse_dt_safe(val):
+    if not val:
+        return None
+    if isinstance(val, datetime):
+        return val
+    if isinstance(val, date):
+        return datetime(val.year, val.month, val.day)
+    try:
+        val_str = str(val).strip().replace('T', ' ')
+        val_clean = val_str.split('+')[0].split('.')[0]
+        if len(val_clean) == 10:  # YYYY-MM-DD
+            return datetime.strptime(val_clean, '%Y-%m-%d')
+        elif len(val_clean) >= 19:  # YYYY-MM-DD HH:MM:SS
+            return datetime.strptime(val_clean[:19], '%Y-%m-%d %H:%M:%S')
+    except Exception:
+        pass
+    return None
+
+@app.template_filter('format_audit_dt')
+def format_audit_dt_filter(val):
+    """Format datetime as e.g. '23 Aug 2026, 07:33:49 PM'"""
+    dt = _parse_dt_safe(val)
+    if not dt:
+        return str(val)[:19] if val else '-'
+    return dt.strftime('%d %b %Y, %I:%M:%S %p')
+
+@app.template_filter('format_audit_date')
+def format_audit_date_filter(val):
+    """Format date as e.g. '23 Aug 2026'"""
+    dt = _parse_dt_safe(val)
+    if not dt:
+        return str(val)[:10] if val else '-'
+    return dt.strftime('%d %b %Y')
+
+@app.template_filter('format_audit_time')
+def format_audit_time_filter(val):
+    """Format time as e.g. '07:33:49 PM'"""
+    dt = _parse_dt_safe(val)
+    if not dt:
+        return str(val)[11:19] if val and len(str(val)) >= 19 else '-'
+    return dt.strftime('%I:%M:%S %p')
+
+@app.template_filter('time_ago')
+def time_ago_filter(val):
+    """Generate human-friendly relative time e.g. 'Just now', '5 mins ago', '2 hours ago', 'Yesterday'"""
+    dt = _parse_dt_safe(val)
+    if not dt:
+        return ''
+    try:
+        now_dt = get_ist_now().replace(tzinfo=None)
+        diff = now_dt - dt
+        seconds = int(diff.total_seconds())
+        if seconds < 0:
+            return 'Just now'
+        if seconds < 60:
+            return f"{max(1, seconds)}s ago"
+        minutes = seconds // 60
+        if minutes < 60:
+            return f"{minutes}m ago"
+        hours = minutes // 60
+        if hours < 24:
+            return f"{hours}h ago"
+        days = hours // 24
+        if days == 1:
+            return "Yesterday"
+        if days < 30:
+            return f"{days}d ago"
+        months = days // 30
+        if months < 12:
+            return f"{months}mo ago"
+        years = days // 365
+        return f"{years}y ago"
+    except Exception:
+        return ''
+
 @app.context_processor
 def inject_globals():
     user = session.get('user')
@@ -76,7 +159,7 @@ def inject_globals():
     is_billing_admin = bool(user and (user.get('role') in {'super_admin', 'billing_admin'} or user.get('username') == 'admin'))
     return {
         'config': Config,
-        'now': datetime.now(),
+        'now': get_ist_now(),
         'current_user': user,
         'is_admin': is_admin,
         'is_executive': is_exec,
@@ -87,7 +170,7 @@ def inject_globals():
 
 # --- Activity & Audit Logging Engine ---
 def log_activity(action_type, description, actor=None, ip_address=None):
-    """Record an audit trail entry for member & administrator actions across the portal."""
+    """Record an audit trail entry for member & administrator actions across the portal in IST."""
     try:
         if actor is None:
             actor = session.get('user', {})
@@ -107,7 +190,7 @@ def log_activity(action_type, description, actor=None, ip_address=None):
             except Exception:
                 ip_address = '127.0.0.1'
                 
-        now_dt = datetime.now()
+        now_dt = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
         execute_db(
             """INSERT INTO tbl_activity_logs (actor_username, actor_name, actor_role, flat_no, action_type, description, ip_address, created_at)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
@@ -1356,7 +1439,7 @@ def admin_audit_logs():
         d_val = int(days_filter)
         if d_val > 0:
             query += " AND created_at >= %s"
-            params.append((datetime.now() - timedelta(days=d_val)).strftime('%Y-%m-%d %H:%M:%S'))
+            params.append((get_ist_now().replace(tzinfo=None) - timedelta(days=d_val)).strftime('%Y-%m-%d %H:%M:%S'))
             
     query += " ORDER BY id DESC LIMIT 500"
     

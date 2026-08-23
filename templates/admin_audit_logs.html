@@ -132,7 +132,7 @@
         <table class="custom-table" id="auditLogsTable">
             <thead>
                 <tr>
-                    <th style="width: 175px;">Timestamp</th>
+                    <th style="width: 200px;">Timestamp (IST)</th>
                     <th>Actor / Flat</th>
                     <th>Role</th>
                     <th>Action Type</th>
@@ -144,7 +144,19 @@
                 {% for l in logs %}
                 <tr>
                     <td class="text-secondary" style="font-size: 0.85rem; white-space: nowrap;">
-                        <span style="display: block; font-weight: 600; color: var(--text-main);">{{ (l.created_at|string)[:19] if l.created_at else '-' }}</span>
+                        <div title="{{ l.created_at }}">
+                            <span style="display: flex; align-items: center; gap: 0.35rem; font-weight: 600; color: var(--text-main); font-size: 0.85rem;">
+                                <span style="font-size: 0.85rem;">🕒</span> {{ l.created_at|format_audit_dt }}
+                            </span>
+                            <div style="display: flex; align-items: center; gap: 0.4rem; margin-top: 0.25rem;">
+                                {% set rel_time = l.created_at|time_ago %}
+                                {% if rel_time %}
+                                <span class="text-muted" style="font-size: 0.74rem;">{{ rel_time }}</span>
+                                <span style="font-size: 0.65rem; color: var(--text-muted);">&bull;</span>
+                                {% endif %}
+                                <span class="badge" style="font-size: 0.68rem; padding: 0.08rem 0.35rem; background: rgba(59, 130, 246, 0.12); color: #2563eb; font-weight: 600; border-radius: 3px;">IST</span>
+                            </div>
+                        </div>
                     </td>
                     <td>
                         <div>

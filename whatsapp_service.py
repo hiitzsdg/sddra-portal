@@ -4,9 +4,15 @@ import urllib.parse
 import json
 import urllib.request
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from config import Config
 from database import query_db, execute_db
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_now():
+    """Return current timestamp in Indian Standard Time (IST, UTC+05:30)."""
+    return datetime.now(IST)
 
 def normalize_whatsapp_phone(phone_raw, default_country=None):
     """
@@ -229,7 +235,7 @@ def log_whatsapp_dispatch(recipient_flat, recipient_phone, recipient_name, messa
                 status or 'LINK_GENERATED',
                 error_message,
                 sent_by or 'System',
-                datetime.now()
+                get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
             )
         )
     except Exception as e:

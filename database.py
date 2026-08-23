@@ -112,6 +112,7 @@ def get_mysql_connection():
         'charset': 'utf8mb4',
         'cursorclass': pymysql.cursors.DictCursor,
         'autocommit': True,
+        'init_command': "SET time_zone='+05:30'",
         'connect_timeout': 10.0,
         'read_timeout': 10.0,
         'write_timeout': 10.0
