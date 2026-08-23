@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import re
 import urllib.parse
 import json
@@ -44,10 +45,10 @@ def normalize_whatsapp_phone(phone_raw, default_country=None):
 def build_whatsapp_url(phone_raw, message_text):
     """
     Generate standard universal WhatsApp Web / App deep-link (wa.me).
-    Works seamlessly on Desktop, iOS, and Android with complete UTF-8 percent-encoding.
+    Works seamlessly on Desktop, iOS, and Android with complete UTF-8 encoding.
     """
     clean_phone = normalize_whatsapp_phone(phone_raw)
-    encoded_text = urllib.parse.quote(message_text or '', safe='')
+    encoded_text = urllib.parse.quote((message_text or '').encode('utf-8'), safe='')
     
     if clean_phone:
         return f"https://wa.me/{clean_phone}?text={encoded_text}"
@@ -58,7 +59,7 @@ def build_whatsapp_url(phone_raw, message_text):
 def format_receipt_whatsapp_message(receipt, member_info=None, contact_info=None, base_url=""):
     """
     Generate clean, professional WhatsApp receipt confirmation in WhatsApp Markdown.
-    Uses universal ASCII dividers and standard emojis compatible with all devices.
+    100% cross-platform compatible without broken emoji characters or font glyph errors.
     """
     raw_rcpt_no = str(receipt.get('receipt_no', 'N/A'))
     formatted_rcpt = f"SDERA_{raw_rcpt_no}" if not raw_rcpt_no.startswith('SDERA_') else raw_rcpt_no
@@ -80,31 +81,31 @@ def format_receipt_whatsapp_message(receipt, member_info=None, contact_info=None
     divider = "----------------------------------------"
 
     msg = (
-        f"🏢 *{Config.ASSOCIATION_NAME}*\n"
-        f"📜 *OFFICIAL PAYMENT RECEIPT*\n"
+        f"*{Config.ASSOCIATION_NAME}*\n"
+        f"*OFFICIAL PAYMENT RECEIPT*\n"
         f"{divider}\n"
-        f"📋 *Receipt No:* `{formatted_rcpt}`\n"
-        f"👤 *Resident Name:* {member_name}\n"
-        f"🏠 *Flat Number:* Flat {flat_no}\n"
-        f"💰 *Amount Received:* ₹ {amount:,.2f}\n"
-        f"📅 *Payment Date:* {payment_date}\n"
-        f"💳 *Payment Mode:* {mode}\n"
-        f"📂 *Subscription:* {sub_type}\n"
-        f"📅 *Period / Remarks:* {period}\n"
+        f"*Receipt No:* `{formatted_rcpt}`\n"
+        f"*Resident Name:* {member_name}\n"
+        f"*Flat Number:* Flat {flat_no}\n"
+        f"*Amount Received:* INR {amount:,.2f}\n"
+        f"*Payment Date:* {payment_date}\n"
+        f"*Payment Mode:* {mode}\n"
+        f"*Subscription:* {sub_type}\n"
+        f"*Period / Remarks:* {period}\n"
         f"{divider}\n"
-        f"📄 *Download Official PDF Voucher:*\n"
+        f"*Download Official PDF Voucher:*\n"
         f"{receipt_pdf_url}\n\n"
-        f"🌐 *View Digital Receipt:* {receipt_view_url}\n"
+        f"*View Digital Receipt:* {receipt_view_url}\n"
         f"{divider}\n"
         f"_Thank you for your prompt payment towards society maintenance!_\n"
-        f"📞 *Office Support:* {Config.ASSOCIATION_PHONE}"
+        f"*Office Support:* {Config.ASSOCIATION_PHONE}"
     )
     return msg
 
 def format_dues_reminder_whatsapp_message(calc, contact_info=None, base_url=""):
     """
-    Generate clear, transparent WhatsApp overdue dues & penalty reminder.
-    Uses universal ASCII dividers and standard emojis for 100% device compatibility.
+    Generate clear, transparent WhatsApp overdue dues & penalty reminder in WhatsApp Markdown.
+    100% cross-platform compatible without broken emoji characters or font glyph errors.
     """
     flat_no = calc.get('flat_no', '-')
     member_name = calc.get('member_name', 'Resident')
@@ -124,35 +125,35 @@ def format_dues_reminder_whatsapp_message(calc, contact_info=None, base_url=""):
     divider = "----------------------------------------"
 
     msg = (
-        f"🏢 *{Config.ASSOCIATION_NAME}*\n"
-        f"⚠️ *MAINTENANCE DUES & LATE FEE NOTICE*\n"
+        f"*{Config.ASSOCIATION_NAME}*\n"
+        f"*MAINTENANCE DUES & LATE FEE NOTICE*\n"
         f"{divider}\n"
-        f"👤 *Resident Name:* {member_name}\n"
-        f"🏠 *Unit:* Flat {flat_no}\n"
-        f"📅 *Calculated As Of:* {as_of_full}\n"
-        f"📅 *Last Paid Coverage:* {last_covered}\n"
+        f"*Resident Name:* {member_name}\n"
+        f"*Unit:* Flat {flat_no}\n"
+        f"*Calculated As Of:* {as_of_full}\n"
+        f"*Last Paid Coverage:* {last_covered}\n"
         f"{divider}\n"
-        f"📊 *Dues Breakdown:*\n"
-        f"• *Overdue Period:* {overdue_months} Month{'s' if overdue_months > 1 else ''}\n"
-        f"• *Monthly Tariff:* ₹ {monthly_charge:,.2f}\n"
-        f"• *Base Maintenance Due:* ₹ {base_due:,.2f}\n"
-        f"• *Late Penalty Accrued:* ₹ {penalty_amount:,.2f}\n"
+        f"*Dues Breakdown:*\n"
+        f"- Overdue Period: {overdue_months} Month{'s' if overdue_months > 1 else ''}\n"
+        f"- Monthly Tariff: INR {monthly_charge:,.2f}\n"
+        f"- Base Maintenance Due: INR {base_due:,.2f}\n"
+        f"- Late Penalty Accrued: INR {penalty_amount:,.2f}\n"
         f"{divider}\n"
-        f"🔴 *TOTAL OUTSTANDING PAYABLE:* *₹ {total_due:,.2f}*\n"
+        f"*TOTAL OUTSTANDING PAYABLE:* *INR {total_due:,.2f}*\n"
         f"{divider}\n"
-        f"💳 *Quick Payment Options:*\n"
-        f"• *UPI ID:* `sddra.association@icici`\n"
-        f"• *Bank:* State Bank of India | *A/C:* `38290192831` | *IFSC:* `SBIN0001234`\n"
-        f"• *Portal:* {portal_url}\n\n"
-        f"_Kindly clear the outstanding dues to avoid further progressive late penalties (N*(N+1)/2 * ₹100)._\n\n"
-        f"📞 *Enquiries / Clarifications:* {Config.ASSOCIATION_PHONE} ({Config.ASSOCIATION_EMAIL})"
+        f"*Quick Payment Options:*\n"
+        f"- UPI ID: `sddra.association@icici`\n"
+        f"- Bank: State Bank of India | *A/C:* `38290192831` | *IFSC:* `SBIN0001234`\n"
+        f"- Portal: {portal_url}\n\n"
+        f"_Kindly clear the outstanding dues to avoid further progressive late penalties._\n\n"
+        f"*Enquiries / Clarifications:* {Config.ASSOCIATION_PHONE} ({Config.ASSOCIATION_EMAIL})"
     )
     return msg
 
 def format_notice_whatsapp_message(notice, base_url=""):
     """
     Generate formatted official circular broadcast for WhatsApp society distribution.
-    Uses universal ASCII dividers and standard emojis for 100% device compatibility.
+    100% cross-platform compatible without broken emoji characters or font glyph errors.
     """
     notice_id = notice.get('id', '')
     title = notice.get('title', 'Official Circular')
@@ -163,7 +164,7 @@ def format_notice_whatsapp_message(notice, base_url=""):
     posted_by_role = notice.get('posted_by_role', 'Committee Official')
     date_str = str(notice.get('created_at', datetime.now().strftime('%Y-%m-%d')))[:10]
     
-    prio_emoji = "🚨 *URGENT ALERT*" if priority == 'URGENT' else ("⚡ *HIGH PRIORITY*" if priority == 'HIGH' else "📢 *OFFICIAL NOTICE*")
+    prio_header = "*URGENT ALERT*" if priority == 'URGENT' else ("*HIGH PRIORITY*" if priority == 'HIGH' else "*OFFICIAL NOTICE*")
     
     if not base_url:
         base_url = "http://127.0.0.1:5000"
@@ -180,19 +181,19 @@ def format_notice_whatsapp_message(notice, base_url=""):
         content_preview = content_clean
 
     msg = (
-        f"🏢 *{Config.ASSOCIATION_NAME}*\n"
-        f"{prio_emoji}\n"
+        f"*{Config.ASSOCIATION_NAME}*\n"
+        f"{prio_header}\n"
         f"{divider}\n"
-        f"📌 *{title}*\n"
-        f"📂 *Category:* {category} | 📅 *Date:* {date_str}\n"
-        f"📝 *Issued By:* {posted_by} ({posted_by_role})\n"
+        f"*Title:* {title}\n"
+        f"*Category:* {category} | *Date:* {date_str}\n"
+        f"*Issued By:* {posted_by} ({posted_by_role})\n"
         f"{divider}\n"
         f"{content_preview}\n\n"
         f"{divider}\n"
-        f"🔗 *Read Full Circular & Letterhead Document:*\n"
+        f"*Read Full Circular & Letterhead Document:*\n"
         f"{notice_url}\n"
         f"{divider}\n"
-        f"_{Config.ASSOCIATION_NAME} • Dum Dum, Kolkata_"
+        f"_{Config.ASSOCIATION_NAME} | Dum Dum, Kolkata_"
     )
     return msg
 
