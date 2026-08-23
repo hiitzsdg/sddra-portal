@@ -12,6 +12,9 @@
         <a href="{{ url_for('download_receipt_pdf', receipt_no=receipt.receipt_no) }}" class="btn btn-outline-primary" target="_blank" download>
             📄 Download Official PDF
         </a>
+        <button type="button" class="btn btn-whatsapp" onclick="openReceiptWhatsAppModal({{ receipt.receipt_no }})">
+            📱 Share via WhatsApp
+        </button>
         <button type="button" class="btn btn-primary" onclick="emailReceiptAjax({{ receipt.receipt_no }}, this)">
             ✉️ Email Receipt
         </button>
@@ -140,6 +143,44 @@
             <div class="signature-line" style="border-top: 1.5px dotted #64748b; margin: 4px auto 6px;"></div>
             <p style="font-size: 0.85rem; font-weight: 700; color: #1e3a8a; margin: 0;">Honorary Treasurer</p>
             <p style="font-size: 0.72rem; color: var(--slate-500); margin: 2px 0 0;">South Dumdum Enclave Residents' Association</p>
+        </div>
+    </div>
+</div>
+
+<!-- WhatsApp Share Modal for Receipt -->
+<div id="receiptWhatsAppModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 540px;">
+        <div class="modal-header">
+            <h3 class="card-title" style="font-size: 1.15rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.4rem;">💬</span> Share Receipt on WhatsApp
+            </h3>
+            <button type="button" class="close-btn" onclick="closeModal('receiptWhatsAppModal')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.25rem;">
+            <p class="text-secondary" style="font-size: 0.88rem; margin-bottom: 1rem;">
+                Send verified maintenance voucher slip directly to resident on WhatsApp or copy formatted message.
+            </p>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" for="receiptWaPhone">Recipient WhatsApp Mobile Number</label>
+                <input type="text" id="receiptWaPhone" class="form-control" value="{{ contact.mobile_num_1 or contact.mobile_num_2 or '' }}" placeholder="e.g. +91 98300 12345 (Leave blank for share menu)">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label">Formatted Message Preview</label>
+                <div id="receiptWaPreview" class="wa-message-preview-box">
+                    Loading WhatsApp slip preview...
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem; flex-wrap: wrap;">
+                <button type="button" class="btn btn-secondary" onclick="copyReceiptWaText()">
+                    📋 Copy Text
+                </button>
+                <button type="button" class="btn btn-whatsapp" id="btnOpenReceiptWa" onclick="launchReceiptWhatsApp({{ receipt.receipt_no }})">
+                    🚀 Open WhatsApp Chat &rarr;
+                </button>
+            </div>
         </div>
     </div>
 </div>

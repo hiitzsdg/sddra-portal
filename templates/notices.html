@@ -521,6 +521,11 @@
                         </button>
                     </form>
 
+                    <!-- WhatsApp Broadcast Button -->
+                    <button type="button" class="btn btn-sm btn-whatsapp" style="padding: 0.2rem 0.5rem;" onclick='openNoticeWhatsAppModal({{ n|tojson }})' title="Share / Broadcast Notice on WhatsApp">
+                        💬 WhatsApp
+                    </button>
+
                     <!-- Edit Button -->
                     <button type="button" class="btn btn-sm btn-secondary" style="padding: 0.2rem 0.5rem;" title="Edit Notice"
                             onclick='openEditModal({{ n|tojson }})'>
@@ -533,6 +538,11 @@
                             🗑️
                         </button>
                     </form>
+                    {% else %}
+                    <!-- Non-admin resident share button -->
+                    <button type="button" class="btn btn-sm btn-whatsapp" style="padding: 0.2rem 0.5rem;" onclick='openNoticeWhatsAppModal({{ n|tojson }})' title="Share Notice on WhatsApp">
+                        💬 WhatsApp
+                    </button>
                     {% endif %}
                 </div>
             </div>
@@ -558,6 +568,9 @@
 
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span title="{{ n.created_at }}">📅 {{ (n.created_at|string)[:10] }}</span>
+                <button type="button" class="btn btn-sm btn-whatsapp no-print" style="padding: 0.15rem 0.55rem; font-size: 0.75rem;" onclick='openNoticeWhatsAppModal({{ n|tojson }})' title="Share / Broadcast on WhatsApp">
+                    💬 Share
+                </button>
                 <button type="button" class="btn btn-sm btn-secondary no-print" style="padding: 0.15rem 0.55rem; font-size: 0.75rem;" onclick='openViewDocModal({{ n|tojson }})' title="View in official letterhead format">
                     📄 View
                 </button>
@@ -696,9 +709,14 @@
                     <span>📌 <strong>Pin Notice to Dashboard</strong> (Displays prominently at the top of portal)</span>
                 </label>
 
-                <label style="display: flex; align-items: center; gap: 0.65rem; margin: 0; cursor: pointer; color: var(--text-main, #ffffff); font-size: 0.9rem;">
+                <label style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.65rem; cursor: pointer; color: var(--text-main, #ffffff); font-size: 0.9rem;">
                     <input type="checkbox" name="do_broadcast" value="1" style="width: 18px; height: 18px;">
                     <span>✉️ <strong>Broadcast Email to Members</strong> (Dispatches formatted circular to registered resident emails)</span>
+                </label>
+
+                <label style="display: flex; align-items: center; gap: 0.65rem; margin: 0; cursor: pointer; color: var(--text-main, #ffffff); font-size: 0.9rem;">
+                    <input type="checkbox" name="do_whatsapp" value="1" style="width: 18px; height: 18px;" checked>
+                    <span>💬 <strong>Prepare WhatsApp Broadcast Slip</strong> (Generate formatted message for Society WhatsApp Group)</span>
                 </label>
             </div>
 
@@ -861,10 +879,111 @@ function copyNoticeText(noticeId) {
     var fullText = "📢 " + title + "\n\n" + body + "\n\n— South Dumdum Enclave Residents' Association\nRegd. No. 08A, Dated: 12.04.2016\n62 RN GUHA ROAD, DUMDUM, KOLKATA – 700028";
     
     navigator.clipboard.writeText(fullText).then(function() {
-        alert("✓ Notice text copied to clipboard!");
+        if (window.showToast) showToast("✓ Notice text copied to clipboard!", 'success');
+        else alert("✓ Notice text copied to clipboard!");
     }).catch(function() {
         prompt("Copy notice text below:", fullText);
     });
 }
+
+window.openNoticeWhatsAppModal = function(notice) {
+    window._activeNotice = notice;
+    var modal = document.getElementById('noticeWhatsAppModal');
+    var previewBox = document.getElementById('noticeWaPreview');
+    var targetPhoneInput = document.getElementById('noticeWaTargetPhone');
+    
+    if (targetPhoneInput) targetPhoneInput.value = '';
+    if (previewBox) previewBox.innerHTML = '<em>Formatting official circular for WhatsApp broadcast...</em>';
+    if (modal) modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    
+    fetch('/api/whatsapp/preview?type=notice&id=' + notice.id)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (previewBox) previewBox.innerText = data.message_text;
+                window._activeNoticeMsg = data.message_text;
+                window._activeNoticeUrl = data.direct_url;
+            } else {
+                if (previewBox) previewBox.innerHTML = '<span class="text-danger">Failed to generate preview: ' + (data.message || 'Error') + '</span>';
+            }
+        })
+        .catch(err => {
+            if (previewBox) previewBox.innerHTML = '<span class="text-danger">Error: ' + err.message + '</span>';
+        });
+};
+
+window.copyNoticeWaText = function() {
+    var text = window._activeNoticeMsg || document.getElementById('noticeWaPreview')?.innerText;
+    if (text) {
+        navigator.clipboard.writeText(text).then(function() {
+            if (window.showToast) showToast('Copied WhatsApp broadcast message to clipboard!', 'success');
+        });
+    }
+};
+
+window.launchNoticeWhatsAppBroadcast = function() {
+    var notice = window._activeNotice;
+    if (!notice) return;
+    var phone = document.getElementById('noticeWaTargetPhone')?.value || '';
+    
+    fetch('/notices/' + notice.id + '/whatsapp-broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.direct_url) {
+            window.open(data.direct_url, '_blank');
+            closeModal('noticeWhatsAppModal');
+            if (window.showToast) showToast('Opened WhatsApp broadcast for notice #' + notice.id + '!', 'success');
+        }
+    })
+    .catch(err => {
+        if (window._activeNoticeUrl) {
+            window.open(window._activeNoticeUrl, '_blank');
+            closeModal('noticeWhatsAppModal');
+        }
+    });
+};
 </script>
+
+<!-- Notice WhatsApp Broadcast Modal -->
+<div id="noticeWhatsAppModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 560px;">
+        <div class="modal-header">
+            <h3 class="card-title" style="font-size: 1.15rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.4rem;">💬</span> WhatsApp Circular Broadcast
+            </h3>
+            <button type="button" class="close-btn" onclick="closeModal('noticeWhatsAppModal')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.25rem;">
+            <p class="text-secondary" style="font-size: 0.88rem; margin-bottom: 1rem;">
+                Share or broadcast this official circular directly into Society WhatsApp Groups or to a specific resident.
+            </p>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" for="noticeWaTargetPhone">Recipient Mobile (Optional: Leave blank for Society Group share)</label>
+                <input type="text" id="noticeWaTargetPhone" class="form-control" placeholder="e.g. +91 98300 12345 or leave empty for group chooser">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label">Formatted Broadcast Preview</label>
+                <div id="noticeWaPreview" class="wa-message-preview-box" style="max-height: 220px;">
+                    Loading circular broadcast preview...
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem; flex-wrap: wrap;">
+                <button type="button" class="btn btn-secondary" onclick="copyNoticeWaText()">
+                    📋 Copy Text
+                </button>
+                <button type="button" class="btn btn-whatsapp" onclick="launchNoticeWhatsAppBroadcast()">
+                    🚀 Broadcast / Share on WhatsApp &rarr;
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

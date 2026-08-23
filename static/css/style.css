@@ -2152,5 +2152,301 @@ code {
   to { transform: translateX(100%) scale(0.95); opacity: 0; }
 }
 
+/* ==========================================================================
+   WHATSAPP INTEGRATION & SOCIETY HELPDESK STYLING
+   ========================================================================== */
+
+/* --- WhatsApp Action Buttons --- */
+.btn-whatsapp {
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-whatsapp:hover {
+  background: linear-gradient(135deg, #20ba5a 0%, #0d7064 100%) !important;
+  color: #ffffff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(37, 211, 102, 0.45);
+}
+
+.btn-whatsapp:active {
+  transform: translateY(0);
+}
+
+.btn-outline-whatsapp {
+  background: rgba(37, 211, 102, 0.12) !important;
+  color: #25D366 !important;
+  border: 1px solid rgba(37, 211, 102, 0.45) !important;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.btn-outline-whatsapp:hover {
+  background: #25D366 !important;
+  color: #ffffff !important;
+  border-color: #25D366 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+}
+
+/* --- WhatsApp Message Preview Box --- */
+.wa-message-preview-box {
+  background: #0b141a;
+  color: #e9edef;
+  border: 1px solid rgba(37, 211, 102, 0.3);
+  border-left: 4px solid #25D366;
+  border-radius: var(--radius-md, 12px);
+  padding: 1rem 1.15rem;
+  font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 250px;
+  overflow-y: auto;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+  scrollbar-width: thin;
+}
+
+[data-theme="light"] .wa-message-preview-box {
+  background: #eefeeb;
+  color: #111b21;
+  border: 1px solid #86efac;
+  border-left: 4px solid #22c55e;
+}
+
+/* --- Floating Society WhatsApp Helpdesk Launcher --- */
+.wa-floating-widget {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9998;
+}
+
+.wa-launcher-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: linear-gradient(135deg, #25D366 0%, #075E54 100%);
+  color: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-pill, 9999px);
+  padding: 0.65rem 1.15rem;
+  font-size: 0.88rem;
+  font-family: var(--font-heading, 'Outfit', sans-serif);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(37, 211, 102, 0.45), 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.wa-launcher-btn:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 12px 30px rgba(37, 211, 102, 0.6), 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.wa-launcher-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.wa-pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+  animation: waPulse 2s infinite;
+}
+
+@keyframes waPulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.8); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(255, 255, 255, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+
+/* --- Expandable Helpdesk Drawer Card --- */
+.wa-floating-card {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  right: 0;
+  width: 340px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(37, 211, 102, 0.35);
+  border-radius: var(--radius-lg, 18px);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55), 0 0 25px rgba(37, 211, 102, 0.2);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(15px) scale(0.95);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: bottom right;
+  z-index: 9999;
+}
+
+[data-theme="light"] .wa-floating-card {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #86efac;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.15), 0 0 25px rgba(37, 211, 102, 0.15);
+}
+
+.wa-floating-card.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+.wa-card-header {
+  background: linear-gradient(135deg, #075E54 0%, #128C7E 100%);
+  padding: 0.85rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #ffffff;
+}
+
+.wa-avatar-badge {
+  width: 32px;
+  height: 32px;
+  background: #25D366;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.wa-close-btn {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.wa-close-btn:hover {
+  opacity: 1;
+}
+
+.wa-card-body {
+  padding: 1rem;
+  max-height: 320px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.wa-contacts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wa-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-md, 12px);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--surface-border, rgba(255, 255, 255, 0.08));
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+}
+
+[data-theme="light"] .wa-contact-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.wa-contact-item:hover {
+  background: rgba(37, 211, 102, 0.12);
+  border-color: #25D366;
+  transform: translateX(3px);
+}
+
+.wa-contact-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.wa-contact-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wa-contact-name {
+  font-size: 0.84rem;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wa-contact-role {
+  font-size: 0.72rem;
+  color: #25D366;
+  font-weight: 600;
+}
+
+.wa-contact-purpose {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wa-chat-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: #25D366;
+  color: #ffffff;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.wa-card-footer {
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid var(--surface-border, rgba(255, 255, 255, 0.08));
+  text-align: center;
+}
+
+@media (max-width: 576px) {
+  .wa-floating-widget {
+    bottom: 1rem;
+    right: 1rem;
+  }
+  .wa-floating-card {
+    width: calc(100vw - 2rem);
+    right: 0;
+  }
+}
+
+
 
 

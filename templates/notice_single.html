@@ -196,7 +196,10 @@
 <body>
     <div class="no-print">
         <a href="{{ url_for('notices_list') }}" class="btn btn-secondary">&larr; Back to Notice Board</a>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ url_for('notices_whatsapp_broadcast', notice_id=notice.id) }}" class="btn" style="background: #25D366; color: #ffffff; font-weight: 700;" target="_blank">
+                💬 Share on WhatsApp
+            </a>
             <button type="button" class="btn btn-primary" onclick="window.print()">🖨️ Print Circular</button>
         </div>
     </div>

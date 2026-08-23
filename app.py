@@ -10,6 +10,16 @@ from config import Config
 from database import init_db, query_db, execute_db, verify_password, hash_password, determine_engine
 from email_service import send_receipt_email, broadcast_notice_email
 from pdf_service import generate_receipt_pdf_bytes
+from whatsapp_service import (
+    normalize_whatsapp_phone,
+    build_whatsapp_url,
+    format_receipt_whatsapp_message,
+    format_dues_reminder_whatsapp_message,
+    format_notice_whatsapp_message,
+    send_whatsapp_message,
+    get_whatsapp_committee_contacts,
+    log_whatsapp_dispatch
+)
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -65,7 +75,8 @@ def inject_globals():
         'is_admin': is_admin,
         'is_executive': is_exec,
         'is_billing_admin': is_billing_admin,
-        'asset_version': '2.1.2'
+        'committee_whatsapp_contacts': get_whatsapp_committee_contacts(),
+        'asset_version': '2.2.0'
     }
 
 # --- Activity & Audit Logging Engine ---
@@ -887,6 +898,65 @@ def email_receipt(receipt_no):
         flash(result['message'], 'danger')
     return redirect(request.referrer or url_for('view_receipt', receipt_no=receipt_no))
 
+@app.route('/receipts/<int:receipt_no>/whatsapp', methods=['GET', 'POST'])
+@login_required
+def whatsapp_receipt(receipt_no):
+    user = session.get('user', {})
+    is_admin = bool(user.get('is_admin') or user.get('role') in ADMIN_ROLES)
+    is_ajax = bool(
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 
+        request.is_json or 
+        'application/json' in request.headers.get('Accept', '')
+    )
+    
+    receipt = query_db("SELECT * FROM tbl_receipts WHERE receipt_no = %s", (receipt_no,), one=True)
+    if not receipt:
+        if is_ajax:
+            return jsonify({"success": False, "message": f"Receipt #{receipt_no} not found."}), 404
+        flash(f"Receipt #{receipt_no} not found.", 'danger')
+        return redirect(url_for('dashboard'))
+        
+    if not is_admin and str(receipt.get('flat_no')).strip().lower() != str(user.get('flat_no')).strip().lower():
+        if is_ajax:
+            return jsonify({"success": False, "message": "Access Denied: You cannot dispatch another resident's receipt."}), 403
+        flash("Access Denied: You cannot dispatch another resident's receipt.", 'danger')
+        return redirect(url_for('dashboard'))
+        
+    member_info = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (receipt['flat_no'],), one=True)
+    contact_info = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (receipt['flat_no'],), one=True)
+    
+    target_phone = None
+    if request.is_json:
+        target_phone = (request.get_json(silent=True) or {}).get('phone')
+    if not target_phone:
+        target_phone = request.form.get('phone') or request.args.get('phone')
+    if not target_phone and contact_info:
+        target_phone = contact_info.get('mobile_num_1') or contact_info.get('mobile_num_2')
+        
+    base_url = request.host_url.rstrip('/')
+    formatted_msg = format_receipt_whatsapp_message(receipt, member_info, contact_info, base_url=base_url)
+    
+    sender_name = user.get('name') or user.get('username') or 'Admin'
+    result = send_whatsapp_message(
+        phone_raw=target_phone,
+        message_text=formatted_msg,
+        msg_type='RECEIPT',
+        recipient_flat=receipt.get('flat_no', '-'),
+        recipient_name=receipt.get('member_name', ''),
+        sent_by=sender_name,
+        base_url=base_url
+    )
+    result['message_text'] = formatted_msg
+    result['clean_phone'] = normalize_whatsapp_phone(target_phone)
+    result['receipt_no'] = receipt_no
+    
+    log_activity('WHATSAPP_RECEIPT', f"Generated WhatsApp receipt slip for SDERA_{receipt_no} (Flat {receipt['flat_no']})")
+    
+    if is_ajax:
+        return jsonify(result), 200
+        
+    return redirect(result['direct_url'])
+
 # --- Association Expenses ---
 @app.route('/expenses')
 @login_required
@@ -1623,6 +1693,68 @@ def api_calculate_penalty():
         'data': calc
     })
 
+@app.route('/admin/penalties/whatsapp-reminder', methods=['POST'])
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def admin_whatsapp_penalty_reminder():
+    user = session.get('user', {})
+    is_ajax = bool(
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 
+        request.is_json or 
+        'application/json' in request.headers.get('Accept', '')
+    )
+    
+    data = request.get_json(silent=True) if request.is_json else request.form
+    flat_no = data.get('flat_no', '').strip()
+    target_date_str = data.get('as_of', '').strip()
+    custom_phone = data.get('phone', '').strip()
+    
+    if not flat_no:
+        if is_ajax:
+            return jsonify({"success": False, "message": "Flat number is required."}), 400
+        flash("Flat number is required.", 'danger')
+        return redirect(url_for('admin_penalties'))
+        
+    member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
+    contact = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (flat_no,), one=True)
+    
+    target_date = None
+    if target_date_str:
+        try:
+            target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+        except Exception:
+            target_date = None
+            
+    calc = calculate_flat_penalty(flat_no, member=member, target_date=target_date)
+    base_url = request.host_url.rstrip('/')
+    formatted_msg = format_dues_reminder_whatsapp_message(calc, contact_info=contact, base_url=base_url)
+    
+    target_phone = custom_phone
+    if not target_phone and contact:
+        target_phone = contact.get('mobile_num_1') or contact.get('mobile_num_2')
+        
+    sender_name = user.get('name') or user.get('username') or 'Admin'
+    result = send_whatsapp_message(
+        phone_raw=target_phone,
+        message_text=formatted_msg,
+        msg_type='DUES_REMINDER',
+        recipient_flat=flat_no,
+        recipient_name=calc.get('member_name', ''),
+        sent_by=sender_name,
+        base_url=base_url
+    )
+    result['message_text'] = formatted_msg
+    result['clean_phone'] = normalize_whatsapp_phone(target_phone)
+    result['member_name'] = calc.get('member_name')
+    result['total_due'] = calc.get('total_due')
+    
+    log_activity('WHATSAPP_REMINDER', f"Issued WhatsApp maintenance reminder to Flat {flat_no} ({calc.get('member_name')}) for Rs {calc.get('total_due'):,.2f}")
+    
+    if is_ajax:
+        return jsonify(result), 200
+        
+    return redirect(result['direct_url'])
+
+
 # --- Chart Data API ---
 @app.route('/api/expenses/chart-data')
 @login_required
@@ -1913,6 +2045,7 @@ def notices_create():
     priority = request.form.get('priority', 'NORMAL').strip().upper()
     is_pinned = 1 if request.form.get('is_pinned') == '1' else 0
     do_broadcast = (request.form.get('do_broadcast') == '1')
+    do_whatsapp = (request.form.get('do_whatsapp') == '1')
     
     if not title or not content:
         flash('Please provide both a Title and Content for the notice.', 'danger')
@@ -1928,19 +2061,26 @@ def notices_create():
             (title, content, category, priority, is_pinned, posted_by, posted_by_role)
         )
         
+        notice_dict = {
+            'id': notice_id,
+            'title': title,
+            'content': content,
+            'category': category,
+            'priority': priority,
+            'posted_by': posted_by,
+            'posted_by_role': posted_by_role
+        }
+
         broadcast_msg = ""
         if do_broadcast:
-            notice_dict = {
-                'id': notice_id,
-                'title': title,
-                'content': content,
-                'category': category,
-                'priority': priority,
-                'posted_by': posted_by,
-                'posted_by_role': posted_by_role
-            }
             res = broadcast_notice_email(notice_dict, author_name=posted_by)
-            broadcast_msg = f" • Email broadcast dispatched to {res.get('recipients_count', 'all')} member inboxes."
+            broadcast_msg += f" • Email dispatched to {res.get('recipients_count', 'all')} inboxes."
+            
+        if do_whatsapp:
+            base_url = request.host_url.rstrip('/')
+            wa_text = format_notice_whatsapp_message(notice_dict, base_url=base_url)
+            log_whatsapp_dispatch('ALL_RESIDENTS', 'Broadcast / Society Group', title, 'NOTICE_BROADCAST', wa_text, 'LINK_GENERATED', sent_by=posted_by)
+            broadcast_msg += " • WhatsApp Broadcast draft created."
             
         log_activity('NOTICE_PUBLISHED', f"Published official notice #{notice_id}: '{title}' ({category} / {priority})")
         flash(f"📢 Official notice '{title}' published successfully!{broadcast_msg}", 'success')
@@ -2019,6 +2159,116 @@ def notices_broadcast(notice_id):
     except Exception as e:
         flash(f"Error broadcasting notice: {e}", 'danger')
     return redirect(url_for('notices_list'))
+
+@app.route('/notices/<int:notice_id>/whatsapp-broadcast', methods=['GET', 'POST'])
+@login_required
+def notices_whatsapp_broadcast(notice_id):
+    user = session.get('user', {})
+    is_admin = bool(user.get('is_admin') or user.get('role') in ADMIN_ROLES)
+    is_ajax = bool(
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 
+        request.is_json or 
+        'application/json' in request.headers.get('Accept', '')
+    )
+    
+    notice = query_db("SELECT * FROM tbl_notices WHERE id = %s", (notice_id,), one=True)
+    if not notice:
+        if is_ajax:
+            return jsonify({"success": False, "message": "Notice not found."}), 404
+        flash("Notice not found.", 'danger')
+        return redirect(url_for('notices_list'))
+        
+    base_url = request.host_url.rstrip('/')
+    formatted_msg = format_notice_whatsapp_message(notice, base_url=base_url)
+    
+    custom_phone = request.args.get('phone') or (request.get_json(silent=True) or {}).get('phone') or request.form.get('phone')
+    direct_url = build_whatsapp_url(custom_phone, formatted_msg)
+    
+    log_whatsapp_dispatch(
+        recipient_flat='ALL_RESIDENTS' if not custom_phone else 'INDIVIDUAL',
+        recipient_phone=custom_phone or 'Broadcast / Society Group',
+        recipient_name=notice.get('title', ''),
+        message_type='NOTICE_BROADCAST',
+        message_content=formatted_msg,
+        status='LINK_GENERATED',
+        sent_by=user.get('name') or user.get('username') or 'Admin'
+    )
+    
+    log_activity('WHATSAPP_NOTICE', f"Generated WhatsApp broadcast link for Notice #{notice_id}: '{notice['title']}'")
+    
+    if is_ajax:
+        return jsonify({
+            "success": True,
+            "notice_id": notice_id,
+            "title": notice['title'],
+            "direct_url": direct_url,
+            "message_text": formatted_msg
+        }), 200
+        
+    return redirect(direct_url)
+
+# --- Universal WhatsApp Live Preview & Quick Chat API ---
+@app.route('/api/whatsapp/preview')
+@login_required
+def api_whatsapp_preview():
+    item_type = request.args.get('type', '').strip().lower() # 'receipt', 'penalty', 'notice', 'custom'
+    item_id = request.args.get('id', '').strip()
+    flat_no = request.args.get('flat', '').strip()
+    base_url = request.host_url.rstrip('/')
+    
+    if item_type == 'receipt' and item_id:
+        receipt = query_db("SELECT * FROM tbl_receipts WHERE receipt_no = %s", (item_id,), one=True)
+        if not receipt:
+            return jsonify({'success': False, 'message': 'Receipt not found'}), 404
+        member_info = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (receipt['flat_no'],), one=True)
+        contact_info = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (receipt['flat_no'],), one=True)
+        msg = format_receipt_whatsapp_message(receipt, member_info, contact_info, base_url=base_url)
+        phone = (contact_info.get('mobile_num_1') or contact_info.get('mobile_num_2')) if contact_info else ''
+        return jsonify({
+            'success': True,
+            'message_text': msg,
+            'phone': phone,
+            'clean_phone': normalize_whatsapp_phone(phone),
+            'direct_url': build_whatsapp_url(phone, msg)
+        })
+        
+    elif item_type == 'penalty' and flat_no:
+        member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
+        contact = query_db("SELECT * FROM tbl_mbr_cntct WHERE flat_no = %s", (flat_no,), one=True)
+        calc = calculate_flat_penalty(flat_no, member=member)
+        msg = format_dues_reminder_whatsapp_message(calc, contact_info=contact, base_url=base_url)
+        phone = (contact.get('mobile_num_1') or contact.get('mobile_num_2')) if contact else ''
+        return jsonify({
+            'success': True,
+            'message_text': msg,
+            'phone': phone,
+            'clean_phone': normalize_whatsapp_phone(phone),
+            'direct_url': build_whatsapp_url(phone, msg)
+        })
+        
+    elif item_type == 'notice' and item_id:
+        notice = query_db("SELECT * FROM tbl_notices WHERE id = %s", (item_id,), one=True)
+        if not notice:
+            return jsonify({'success': False, 'message': 'Notice not found'}), 404
+        msg = format_notice_whatsapp_message(notice, base_url=base_url)
+        return jsonify({
+            'success': True,
+            'message_text': msg,
+            'phone': '',
+            'direct_url': build_whatsapp_url('', msg)
+        })
+        
+    return jsonify({'success': False, 'message': 'Invalid preview parameters'}), 400
+
+@app.route('/admin/whatsapp-logs')
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def admin_whatsapp_logs():
+    logs = query_db("SELECT * FROM tbl_whatsapp_logs ORDER BY id DESC LIMIT 150") or []
+    return jsonify({
+        "success": True,
+        "count": len(logs),
+        "logs": logs
+    })
 
 @app.route('/notices/<int:notice_id>/view')
 @login_required

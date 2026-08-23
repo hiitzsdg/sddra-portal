@@ -355,6 +355,21 @@ def ensure_notices_table_sqlite():
             );
         """)
 
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tbl_whatsapp_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recipient_flat TEXT DEFAULT '-',
+                recipient_phone TEXT NOT NULL,
+                recipient_name TEXT DEFAULT '',
+                message_type TEXT NOT NULL DEFAULT 'GENERIC',
+                message_content TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'LINK_GENERATED',
+                error_message TEXT DEFAULT NULL,
+                sent_by TEXT DEFAULT 'Admin',
+                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
         cur.execute("SELECT COUNT(*) FROM tbl_activity_logs;")
         act_cnt = cur.fetchone()[0]
         if act_cnt == 0:
@@ -590,6 +605,24 @@ def ensure_mysql_schema(conn):
                 INDEX idx_action (action_type),
                 INDEX idx_flat (flat_no),
                 INDEX idx_time (created_at)
+            ) ENGINE=InnoDB;
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tbl_whatsapp_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                recipient_flat VARCHAR(20) DEFAULT '-',
+                recipient_phone VARCHAR(50) NOT NULL,
+                recipient_name VARCHAR(150) DEFAULT '',
+                message_type VARCHAR(50) NOT NULL DEFAULT 'GENERIC',
+                message_content TEXT NOT NULL,
+                status VARCHAR(50) NOT NULL DEFAULT 'LINK_GENERATED',
+                error_message TEXT DEFAULT NULL,
+                sent_by VARCHAR(100) DEFAULT 'Admin',
+                sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_wa_flat (recipient_flat),
+                INDEX idx_wa_type (message_type),
+                INDEX idx_wa_time (sent_at)
             ) ENGINE=InnoDB;
         """)
         conn.commit()

@@ -257,7 +257,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <div style="display: flex; gap: 0.35rem;">
+                        <div style="display: flex; gap: 0.35rem; align-items: center;">
                             <button type="button" class="btn btn-sm btn-secondary btn-breakdown-modal"
                                 data-flat="{{ row.flat_no }}"
                                 data-name="{{ row.member_name|e }}"
@@ -271,6 +271,15 @@
                                 title="View step-by-step calculation breakdown">
                                 🧮 Breakdown
                             </button>
+                            {% if row.total_due > 0 %}
+                            <button type="button" class="btn btn-sm btn-whatsapp"
+                                data-flat="{{ row.flat_no }}"
+                                data-name="{{ row.member_name|e }}"
+                                onclick="openPenaltyWhatsAppModal(this.getAttribute('data-flat'), this.getAttribute('data-name'))"
+                                title="Send WhatsApp Dues & Penalty Reminder to Resident">
+                                💬 WhatsApp
+                            </button>
+                            {% endif %}
                             <a href="{{ url_for('admin_receipts', flat=row.flat_no) }}" class="btn btn-sm btn-outline-primary" title="Issue new receipt for this flat">
                                 💳 Receipt
                             </a>
@@ -557,11 +566,110 @@ document.addEventListener('click', (e) => {
     }
 });
 
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        window.closeBreakdownModal();
-        window.closePenaltySimulatorModal();
+<!-- ================= PENALTY WHATSAPP REMINDER MODAL ================= -->
+<div id="penaltyWhatsAppModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 550px;">
+        <div class="modal-header">
+            <h3 class="card-title" style="font-size: 1.15rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.4rem;">💬</span> Send WhatsApp Dues &amp; Penalty Reminder
+            </h3>
+            <button type="button" class="close-btn" onclick="closeModal('penaltyWhatsAppModal')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.25rem;">
+            <p class="text-secondary" style="font-size: 0.88rem; margin-bottom: 1rem;">
+                Dispatch an official WhatsApp reminder with overdue months breakdown, late fee penalty calculation, UPI ID, and bank details.
+            </p>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" for="penaltyWaPhone">Resident WhatsApp Phone Number</label>
+                <input type="text" id="penaltyWaPhone" class="form-control" placeholder="e.g. +91 98300 12345">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label">Formatted Reminder Preview</label>
+                <div id="penaltyWaPreview" class="wa-message-preview-box">
+                    Loading calculation preview...
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem; flex-wrap: wrap;">
+                <button type="button" class="btn btn-secondary" onclick="copyPenaltyWaText()">
+                    📋 Copy Text
+                </button>
+                <button type="button" class="btn btn-whatsapp" id="btnLaunchPenaltyWa" onclick="launchPenaltyWhatsApp()">
+                    🚀 Open WhatsApp Chat &rarr;
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+window.openPenaltyWhatsAppModal = function(flatNo, memberName) {
+    window._activePenaltyFlat = flatNo;
+    window._activePenaltyName = memberName;
+    
+    const modal = document.getElementById('penaltyWhatsAppModal');
+    const previewBox = document.getElementById('penaltyWaPreview');
+    const phoneInput = document.getElementById('penaltyWaPhone');
+    
+    if (previewBox) previewBox.innerHTML = '<em>Fetching dues breakdown for Flat ' + flatNo + '...</em>';
+    if (modal) modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    
+    fetch('/api/whatsapp/preview?type=penalty&flat=' + encodeURIComponent(flatNo))
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (previewBox) previewBox.innerText = data.message_text;
+                if (phoneInput && data.phone) phoneInput.value = data.phone;
+                window._activePenaltyMsg = data.message_text;
+                window._activePenaltyUrl = data.direct_url;
+            } else {
+                if (previewBox) previewBox.innerHTML = '<span class="text-danger">Failed to load preview: ' + (data.message || 'Unknown error') + '</span>';
+            }
+        })
+        .catch(err => {
+            if (previewBox) previewBox.innerHTML = '<span class="text-danger">Error loading preview: ' + err.message + '</span>';
+        });
+};
+
+window.copyPenaltyWaText = function() {
+    const text = window._activePenaltyMsg || document.getElementById('penaltyWaPreview')?.innerText;
+    if (text) {
+        navigator.clipboard.writeText(text).then(() => {
+            if (window.showToast) showToast('Copied formatted WhatsApp reminder to clipboard!', 'success');
+        });
     }
-});
+};
+
+window.launchPenaltyWhatsApp = function() {
+    const phone = document.getElementById('penaltyWaPhone')?.value || '';
+    const flatNo = window._activePenaltyFlat;
+    
+    fetch('/admin/penalties/whatsapp-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flat_no: flatNo, phone: phone })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.direct_url) {
+            window.open(data.direct_url, '_blank');
+            closeModal('penaltyWhatsAppModal');
+            if (window.showToast) showToast('Launched WhatsApp reminder for Flat ' + flatNo + '!', 'success');
+        } else if (data.success) {
+            closeModal('penaltyWhatsAppModal');
+            if (window.showToast) showToast(data.message || 'WhatsApp message dispatched!', 'success');
+        }
+    })
+    .catch(err => {
+        // Fallback
+        if (window._activePenaltyUrl) {
+            window.open(window._activePenaltyUrl, '_blank');
+            closeModal('penaltyWhatsAppModal');
+        }
+    });
+};
 </script>
 {% endblock %}

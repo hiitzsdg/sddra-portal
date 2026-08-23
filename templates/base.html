@@ -286,12 +286,59 @@
     </div>
     {% endif %}
 
+    <!-- Floating Society WhatsApp Helpdesk Launcher -->
+    <div class="wa-floating-widget no-print" id="waFloatingWidget">
+        <!-- Expandable Helpdesk Card -->
+        <div class="wa-floating-card" id="waFloatingCard">
+            <div class="wa-card-header">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="wa-avatar-badge">💬</div>
+                    <div>
+                        <h4 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: #ffffff;">SDERA WhatsApp Helpdesk</h4>
+                        <span style="font-size: 0.72rem; color: #86efac; display: flex; align-items: center; gap: 4px;">
+                            <span style="width: 6px; height: 6px; border-radius: 50%; background: #22c55e; display: inline-block;"></span> 24/7 Committee Directory
+                        </span>
+                    </div>
+                </div>
+                <button type="button" class="wa-close-btn" id="closeWaFloatingCard">&times;</button>
+            </div>
+            <div class="wa-card-body">
+                <p style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                    Connect instantly with resident committee officials on WhatsApp:
+                </p>
+                <div class="wa-contacts-list">
+                    {% for contact in committee_whatsapp_contacts %}
+                    <a href="{{ contact.direct_url }}" target="_blank" class="wa-contact-item">
+                        <div class="wa-contact-icon">{{ contact.icon }}</div>
+                        <div class="wa-contact-info">
+                            <strong class="wa-contact-name">{{ contact.name }}</strong>
+                            <span class="wa-contact-role">{{ contact.role }}</span>
+                            <span class="wa-contact-purpose">{{ contact.purpose }}</span>
+                        </div>
+                        <span class="wa-chat-pill">Chat &rarr;</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="wa-card-footer">
+                <span style="font-size: 0.72rem; color: var(--text-muted);">Main Helpline: {{ config.ASSOCIATION_PHONE }}</span>
+            </div>
+        </div>
+
+        <!-- Floating Action Trigger Button -->
+        <button type="button" class="wa-launcher-btn" id="toggleWaFloatingBtn" aria-label="Open Society WhatsApp Helpdesk" title="SDERA WhatsApp Support &amp; Helplines">
+            <span class="wa-launcher-icon">💬</span>
+            <span class="wa-launcher-text">WhatsApp Helpdesk</span>
+            <span class="wa-pulse-dot"></span>
+        </button>
+    </div>
+
     <!-- Global Floating Toast Container -->
     <div class="global-toast-container" id="globalToastContainer"></div>
 
     <!-- Master Scripts -->
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=20260820_v10"></script>
-    <script src="{{ url_for('static', filename='js/charts.js') }}?v=20260820_v10"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=20260820_v11"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}?v=20260820_v11"></script>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

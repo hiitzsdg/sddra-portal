@@ -65,15 +65,26 @@
                     <td class="text-secondary">
                         <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;">
                             <span>{{ m.mobile_num_1 or m.mobile_num_2 or '-' }}</span>
-                            <button type="button" class="btn btn-sm btn-secondary btn-edit-contact" 
-                                    data-flat="{{ m.flat_no }}" 
-                                    data-name="{{ m.member_name|e }}" 
-                                    data-email="{{ (m.email_1 or m.email_2 or '')|e }}" 
-                                    data-phone="{{ (m.mobile_num_1 or m.mobile_num_2 or '')|e }}" 
-                                    style="padding: 0.15rem 0.4rem; font-size: 0.72rem;" 
-                                    title="Edit Contact Info">
-                                ✏️
-                            </button>
+                            <div style="display: flex; gap: 0.25rem;">
+                                {% if m.mobile_num_1 or m.mobile_num_2 %}
+                                <a href="https://wa.me/91{{ (m.mobile_num_1 or m.mobile_num_2)|replace(' ', '')|replace('-', '')|replace('+91', '')|replace('+', '') }}?text=Hello%20{{ m.member_name|urlencode }}%20(Flat%20{{ m.flat_no }}),%20contacting%20you%20from%20SDERA%20Office..." 
+                                   target="_blank" 
+                                   class="btn btn-sm btn-whatsapp" 
+                                   style="padding: 0.15rem 0.4rem; font-size: 0.72rem; background: #25d366; color: white; text-decoration: none; border-radius: 4px;" 
+                                   title="Chat with {{ m.member_name }} on WhatsApp">
+                                    💬
+                                </a>
+                                {% endif %}
+                                <button type="button" class="btn btn-sm btn-secondary btn-edit-contact" 
+                                        data-flat="{{ m.flat_no }}" 
+                                        data-name="{{ m.member_name|e }}" 
+                                        data-email="{{ (m.email_1 or m.email_2 or '')|e }}" 
+                                        data-phone="{{ (m.mobile_num_1 or m.mobile_num_2 or '')|e }}" 
+                                        style="padding: 0.15rem 0.4rem; font-size: 0.72rem;" 
+                                        title="Edit Contact Info">
+                                    ✏️
+                                </button>
+                            </div>
                         </div>
                     </td>
                     <td>

@@ -60,11 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5. Initialize Live Instant Tables Search if present
     initGenericLiveSearch();
 
-    // 6. Modern Web App Elevations: Command Palette, Visualizer, UPI QR, Helpdesk
+    // 6. Modern Web App Elevations: Command Palette, Visualizer, UPI QR, Helpdesk & WhatsApp
     initCommandPalette();
     initBuildingVisualizer();
     initUpiPaymentModal();
     initHelpdesk();
+    initWhatsAppHelpdeskWidget();
 });
 
 // ================= Theme Switcher (Light / Dark Mode) =================
@@ -1104,6 +1105,103 @@ function initHelpdesk() {
         });
     }
 }
+
+// ==========================================================================
+// 12. WhatsApp Society Helpdesk & Instant Share Controller
+// ==========================================================================
+function initWhatsAppHelpdeskWidget() {
+    const launcherBtn = document.getElementById('toggleWaFloatingBtn');
+    const floatingCard = document.getElementById('waFloatingCard');
+    const closeBtn = document.getElementById('closeWaFloatingCard');
+
+    if (launcherBtn && floatingCard) {
+        launcherBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            floatingCard.classList.toggle('active');
+        });
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                floatingCard.classList.remove('active');
+            });
+        }
+
+        // Close on click outside
+        document.addEventListener('click', (e) => {
+            if (!floatingCard.contains(e.target) && !launcherBtn.contains(e.target)) {
+                floatingCard.classList.remove('active');
+            }
+        });
+    }
+}
+
+// Global Receipt WhatsApp Handlers
+window.openReceiptWhatsAppModal = function(receiptNo) {
+    window._activeRcptNo = receiptNo;
+    const modal = document.getElementById('receiptWhatsAppModal');
+    const previewBox = document.getElementById('receiptWaPreview');
+    const phoneInput = document.getElementById('receiptWaPhone');
+
+    if (previewBox) previewBox.innerHTML = '<em>Generating official WhatsApp receipt slip for SDERA_' + receiptNo + '...</em>';
+    if (modal) modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    fetch('/api/whatsapp/preview?type=receipt&id=' + receiptNo)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (previewBox) previewBox.innerText = data.message_text;
+                if (phoneInput && data.phone && !phoneInput.value) phoneInput.value = data.phone;
+                window._activeRcptMsg = data.message_text;
+                window._activeRcptUrl = data.direct_url;
+            } else {
+                if (previewBox) previewBox.innerHTML = '<span class="text-danger">Failed to generate preview: ' + (data.message || 'Error') + '</span>';
+            }
+        })
+        .catch(err => {
+            if (previewBox) previewBox.innerHTML = '<span class="text-danger">Error loading receipt preview: ' + err.message + '</span>';
+        });
+};
+
+window.copyReceiptWaText = function() {
+    const text = window._activeRcptMsg || document.getElementById('receiptWaPreview')?.innerText;
+    if (text) {
+        navigator.clipboard.writeText(text).then(() => {
+            if (window.showToast) showToast('Copied WhatsApp receipt voucher to clipboard!', 'success');
+            else alert('Copied to clipboard!');
+        });
+    }
+};
+
+window.launchReceiptWhatsApp = function(receiptNo) {
+    const rNo = receiptNo || window._activeRcptNo;
+    const phone = document.getElementById('receiptWaPhone')?.value || '';
+
+    fetch('/receipts/' + rNo + '/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.direct_url) {
+            window.open(data.direct_url, '_blank');
+            closeModal('receiptWhatsAppModal');
+            if (window.showToast) showToast('Opened WhatsApp receipt for SDERA_' + rNo + '!', 'success');
+        } else if (data.success) {
+            closeModal('receiptWhatsAppModal');
+            if (window.showToast) showToast(data.message || 'WhatsApp message sent!', 'success');
+        }
+    })
+    .catch(err => {
+        if (window._activeRcptUrl) {
+            window.open(window._activeRcptUrl, '_blank');
+            closeModal('receiptWhatsAppModal');
+        }
+    });
+};
+
 
 
 

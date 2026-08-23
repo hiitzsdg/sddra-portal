@@ -12,12 +12,20 @@ A web portal for the **South Dumdum Enclave Residents' Association** built with 
 2. **Maintenance Receipts Ledger**:
    - Issue, track, view, and print official verified receipts with watermarked layouts.
    - 1-click **Email Receipt** to dispatch receipt slips directly to member inboxes.
-3. **Association Expense Transparency**:
+   - 1-click **WhatsApp Receipt Share**: Instantly send formatted receipt vouchers to resident WhatsApp chats.
+3. **WhatsApp Integration & Society Helpdesk**:
+   - **Receipts**: 1-click WhatsApp voucher dispatch with download links and payment confirmations.
+   - **Maintenance Dues & Late Penalties**: 1-click WhatsApp payment reminders with monthly arrears breakdown, late fee penalty calculations, and instant UPI payment instructions.
+   - **Notice Board Broadcasts**: 1-click formatted circular broadcasts ready for Society WhatsApp Groups.
+   - **Resident Directory**: One-click WhatsApp direct chat next to any resident's mobile number.
+   - **Floating WhatsApp Helpdesk Widget**: 24/7 one-touch access to Caretaker, Secretary, Treasurer, and President.
+   - **Dual Engine**: Instant `wa.me` deep linking out-of-the-box, plus optional Meta WhatsApp Cloud API & Twilio support.
+4. **Association Expense Transparency**:
    - Public expense ledger visible to all members for complete financial accountability.
    - Interactive Chart.js category breakdown (Electricity, Security, Lift AMC, Generator, etc.) and monthly spending trend.
-4. **Member & Flat Management**:
+5. **Member & Flat Management**:
    - Manage flat roster, square footage, dues statuses, and reset credentials.
-5. **Database Dual-Mode**:
+6. **Database Dual-Mode**:
    - Connects directly to local **MySQL** (`south_dumdum_enclave` database).
    - Features seamless auto-fallback to standalone SQLite if MySQL credentials are being configured.
 

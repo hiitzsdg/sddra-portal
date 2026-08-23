@@ -108,3 +108,19 @@ class Config:
     ASSOCIATION_ADDRESS = "62 RN GUHA ROAD, DUMDUM, KOLKATA – 700028"
     ASSOCIATION_EMAIL = "sddenclave@gmail.com"
     ASSOCIATION_PHONE = "+91-801-725-0621"
+    
+    # Official Committee WhatsApp Contacts
+    CARETAKER_PHONE = os.environ.get('CARETAKER_PHONE', '+91-983-000-1122')
+    SECRETARY_PHONE = os.environ.get('SECRETARY_PHONE', '+91-983-111-2233')
+    TREASURER_PHONE = os.environ.get('TREASURER_PHONE', '+91-801-725-0621')
+    PRESIDENT_PHONE = os.environ.get('PRESIDENT_PHONE', '+91-983-222-3344')
+
+    # WhatsApp Integration Settings (Supports Direct wa.me Linking, Meta Cloud API & Twilio)
+    WHATSAPP_DEFAULT_COUNTRY_CODE = os.environ.get('WHATSAPP_DEFAULT_COUNTRY_CODE', '91')
+    WHATSAPP_API_TOKEN = os.environ.get('WHATSAPP_API_TOKEN', '') # Meta Cloud API Token
+    WHATSAPP_PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID', '') # Meta Cloud Phone Number ID
+    WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', '')
+    TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
+    TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
+    TWILIO_WHATSAPP_NUMBER = os.environ.get('TWILIO_WHATSAPP_NUMBER', '')
+
