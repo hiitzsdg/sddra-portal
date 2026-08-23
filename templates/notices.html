@@ -697,6 +697,25 @@
                 </div>
             </div>
 
+            <!-- Calling Authority / Signatory Selector -->
+            <div class="grid-2" style="margin-bottom: 1.25rem; gap: 1rem; background: rgba(59, 130, 246, 0.06); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed rgba(59, 130, 246, 0.35);">
+                <div>
+                    <label class="form-label" for="new_caller_role">📢 Calling Authority / Issued By *</label>
+                    <select id="new_caller_role" name="caller_role" class="form-select" onchange="onNoticeCallerChange('new')" required>
+                        <option value="Secretary" selected>📜 General Secretary (Mr. Somenath Halder)</option>
+                        <option value="President">🏛️ President (Dr. Asit Kumar Bera)</option>
+                        <option value="Treasurer">💰 Treasurer (Mr. Swapnadeep Ganguly)</option>
+                        <option value="Caretaker">🔧 Caretaker (Mr. Sanjoy Chakraborty)</option>
+                        <option value="Executive Committee">👥 Executive Committee</option>
+                        <option value="Custom">✍️ Custom Signatory...</option>
+                    </select>
+                </div>
+                <div id="new_custom_sign_wrap" style="display: none;">
+                    <label class="form-label" for="new_posted_by">Custom Signatory Name &amp; Title</label>
+                    <input type="text" id="new_posted_by" name="posted_by" class="form-control" placeholder="e.g. Cultural Sub-Committee / Mr. S. Halder">
+                </div>
+            </div>
+
             <div class="form-group" style="margin-bottom: 1.25rem;">
                 <label class="form-label" for="new_content">Notice Body &amp; Details *</label>
                 <textarea id="new_content" name="content" class="form-control" rows="6" placeholder="Provide complete circular details, timings, affected flats, action items, and contact helpline..." required></textarea>
@@ -767,6 +786,25 @@
                 </div>
             </div>
 
+            <!-- Calling Authority in Edit Modal -->
+            <div class="grid-2" style="margin-bottom: 1.25rem; gap: 1rem; background: rgba(59, 130, 246, 0.06); padding: 0.85rem; border-radius: var(--radius-md); border: 1px dashed rgba(59, 130, 246, 0.35);">
+                <div>
+                    <label class="form-label" for="edit_caller_role">📢 Calling Authority / Issued By *</label>
+                    <select id="edit_caller_role" name="caller_role" class="form-select" onchange="onNoticeCallerChange('edit')">
+                        <option value="Secretary">📜 General Secretary (Mr. Somenath Halder)</option>
+                        <option value="President">🏛️ President (Dr. Asit Kumar Bera)</option>
+                        <option value="Treasurer">💰 Treasurer (Mr. Swapnadeep Ganguly)</option>
+                        <option value="Caretaker">🔧 Caretaker (Mr. Sanjoy Chakraborty)</option>
+                        <option value="Executive Committee">👥 Executive Committee</option>
+                        <option value="Custom">✍️ Custom Signatory...</option>
+                    </select>
+                </div>
+                <div id="edit_custom_sign_wrap" style="display: none;">
+                    <label class="form-label" for="edit_posted_by">Custom Signatory Name</label>
+                    <input type="text" id="edit_posted_by" name="posted_by" class="form-control" placeholder="e.g. Mr. Somenath Halder">
+                </div>
+            </div>
+
             <div class="form-group" style="margin-bottom: 1.25rem;">
                 <label class="form-label" for="edit_status">Publication Status</label>
                 <select id="edit_status" name="status" class="form-select">
@@ -810,6 +848,14 @@ function closeModal(id) {
     if (m) m.classList.remove('active');
 }
 
+function onNoticeCallerChange(prefix) {
+    var sel = document.getElementById(prefix + '_caller_role');
+    var wrap = document.getElementById(prefix + '_custom_sign_wrap');
+    if (sel && wrap) {
+        wrap.style.display = (sel.value === 'Custom') ? 'block' : 'none';
+    }
+}
+
 function openEditModal(notice) {
     var form = document.getElementById('editNoticeForm');
     form.action = '/notices/' + notice.id + '/edit';
@@ -819,6 +865,35 @@ function openEditModal(notice) {
     document.getElementById('edit_status').value = notice.status || 'ACTIVE';
     document.getElementById('edit_content').value = notice.content || '';
     document.getElementById('edit_is_pinned').checked = (notice.is_pinned == 1);
+
+    // Populate caller role
+    var roleSelect = document.getElementById('edit_caller_role');
+    var customWrap = document.getElementById('edit_custom_sign_wrap');
+    var customInput = document.getElementById('edit_posted_by');
+    var r = (notice.posted_by_role || '').toLowerCase();
+    var n = (notice.posted_by || '').toLowerCase();
+
+    if (r.includes('treasurer') || n.includes('swapnadeep')) {
+        if (roleSelect) roleSelect.value = 'Treasurer';
+        if (customWrap) customWrap.style.display = 'none';
+    } else if (r.includes('president') || n.includes('asit')) {
+        if (roleSelect) roleSelect.value = 'President';
+        if (customWrap) customWrap.style.display = 'none';
+    } else if (r.includes('secretary') || n.includes('somenath')) {
+        if (roleSelect) roleSelect.value = 'Secretary';
+        if (customWrap) customWrap.style.display = 'none';
+    } else if (r.includes('caretaker') || n.includes('sanjoy')) {
+        if (roleSelect) roleSelect.value = 'Caretaker';
+        if (customWrap) customWrap.style.display = 'none';
+    } else if (r.includes('executive') || r.includes('committee')) {
+        if (roleSelect) roleSelect.value = 'Executive Committee';
+        if (customWrap) customWrap.style.display = 'none';
+    } else {
+        if (roleSelect) roleSelect.value = 'Custom';
+        if (customWrap) customWrap.style.display = 'block';
+        if (customInput) customInput.value = notice.posted_by || '';
+    }
+
     openModal('editNoticeModal');
 }
 

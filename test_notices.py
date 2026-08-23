@@ -123,5 +123,101 @@ class TestDigitalNoticeBoard(unittest.TestCase):
         self.assertIsNone(deleted)
         print("[PASS] Test 3: Admin full CRUD, pin toggle, email broadcast, and delete verified.")
 
+    def test_04_calling_authority_selection(self):
+        """Verify notice posting and editing with different calling authorities (Treasurer, President, Secretary, Caretaker, Custom)."""
+        with self.client.session_transaction() as sess:
+            sess['user'] = {
+                'id': 99,
+                'username': 'admin',
+                'name': 'System Administrator',
+                'role': 'super_admin',
+                'is_admin': True
+            }
+
+        # 1. Post Notice as Treasurer (Mr. Swapnadeep Ganguly)
+        res_treasurer = self.client.post('/notices/create', data={
+            'title': 'FY 2026-27 Annual Budget Review Meeting',
+            'content': 'All committee members are requested to attend the budget review meeting.',
+            'category': 'FINANCIAL',
+            'priority': 'HIGH',
+            'caller_role': 'Treasurer',
+            'is_pinned': '0',
+            'do_broadcast': '0',
+            'do_whatsapp': '0'
+        }, follow_redirects=True)
+        self.assertEqual(res_treasurer.status_code, 200)
+        n_treasurer = query_db("SELECT * FROM tbl_notices WHERE title = %s", ('FY 2026-27 Annual Budget Review Meeting',), one=True)
+        self.assertIsNotNone(n_treasurer)
+        self.assertEqual(n_treasurer['posted_by'], 'Mr. Swapnadeep Ganguly')
+        self.assertEqual(n_treasurer['posted_by_role'], 'Treasurer')
+
+        # 2. Post Notice as President (Dr. Asit Kumar Bera)
+        res_pres = self.client.post('/notices/create', data={
+            'title': 'Emergency General Body Meeting (EGM)',
+            'content': 'Meeting called to discuss lift modernisation tenders.',
+            'category': 'AGM_MEETING',
+            'priority': 'URGENT',
+            'caller_role': 'President',
+            'is_pinned': '1',
+            'do_broadcast': '0',
+            'do_whatsapp': '0'
+        }, follow_redirects=True)
+        self.assertEqual(res_pres.status_code, 200)
+        n_pres = query_db("SELECT * FROM tbl_notices WHERE title = %s", ('Emergency General Body Meeting (EGM)',), one=True)
+        self.assertIsNotNone(n_pres)
+        self.assertEqual(n_pres['posted_by'], 'Dr. Asit Kumar Bera')
+        self.assertEqual(n_pres['posted_by_role'], 'President')
+
+        # 3. Post Notice as Caretaker (Mr. Sanjoy Chakraborty)
+        res_care = self.client.post('/notices/create', data={
+            'title': 'Deep Cleaning of Overhead Tanks',
+            'content': 'Water supply suspended between 10 AM and 2 PM on Tuesday.',
+            'category': 'WATER_SUPPLY',
+            'priority': 'NORMAL',
+            'caller_role': 'Caretaker',
+            'is_pinned': '0',
+            'do_broadcast': '0',
+            'do_whatsapp': '0'
+        }, follow_redirects=True)
+        self.assertEqual(res_care.status_code, 200)
+        n_care = query_db("SELECT * FROM tbl_notices WHERE title = %s", ('Deep Cleaning of Overhead Tanks',), one=True)
+        self.assertIsNotNone(n_care)
+        self.assertEqual(n_care['posted_by'], 'Mr. Sanjoy Chakraborty')
+        self.assertEqual(n_care['posted_by_role'], 'Caretaker')
+
+        # 4. Edit Notice to change calling authority to Secretary
+        res_edit = self.client.post(f'/notices/{n_care["id"]}/edit', data={
+            'title': 'Deep Cleaning of Overhead Tanks - Rescheduled',
+            'content': 'Water supply suspended between 11 AM and 3 PM on Wednesday.',
+            'category': 'WATER_SUPPLY',
+            'priority': 'HIGH',
+            'caller_role': 'Secretary',
+            'status': 'ACTIVE'
+        }, follow_redirects=True)
+        self.assertEqual(res_edit.status_code, 200)
+        n_updated = query_db("SELECT * FROM tbl_notices WHERE id = %s", (n_care['id'],), one=True)
+        self.assertEqual(n_updated['posted_by'], 'Mr. Somenath Halder')
+        self.assertEqual(n_updated['posted_by_role'], 'Secretary')
+
+        # 5. Post Notice with Custom Signatory
+        res_custom = self.client.post('/notices/create', data={
+            'title': 'Durga Puja Cultural Program Auditions',
+            'content': 'Children auditions will begin at Community Hall from 5 PM.',
+            'category': 'EVENTS_FESTIVAL',
+            'priority': 'NORMAL',
+            'caller_role': 'Custom',
+            'posted_by': 'Durga Puja Sub-Committee',
+            'posted_by_role': 'Cultural Convenor',
+            'is_pinned': '0',
+            'do_broadcast': '0',
+            'do_whatsapp': '0'
+        }, follow_redirects=True)
+        self.assertEqual(res_custom.status_code, 200)
+        n_custom = query_db("SELECT * FROM tbl_notices WHERE title = %s", ('Durga Puja Cultural Program Auditions',), one=True)
+        self.assertIsNotNone(n_custom)
+        self.assertEqual(n_custom['posted_by'], 'Durga Puja Sub-Committee')
+        self.assertEqual(n_custom['posted_by_role'], 'Cultural Convenor')
+        print("[PASS] Test 4: Calling authority selection (Treasurer, President, Secretary, Caretaker, Custom) verified.")
+
 if __name__ == '__main__':
     unittest.main()

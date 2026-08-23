@@ -2115,13 +2115,30 @@ def notices_create():
     is_pinned = 1 if request.form.get('is_pinned') == '1' else 0
     do_broadcast = (request.form.get('do_broadcast') == '1')
     do_whatsapp = (request.form.get('do_whatsapp') == '1')
-    
     if not title or not content:
         flash('Please provide both a Title and Content for the notice.', 'danger')
         return redirect(url_for('notices_list'))
-        
-    posted_by = user.get('name') or user.get('username') or 'Executive Committee'
-    posted_by_role = user.get('role', 'Committee Official').replace('_', ' ').title()
+
+    caller_role = request.form.get('caller_role', '').strip()
+    custom_posted_by = request.form.get('posted_by', '').strip()
+    custom_posted_by_role = request.form.get('posted_by_role', '').strip()
+
+    official_presets = {
+        'Treasurer': ('Mr. Swapnadeep Ganguly', 'Treasurer'),
+        'President': ('Dr. Asit Kumar Bera', 'President'),
+        'Secretary': ('Mr. Somenath Halder', 'Secretary'),
+        'Caretaker': ('Mr. Sanjoy Chakraborty', 'Caretaker'),
+        'Executive Committee': ('Executive Committee', 'Executive Committee')
+    }
+
+    if caller_role in official_presets and not custom_posted_by:
+        posted_by, posted_by_role = official_presets[caller_role]
+    elif custom_posted_by:
+        posted_by = custom_posted_by
+        posted_by_role = custom_posted_by_role or caller_role or 'Committee Official'
+    else:
+        posted_by = user.get('name') or user.get('username') or 'Executive Committee'
+        posted_by_role = caller_role or user.get('role', 'Committee Official').replace('_', ' ').title()
     
     try:
         notice_id = execute_db(
@@ -2151,8 +2168,8 @@ def notices_create():
             log_whatsapp_dispatch('ALL_RESIDENTS', 'Broadcast / Society Group', title, 'NOTICE_BROADCAST', wa_text, 'LINK_GENERATED', sent_by=posted_by)
             broadcast_msg += " • WhatsApp Broadcast draft created."
             
-        log_activity('NOTICE_PUBLISHED', f"Published official notice #{notice_id}: '{title}' ({category} / {priority})")
-        flash(f"📢 Official notice '{title}' published successfully!{broadcast_msg}", 'success')
+        log_activity('NOTICE_PUBLISHED', f"Published official notice #{notice_id}: '{title}' by {posted_by} ({posted_by_role})")
+        flash(f"📢 Official notice '{title}' published by {posted_by} ({posted_by_role}) successfully!{broadcast_msg}", 'success')
     except Exception as e:
         flash(f"Error publishing notice: {e}", 'danger')
         
@@ -2168,17 +2185,47 @@ def notices_edit(notice_id):
     status = request.form.get('status', 'ACTIVE').strip().upper()
     is_pinned = 1 if request.form.get('is_pinned') == '1' else 0
     
+    caller_role = request.form.get('caller_role', '').strip()
+    custom_posted_by = request.form.get('posted_by', '').strip()
+    custom_posted_by_role = request.form.get('posted_by_role', '').strip()
+
+    official_presets = {
+        'Treasurer': ('Mr. Swapnadeep Ganguly', 'Treasurer'),
+        'President': ('Dr. Asit Kumar Bera', 'President'),
+        'Secretary': ('Mr. Somenath Halder', 'Secretary'),
+        'Caretaker': ('Mr. Sanjoy Chakraborty', 'Caretaker'),
+        'Executive Committee': ('Executive Committee', 'Executive Committee')
+    }
+
+    if caller_role in official_presets and not custom_posted_by:
+        posted_by, posted_by_role = official_presets[caller_role]
+    elif custom_posted_by:
+        posted_by = custom_posted_by
+        posted_by_role = custom_posted_by_role or caller_role or 'Committee Official'
+    else:
+        posted_by = None
+        posted_by_role = None
+
     if not title or not content:
         flash('Please provide both a Title and Content for the notice.', 'danger')
         return redirect(url_for('notices_list'))
         
     try:
-        execute_db(
-            """UPDATE tbl_notices 
-               SET title = %s, content = %s, category = %s, priority = %s, is_pinned = %s, status = %s, updated_at = CURRENT_TIMESTAMP
-               WHERE id = %s""",
-            (title, content, category, priority, is_pinned, status, notice_id)
-        )
+        if posted_by and posted_by_role:
+            execute_db(
+                """UPDATE tbl_notices 
+                   SET title = %s, content = %s, category = %s, priority = %s, is_pinned = %s, status = %s,
+                       posted_by = %s, posted_by_role = %s, updated_at = CURRENT_TIMESTAMP
+                   WHERE id = %s""",
+                (title, content, category, priority, is_pinned, status, posted_by, posted_by_role, notice_id)
+            )
+        else:
+            execute_db(
+                """UPDATE tbl_notices 
+                   SET title = %s, content = %s, category = %s, priority = %s, is_pinned = %s, status = %s, updated_at = CURRENT_TIMESTAMP
+                   WHERE id = %s""",
+                (title, content, category, priority, is_pinned, status, notice_id)
+            )
         log_activity('NOTICE_UPDATED', f"Updated official notice #{notice_id}: '{title}'")
         flash(f"Notice #{notice_id} updated successfully.", 'success')
     except Exception as e:
