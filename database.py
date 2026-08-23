@@ -280,7 +280,8 @@ SEED_NOTICES = [
         "URGENT",
         1,
         "Somenath Halder",
-        "Secretary"
+        "Secretary",
+        None
     ),
     (
         "Notification: 18th Annual General Meeting (AGM 2026)",
@@ -289,7 +290,8 @@ SEED_NOTICES = [
         "HIGH",
         1,
         "Dr. Asit Kumar Bera",
-        "President"
+        "President",
+        "AGM"
     ),
     (
         "Schindler Lift AMC Bi-Monthly Lubrication & Safety Check",
@@ -298,7 +300,8 @@ SEED_NOTICES = [
         "NORMAL",
         0,
         "Swapnadeep Ganguly",
-        "Treasurer"
+        "Treasurer",
+        None
     ),
     (
         "Sharodotsav / Durga Puja 2026 Cultural Sub-Committee Formation",
@@ -307,7 +310,8 @@ SEED_NOTICES = [
         "NORMAL",
         0,
         "Somenath Halder",
-        "Secretary"
+        "Secretary",
+        None
     ),
     (
         "Updated Security Protocols & Caretaker Intercom Extensions",
@@ -316,12 +320,13 @@ SEED_NOTICES = [
         "NORMAL",
         0,
         "Sanjoy Chakraborty",
-        "Caretaker"
+        "Caretaker",
+        None
     )
 ]
 
 def ensure_notices_table_sqlite():
-    """Ensure tbl_notices table, seed notices, and name updates exist in SQLite."""
+    """Ensure tbl_notices table, seed notices, meeting_type column, and name updates exist in SQLite."""
     conn = get_sqlite_connection()
     try:
         cur = conn.cursor()
@@ -331,6 +336,7 @@ def ensure_notices_table_sqlite():
                 title VARCHAR(255) NOT NULL,
                 content TEXT NOT NULL,
                 category VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
+                meeting_type VARCHAR(50) DEFAULT NULL,
                 priority VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
                 is_pinned INTEGER NOT NULL DEFAULT 0,
                 posted_by VARCHAR(100) NOT NULL,
@@ -340,6 +346,15 @@ def ensure_notices_table_sqlite():
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
+
+        # Migration: Ensure meeting_type column exists
+        try:
+            cur.execute("PRAGMA table_info(tbl_notices);")
+            cols = [col[1] for col in cur.fetchall()]
+            if 'meeting_type' not in cols:
+                cur.execute("ALTER TABLE tbl_notices ADD COLUMN meeting_type VARCHAR(50) DEFAULT NULL;")
+        except Exception:
+            pass
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS tbl_activity_logs (
@@ -395,20 +410,26 @@ def ensure_notices_table_sqlite():
         cur.execute("SELECT COUNT(*) FROM tbl_notices;")
         count = cur.fetchone()[0]
         if count == 0:
-            for title, content, cat, prio, pinned, by_name, by_role in SEED_NOTICES:
+            for item in SEED_NOTICES:
+                if len(item) == 8:
+                    title, content, cat, prio, pinned, by_name, by_role, m_type = item
+                else:
+                    title, content, cat, prio, pinned, by_name, by_role = item[:7]
+                    m_type = 'AGM' if cat == 'AGM_MEETING' else None
                 cur.execute("""
-                    INSERT INTO tbl_notices (title, content, category, priority, is_pinned, posted_by, posted_by_role, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE');
-                """, (title, content, cat, prio, pinned, by_name, by_role))
+                    INSERT INTO tbl_notices (title, content, category, meeting_type, priority, is_pinned, posted_by, posted_by_role, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE');
+                """, (title, content, cat, m_type, prio, pinned, by_name, by_role))
             print(f"[DB Init] Seeded {len(SEED_NOTICES)} initial digital notices in SQLite.")
         else:
-            # Update existing records with verified committee names
+            # Update existing records with verified committee names & meeting_types
             cur.execute("UPDATE tbl_notices SET posted_by = 'Somenath Halder' WHERE posted_by = 'Debasish Roy';")
             cur.execute("UPDATE tbl_notices SET posted_by = 'Dr. Asit Kumar Bera' WHERE posted_by = 'Subhashish Mukherjee';")
             cur.execute("UPDATE tbl_notices SET posted_by = 'Sanjoy Chakraborty' WHERE posted_by = 'Bikas Mondal';")
             cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Debasish Roy', 'Somenath Halder');")
             cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Subhashish Mukherjee', 'Dr. Asit Kumar Bera');")
             cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Bikas Mondal', 'Sanjoy Chakraborty');")
+            cur.execute("UPDATE tbl_notices SET meeting_type = 'AGM' WHERE category = 'AGM_MEETING' AND (meeting_type IS NULL OR meeting_type = '');")
             
         # Ensure password hashes in SQLite are valid
         sdera_h = hash_password('sdera@123')
@@ -443,7 +464,7 @@ def ensure_notices_table_sqlite():
         conn.close()
 
 def ensure_notices_table_mysql(conn):
-    """Ensure tbl_notices table, seed notices, and name updates exist in MySQL."""
+    """Ensure tbl_notices table, seed notices, meeting_type column, and name updates exist in MySQL."""
     with conn.cursor() as cur:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS tbl_notices (
@@ -451,6 +472,7 @@ def ensure_notices_table_mysql(conn):
                 title VARCHAR(255) NOT NULL,
                 content TEXT NOT NULL,
                 category VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
+                meeting_type VARCHAR(50) DEFAULT NULL,
                 priority VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
                 is_pinned TINYINT(1) NOT NULL DEFAULT 0,
                 posted_by VARCHAR(100) NOT NULL,
@@ -459,28 +481,45 @@ def ensure_notices_table_mysql(conn):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_category (category),
+                INDEX idx_meeting_type (meeting_type),
                 INDEX idx_priority (priority),
                 INDEX idx_is_pinned (is_pinned),
                 INDEX idx_status (status)
             ) ENGINE=InnoDB;
         """)
+
+        # Migration: Ensure meeting_type column exists
+        try:
+            cur.execute("SHOW COLUMNS FROM tbl_notices LIKE 'meeting_type';")
+            if not cur.fetchone():
+                cur.execute("ALTER TABLE tbl_notices ADD COLUMN meeting_type VARCHAR(50) DEFAULT NULL AFTER category;")
+                cur.execute("ALTER TABLE tbl_notices ADD INDEX idx_meeting_type (meeting_type);")
+        except Exception:
+            pass
+
         cur.execute("SELECT COUNT(*) as cnt FROM tbl_notices;")
         row = cur.fetchone()
         count = row['cnt'] if isinstance(row, dict) else row[0]
         if count == 0:
-            for title, content, cat, prio, pinned, by_name, by_role in SEED_NOTICES:
+            for item in SEED_NOTICES:
+                if len(item) == 8:
+                    title, content, cat, prio, pinned, by_name, by_role, m_type = item
+                else:
+                    title, content, cat, prio, pinned, by_name, by_role = item[:7]
+                    m_type = 'AGM' if cat == 'AGM_MEETING' else None
                 cur.execute("""
-                    INSERT INTO tbl_notices (title, content, category, priority, is_pinned, posted_by, posted_by_role, status)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE');
-                """, (title, content, cat, prio, pinned, by_name, by_role))
+                    INSERT INTO tbl_notices (title, content, category, meeting_type, priority, is_pinned, posted_by, posted_by_role, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ACTIVE');
+                """, (title, content, cat, m_type, prio, pinned, by_name, by_role))
             print(f"[DB Init] Seeded {len(SEED_NOTICES)} initial digital notices in MySQL.")
         else:
-            # Update existing records with verified committee names
+            # Update existing records with verified committee names & meeting_types
             cur.execute("UPDATE tbl_notices SET posted_by = 'Somenath Halder' WHERE posted_by = 'Debasish Roy';")
             cur.execute("UPDATE tbl_notices SET posted_by = 'Dr. Asit Kumar Bera' WHERE posted_by = 'Subhashish Mukherjee';")
             cur.execute("UPDATE tbl_notices SET posted_by = 'Sanjoy Chakraborty' WHERE posted_by = 'Bikas Mondal';")
             cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Debasish Roy', 'Somenath Halder');")
             cur.execute("UPDATE tbl_notices SET content = REPLACE(content, 'Subhashish Mukherjee', 'Dr. Asit Kumar Bera');")
+            cur.execute("UPDATE tbl_notices SET meeting_type = 'AGM' WHERE category = 'AGM_MEETING' AND (meeting_type IS NULL OR meeting_type = '');")
         try:
             cur.execute("UPDATE members SET name = 'Somenath Halder' WHERE name = 'Debasish Roy';")
             cur.execute("UPDATE members SET name = 'Dr. Asit Kumar Bera' WHERE name = 'Subhashish Mukherjee';")

@@ -565,6 +565,59 @@ def send_receipt_email(receipt_no, custom_recipient=None):
         }
 
 
+
+def get_notice_email_recipients():
+    """
+    Fetch all verified member email recipients from the official registry (tbl_membership + tbl_mbr_cntct).
+    Returns structured member metadata including flat_no, member_name, emails list, and mobile numbers.
+    """
+    try:
+        rows = query_db("""
+            SELECT m.flat_no, m.member_name, c.email_1, c.email_2, c.mobile_num_1, c.mobile_num_2
+            FROM tbl_membership m
+            LEFT JOIN tbl_mbr_cntct c ON m.flat_no = c.flat_no
+            ORDER BY m.flat_no;
+        """)
+    except Exception:
+        rows = []
+        
+    recipients_data = []
+    unique_emails = []
+    
+    for r in (rows or []):
+        flat_no = r.get('flat_no') or '-'
+        member_name = r.get('member_name') or 'Resident Member'
+        e1 = (r.get('email_1') or '').strip()
+        e2 = (r.get('email_2') or '').strip()
+        mob1 = (r.get('mobile_num_1') or '').strip()
+        mob2 = (r.get('mobile_num_2') or '').strip()
+        
+        flat_emails = []
+        if e1 and '@' in e1:
+            flat_emails.append(e1)
+            if e1 not in unique_emails:
+                unique_emails.append(e1)
+        if e2 and '@' in e2 and e2 != e1:
+            flat_emails.append(e2)
+            if e2 not in unique_emails:
+                unique_emails.append(e2)
+                
+        recipients_data.append({
+            'flat_no': flat_no,
+            'member_name': member_name,
+            'emails': flat_emails,
+            'has_email': len(flat_emails) > 0,
+            'mobile': mob1 or mob2 or '-'
+        })
+        
+    return {
+        'members': recipients_data,
+        'unique_emails': unique_emails,
+        'total_flats': len(recipients_data),
+        'flats_with_email': sum(1 for m in recipients_data if m['has_email']),
+        'total_email_count': len(unique_emails)
+    }
+
 def broadcast_notice_email(notice, author_name=None):
     """
     Broadcast an official association notice to all registered resident email addresses.
@@ -588,6 +641,11 @@ def broadcast_notice_email(notice, author_name=None):
         prio_color = "#f59e0b"
         prio_bg = "#fffbeb"
         prio_label = "⚠️ IMPORTANT NOTICE"
+
+    meeting_type = notice.get('meeting_type')
+    meeting_tag_html = ""
+    if meeting_type:
+        meeting_tag_html = f'<span style="display: inline-block; background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px; margin-left: 6px;">🏛️ Meeting: {meeting_type}</span>'
 
     # Convert line breaks to HTML paragraphs
     formatted_content = "".join(f"<p style='margin: 0 0 12px 0; line-height: 1.6;'>{line.strip()}</p>" for line in content.split('\n') if line.strip())
@@ -629,6 +687,7 @@ def broadcast_notice_email(notice, author_name=None):
                 <div>
                     <span class="prio-badge">{prio_label}</span>
                     <span class="category-tag">📂 {category}</span>
+                    {meeting_tag_html}
                 </div>
                 <h2 class="notice-title">{title}</h2>
                 <div class="notice-card">
@@ -648,25 +707,9 @@ def broadcast_notice_email(notice, author_name=None):
     </html>
     """
 
-    # Fetch recipient emails from tbl_mbr_cntct and tbl_membership
-    recipients = []
-    try:
-        contact_rows = query_db("SELECT email_1, email_2 FROM tbl_mbr_cntct;")
-        for r in (contact_rows or []):
-            if r.get('email_1') and '@' in r['email_1'] and r['email_1'].strip() not in recipients:
-                recipients.append(r['email_1'].strip())
-            if r.get('email_2') and '@' in r['email_2'] and r['email_2'].strip() not in recipients:
-                recipients.append(r['email_2'].strip())
-    except Exception:
-        pass
-
-    try:
-        member_rows = query_db("SELECT email FROM members;") if query_db("SELECT COUNT(*) FROM members;") else []
-        for r in (member_rows or []):
-            if r.get('email') and '@' in r['email'] and r['email'].strip() not in recipients:
-                recipients.append(r['email'].strip())
-    except Exception:
-        pass
+    # Fetch recipient emails exclusively from official registry (tbl_membership + tbl_mbr_cntct)
+    recipient_info = get_notice_email_recipients()
+    recipients = recipient_info['unique_emails']
 
     if not recipients:
         recipients = ["members@southdumdum.org"]

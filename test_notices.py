@@ -219,5 +219,119 @@ class TestDigitalNoticeBoard(unittest.TestCase):
         self.assertEqual(n_custom['posted_by_role'], 'Cultural Convenor')
         print("[PASS] Test 4: Calling authority selection (Treasurer, President, Secretary, Caretaker, Custom) verified.")
 
+    def test_05_meeting_type_subcategories(self):
+        """Verify meeting type subcategory support (AGM, GB, SGB, Governing Body, Custom) in create, edit, filter, and broadcast."""
+        with self.client.session_transaction() as sess:
+            sess['user'] = {
+                'id': 99,
+                'username': 'secretary',
+                'name': 'Somenath Halder',
+                'role': 'secretary',
+                'is_admin': True
+            }
+
+        # 1. Post Notice as Special General Body (SGB)
+        res_sgb = self.client.post('/notices/create', data={
+            'title': 'Special General Body Meeting for Solar Panel Installation',
+            'content': 'Special meeting of all flat owners to discuss rooftop solar panel tenders and capital fund allocation.',
+            'category': 'AGM_MEETING',
+            'meeting_type': 'SGB',
+            'priority': 'HIGH',
+            'caller_role': 'Secretary',
+            'is_pinned': '1',
+            'do_broadcast': '0',
+            'do_whatsapp': '0'
+        }, follow_redirects=True)
+        self.assertEqual(res_sgb.status_code, 200)
+        n_sgb = query_db("SELECT * FROM tbl_notices WHERE title = %s", ('Special General Body Meeting for Solar Panel Installation',), one=True)
+        self.assertIsNotNone(n_sgb)
+        self.assertEqual(n_sgb['category'], 'AGM_MEETING')
+        self.assertEqual(n_sgb['meeting_type'], 'SGB')
+
+        # 2. Post Notice as Governing Body Meeting
+        res_gov = self.client.post('/notices/create', data={
+            'title': 'Q3 Governing Body & Executive Committee Review',
+            'content': 'Quarterly review of security operations, CCTV upgrades, and outstanding maintenance dues.',
+            'category': 'AGM_MEETING',
+            'meeting_type': 'GOVERNING_BODY',
+            'priority': 'NORMAL',
+            'caller_role': 'President',
+            'is_pinned': '0',
+            'do_broadcast': '0',
+            'do_whatsapp': '0'
+        }, follow_redirects=True)
+        self.assertEqual(res_gov.status_code, 200)
+        n_gov = query_db("SELECT * FROM tbl_notices WHERE title = %s", ('Q3 Governing Body & Executive Committee Review',), one=True)
+        self.assertIsNotNone(n_gov)
+        self.assertEqual(n_gov['meeting_type'], 'GOVERNING_BODY')
+
+        # 3. Post Notice with General Body (GB)
+        res_gb = self.client.post('/notices/create', data={
+            'title': 'Half-Yearly General Body (GB) Meeting',
+            'content': 'All members are invited for the half-yearly GB progress report.',
+            'category': 'AGM_MEETING',
+            'meeting_type': 'GB',
+            'priority': 'NORMAL',
+            'caller_role': 'Secretary',
+            'is_pinned': '0',
+            'do_broadcast': '0',
+            'do_whatsapp': '0'
+        }, follow_redirects=True)
+        self.assertEqual(res_gb.status_code, 200)
+        n_gb = query_db("SELECT * FROM tbl_notices WHERE title = %s", ('Half-Yearly General Body (GB) Meeting',), one=True)
+        self.assertIsNotNone(n_gb)
+        self.assertEqual(n_gb['meeting_type'], 'GB')
+
+        # 4. Post Notice with Custom Meeting Type
+        res_custom_mt = self.client.post('/notices/create', data={
+            'title': 'Elevator Modernisation Sub-Committee Meet',
+            'content': 'Review technical specifications submitted by Kone and Otis.',
+            'category': 'AGM_MEETING',
+            'meeting_type': 'CUSTOM',
+            'custom_meeting_type': 'Elevator Sub-Committee',
+            'priority': 'NORMAL',
+            'caller_role': 'Executive Committee',
+            'is_pinned': '0',
+            'do_broadcast': '0',
+            'do_whatsapp': '0'
+        }, follow_redirects=True)
+        self.assertEqual(res_custom_mt.status_code, 200)
+        n_custom_mt = query_db("SELECT * FROM tbl_notices WHERE title = %s", ('Elevator Modernisation Sub-Committee Meet',), one=True)
+        self.assertIsNotNone(n_custom_mt)
+        self.assertEqual(n_custom_mt['meeting_type'], 'Elevator Sub-Committee')
+
+        # 5. Edit Notice to change meeting type from GB to EGM
+        res_edit = self.client.post(f'/notices/{n_gb["id"]}/edit', data={
+            'title': 'Emergency General Meeting (EGM) on Security Breach',
+            'content': 'Urgent EGM called due to security perimeter inspection findings.',
+            'category': 'AGM_MEETING',
+            'meeting_type': 'EGM',
+            'priority': 'URGENT',
+            'status': 'ACTIVE'
+        }, follow_redirects=True)
+        self.assertEqual(res_edit.status_code, 200)
+        n_updated = query_db("SELECT * FROM tbl_notices WHERE id = %s", (n_gb['id'],), one=True)
+        self.assertEqual(n_updated['meeting_type'], 'EGM')
+        self.assertEqual(n_updated['priority'], 'URGENT')
+
+        # 6. Test Filtering by Meeting Type via GET /notices?category=AGM_MEETING&meeting_type=SGB
+        res_filter_sgb = self.client.get('/notices?category=AGM_MEETING&meeting_type=SGB')
+        self.assertEqual(res_filter_sgb.status_code, 200)
+        self.assertIn(b"Special General Body Meeting for Solar Panel Installation", res_filter_sgb.data)
+
+        # 7. Test standalone view page
+        res_view = self.client.get(f'/notices/{n_sgb["id"]}/view')
+        self.assertEqual(res_view.status_code, 200)
+        self.assertIn(b"Meeting: SGB", res_view.data)
+
+        # 8. Test WhatsApp Preview API containing meeting type
+        res_wa = self.client.get(f'/api/whatsapp/preview?type=notice&id={n_sgb["id"]}')
+        self.assertEqual(res_wa.status_code, 200)
+        wa_data = res_wa.get_json()
+        self.assertTrue(wa_data['success'])
+        self.assertIn("*Meeting Type:* SGB", wa_data['message_text'])
+
+        print("[PASS] Test 5: Meeting type sub-categories (AGM, GB, SGB, Governing Body, EGM, Custom) in create, edit, filter, and broadcast verified.")
+
 if __name__ == '__main__':
     unittest.main()

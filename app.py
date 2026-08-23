@@ -8,7 +8,7 @@ from decimal import Decimal
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort, Response
 from config import Config
 from database import init_db, query_db, execute_db, verify_password, hash_password, determine_engine
-from email_service import send_receipt_email, broadcast_notice_email
+from email_service import send_receipt_email, broadcast_notice_email, get_notice_email_recipients
 from pdf_service import generate_receipt_pdf_bytes
 from whatsapp_service import (
     normalize_whatsapp_phone,
@@ -2044,6 +2044,17 @@ NOTICE_CATEGORIES = [
     ('EMERGENCY', 'Urgent Alerts', '🚨')
 ]
 
+MEETING_TYPES = [
+    ('AGM', 'Annual General Meeting (AGM)', '🏛️'),
+    ('GB', 'General Body Meeting (GB)', '👥'),
+    ('SGB', 'Special General Body Meeting (SGB)', '📜'),
+    ('GOVERNING_BODY', 'Governing Body Meeting', '🏛️'),
+    ('EGM', 'Extraordinary General Meeting (EGM)', '🚨'),
+    ('MANAGING_COMMITTEE', 'Managing / Executive Committee Meeting', '💼'),
+    ('EMERGENCY', 'Emergency Meeting', '⚡'),
+    ('CUSTOM', 'Custom Meeting Type...', '✍️')
+]
+
 @app.route('/notices')
 @login_required
 def notices_list():
@@ -2051,6 +2062,7 @@ def notices_list():
     is_admin = bool(user.get('is_admin') or user.get('role') in ADMIN_ROLES)
     
     cat_filter = request.args.get('category', 'ALL').strip().upper()
+    meeting_type_filter = request.args.get('meeting_type', 'ALL').strip()
     priority_filter = request.args.get('priority', 'ALL').strip().upper()
     search_q = request.args.get('q', '').strip()
     status_filter = request.args.get('status', 'ACTIVE').strip().upper()
@@ -2065,15 +2077,19 @@ def notices_list():
     if cat_filter != 'ALL':
         query += " AND category = %s"
         params.append(cat_filter)
+
+    if meeting_type_filter != 'ALL' and meeting_type_filter:
+        query += " AND meeting_type = %s"
+        params.append(meeting_type_filter)
         
     if priority_filter != 'ALL':
         query += " AND priority = %s"
         params.append(priority_filter)
         
     if search_q:
-        query += " AND (title LIKE %s OR content LIKE %s OR posted_by LIKE %s)"
+        query += " AND (title LIKE %s OR content LIKE %s OR posted_by LIKE %s OR meeting_type LIKE %s)"
         like_term = f"%{search_q}%"
-        params.extend([like_term, like_term, like_term])
+        params.extend([like_term, like_term, like_term, like_term])
         
     query += " ORDER BY is_pinned DESC, (priority = 'URGENT') DESC, (priority = 'HIGH') DESC, id DESC"
     notices = query_db(query, params)
@@ -2089,20 +2105,33 @@ def notices_list():
 
     # Pinned urgent notices for top marquee / alert cards
     pinned_urgent = [n for n in (notices or []) if n.get('is_pinned') and n.get('priority') == 'URGENT']
+    recipients_info = get_notice_email_recipients() if is_admin else None
 
     return render_template(
         'notices.html',
         notices=notices,
         categories=NOTICE_CATEGORIES,
+        meeting_types=MEETING_TYPES,
         current_category=cat_filter,
+        current_meeting_type=meeting_type_filter,
         current_priority=priority_filter,
         current_status=status_filter,
         search_q=search_q,
         cat_counts=cat_counts,
         pinned_urgent=pinned_urgent,
+        recipients_info=recipients_info,
         is_admin=is_admin,
         now=datetime.now()
     )
+
+@app.route('/api/notices/email-recipients', methods=['GET'])
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def api_notice_email_recipients():
+    info = get_notice_email_recipients()
+    return jsonify({
+        "success": True,
+        "data": info
+    })
 
 @app.route('/notices/create', methods=['POST'])
 @roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
@@ -2115,6 +2144,18 @@ def notices_create():
     is_pinned = 1 if request.form.get('is_pinned') == '1' else 0
     do_broadcast = (request.form.get('do_broadcast') == '1')
     do_whatsapp = (request.form.get('do_whatsapp') == '1')
+
+    # Meeting Type Sub-Category resolution
+    meeting_type_opt = request.form.get('meeting_type', '').strip()
+    custom_meeting_type = request.form.get('custom_meeting_type', '').strip()
+    if category == 'AGM_MEETING':
+        if meeting_type_opt == 'CUSTOM':
+            meeting_type = custom_meeting_type or 'Meeting'
+        else:
+            meeting_type = meeting_type_opt or 'AGM'
+    else:
+        meeting_type = None
+
     if not title or not content:
         flash('Please provide both a Title and Content for the notice.', 'danger')
         return redirect(url_for('notices_list'))
@@ -2142,9 +2183,9 @@ def notices_create():
     
     try:
         notice_id = execute_db(
-            """INSERT INTO tbl_notices (title, content, category, priority, is_pinned, posted_by, posted_by_role, status)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE')""",
-            (title, content, category, priority, is_pinned, posted_by, posted_by_role)
+            """INSERT INTO tbl_notices (title, content, category, meeting_type, priority, is_pinned, posted_by, posted_by_role, status)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ACTIVE')""",
+            (title, content, category, meeting_type, priority, is_pinned, posted_by, posted_by_role)
         )
         
         notice_dict = {
@@ -2152,6 +2193,7 @@ def notices_create():
             'title': title,
             'content': content,
             'category': category,
+            'meeting_type': meeting_type,
             'priority': priority,
             'posted_by': posted_by,
             'posted_by_role': posted_by_role
@@ -2184,6 +2226,17 @@ def notices_edit(notice_id):
     priority = request.form.get('priority', 'NORMAL').strip().upper()
     status = request.form.get('status', 'ACTIVE').strip().upper()
     is_pinned = 1 if request.form.get('is_pinned') == '1' else 0
+
+    # Meeting Type Sub-Category resolution
+    meeting_type_opt = request.form.get('meeting_type', '').strip()
+    custom_meeting_type = request.form.get('custom_meeting_type', '').strip()
+    if category == 'AGM_MEETING':
+        if meeting_type_opt == 'CUSTOM':
+            meeting_type = custom_meeting_type or 'Meeting'
+        else:
+            meeting_type = meeting_type_opt or 'AGM'
+    else:
+        meeting_type = None
     
     caller_role = request.form.get('caller_role', '').strip()
     custom_posted_by = request.form.get('posted_by', '').strip()
@@ -2214,17 +2267,17 @@ def notices_edit(notice_id):
         if posted_by and posted_by_role:
             execute_db(
                 """UPDATE tbl_notices 
-                   SET title = %s, content = %s, category = %s, priority = %s, is_pinned = %s, status = %s,
+                   SET title = %s, content = %s, category = %s, meeting_type = %s, priority = %s, is_pinned = %s, status = %s,
                        posted_by = %s, posted_by_role = %s, updated_at = CURRENT_TIMESTAMP
                    WHERE id = %s""",
-                (title, content, category, priority, is_pinned, status, posted_by, posted_by_role, notice_id)
+                (title, content, category, meeting_type, priority, is_pinned, status, posted_by, posted_by_role, notice_id)
             )
         else:
             execute_db(
                 """UPDATE tbl_notices 
-                   SET title = %s, content = %s, category = %s, priority = %s, is_pinned = %s, status = %s, updated_at = CURRENT_TIMESTAMP
+                   SET title = %s, content = %s, category = %s, meeting_type = %s, priority = %s, is_pinned = %s, status = %s, updated_at = CURRENT_TIMESTAMP
                    WHERE id = %s""",
-                (title, content, category, priority, is_pinned, status, notice_id)
+                (title, content, category, meeting_type, priority, is_pinned, status, notice_id)
             )
         log_activity('NOTICE_UPDATED', f"Updated official notice #{notice_id}: '{title}'")
         flash(f"Notice #{notice_id} updated successfully.", 'success')

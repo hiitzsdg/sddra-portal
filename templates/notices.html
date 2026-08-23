@@ -292,6 +292,45 @@
 .badge-cat-general { background: rgba(100, 116, 139, 0.18); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.35); }
 .badge-cat-financial { background: rgba(34, 197, 94, 0.18); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.35); }
 .badge-cat-emergency { background: rgba(239, 68, 68, 0.22); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.4); }
+.badge-cat-meeting-type { background: rgba(168, 85, 247, 0.25); color: #e9d5ff; border: 1px solid rgba(192, 132, 252, 0.5); font-weight: 700; }
+
+.meeting-subpills-bar {
+    display: flex;
+    gap: 0.45rem;
+    overflow-x: auto;
+    padding: 0.35rem 0.25rem 0.85rem 0.25rem;
+    margin-top: -0.85rem;
+    margin-bottom: 1.25rem;
+    scrollbar-width: thin;
+    align-items: center;
+}
+.meeting-subpill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.85rem;
+    border-radius: var(--radius-pill, 9999px);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    background: rgba(88, 28, 135, 0.25);
+    color: #e9d5ff;
+    transition: all 0.2s ease;
+}
+.meeting-subpill:hover {
+    background: rgba(126, 34, 206, 0.45);
+    color: #ffffff;
+    border-color: #c084fc;
+    transform: translateY(-1px);
+}
+.meeting-subpill.active {
+    background: linear-gradient(135deg, #7e22ce, #9333ea);
+    color: #ffffff;
+    border-color: #a855f7;
+    box-shadow: 0 3px 12px rgba(147, 51, 234, 0.4);
+}
 
 .badge-prio-urgent { background: rgba(239, 68, 68, 0.25); color: #f87171; border: 1px solid #ef4444; font-weight: 700; }
 .badge-prio-high { background: rgba(245, 158, 11, 0.22); color: #fbbf24; border: 1px solid #f59e0b; font-weight: 600; }
@@ -367,6 +406,11 @@
     </div>
 
     <div class="page-header-actions no-print">
+        {% if is_admin and recipients_info %}
+        <button type="button" class="btn btn-outline-primary" onclick="openModal('emailRecipientsModal')" title="View All Verified Member Email Recipients for Notice Broadcasts">
+            👥 Email Recipients <span class="badge badge-info" style="margin-left: 0.35rem; font-size: 0.75rem;">{{ recipients_info.flats_with_email }} Flats / {{ recipients_info.total_email_count }} Inboxes</span>
+        </button>
+        {% endif %}
         <button type="button" class="btn btn-secondary" onclick="window.print()" title="Print Notice Board">
             🖨️ Print Circulars
         </button>
@@ -419,10 +463,31 @@
     {% endfor %}
 </div>
 
+{% if current_category == 'AGM_MEETING' %}
+<!-- Meeting Type Sub-Pills Bar (Sub Category under AGM & Meetings) -->
+<div class="meeting-subpills-bar no-print">
+    <span style="font-size: 0.8rem; font-weight: 700; color: #d8b4fe; display: flex; align-items: center; margin-right: 0.35rem;">
+        🏛️ Meeting Type:
+    </span>
+    <a href="{{ url_for('notices_list', category='AGM_MEETING', meeting_type='ALL', priority=current_priority, q=search_q, status=current_status) }}" 
+       class="meeting-subpill {% if not current_meeting_type or current_meeting_type == 'ALL' %}active{% endif %}">
+       All Meeting Types
+    </a>
+    {% for mt_code, mt_label, mt_icon in meeting_types if mt_code != 'CUSTOM' %}
+    <a href="{{ url_for('notices_list', category='AGM_MEETING', meeting_type=mt_code, priority=current_priority, q=search_q, status=current_status) }}" 
+       class="meeting-subpill {% if current_meeting_type == mt_code %}active{% endif %}">
+       <span>{{ mt_icon }}</span>
+       <span>{{ mt_code }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
 <!-- Search & Filter Controls -->
 <div class="card filter-box no-print" style="margin-bottom: 1.75rem; padding: 1.25rem;">
     <form method="GET" action="{{ url_for('notices_list') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
         <input type="hidden" name="category" value="{{ current_category }}">
+        <input type="hidden" name="meeting_type" value="{{ current_meeting_type }}">
         
         <div style="flex: 1; min-width: 250px;">
             <label class="form-label" for="q">Search Notice Content &amp; Titles</label>
@@ -477,6 +542,9 @@
                         <span class="badge badge-cat-maintenance">⚡ Maintenance</span>
                     {% elif n.category == 'AGM_MEETING' %}
                         <span class="badge badge-cat-agm">🏛️ AGM &amp; Meetings</span>
+                        {% if n.meeting_type %}
+                            <span class="badge badge-cat-meeting-type" title="Meeting Type: {{ n.meeting_type }}">🏛️ {{ n.meeting_type }}</span>
+                        {% endif %}
                     {% elif n.category == 'EVENTS_FESTIVAL' %}
                         <span class="badge badge-cat-events">🎉 Events &amp; Festival</span>
                     {% elif n.category == 'SECURITY' %}
@@ -626,9 +694,10 @@
             </div>
 
             <!-- Priority & Category Tag -->
-            <div style="margin-bottom: 14px;">
+            <div style="margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
                 <span id="docPrioBadge" class="badge badge-prio-normal">📢 CIRCULAR</span>
-                <span id="docCatBadge" class="badge" style="background: #e2e8f0; color: #334155; margin-left: 6px;">Category</span>
+                <span id="docCatBadge" class="badge" style="background: #e2e8f0; color: #334155;">Category</span>
+                <span id="docMeetingBadge" class="badge" style="display: none; background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd;">Meeting Type</span>
             </div>
 
             <!-- Notice Headline -->
@@ -675,7 +744,7 @@
             <div class="grid-2" style="margin-bottom: 1.25rem; gap: 1rem;">
                 <div>
                     <label class="form-label" for="new_category">Category *</label>
-                    <select id="new_category" name="category" class="form-select" required>
+                    <select id="new_category" name="category" class="form-select" onchange="onNoticeCategoryChange('new')" required>
                         <option value="GENERAL">📄 General Circular</option>
                         <option value="MAINTENANCE">⚡ Maintenance &amp; Repairs</option>
                         <option value="WATER_SUPPLY">💧 Water &amp; Utilities</option>
@@ -694,6 +763,33 @@
                         <option value="HIGH">⚠️ High Priority</option>
                         <option value="URGENT">🚨 URGENT (Emergency Alert)</option>
                     </select>
+                </div>
+            </div>
+
+            <!-- Meeting Type Sub-Category (Displayed when Category is AGM & Meetings) -->
+            <div id="new_meeting_type_wrap" style="display: none; margin-bottom: 1.25rem; background: rgba(168, 85, 247, 0.08); padding: 0.95rem 1rem; border-radius: var(--radius-md); border: 1px solid rgba(168, 85, 247, 0.35);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <label class="form-label" for="new_meeting_type" style="margin: 0; color: #d8b4fe; font-weight: 700; font-size: 0.9rem;">
+                        🏛️ Meeting Type Sub-Category *
+                    </label>
+                    <span style="font-size: 0.76rem; color: #c084fc;">Placeholder sub-category</span>
+                </div>
+                <div class="grid-2" style="gap: 0.75rem;">
+                    <div>
+                        <select id="new_meeting_type" name="meeting_type" class="form-select" onchange="onNoticeMeetingTypeChange('new')">
+                            <option value="AGM" selected>🏛️ Annual General Meeting (AGM)</option>
+                            <option value="GB">👥 General Body Meeting (GB)</option>
+                            <option value="SGB">📜 Special General Body Meeting (SGB)</option>
+                            <option value="GOVERNING_BODY">🏛️ Governing Body Meeting</option>
+                            <option value="EGM">🚨 Extraordinary General Meeting (EGM)</option>
+                            <option value="MANAGING_COMMITTEE">💼 Managing / Executive Committee Meeting</option>
+                            <option value="EMERGENCY">⚡ Emergency Meeting</option>
+                            <option value="CUSTOM">✍️ Custom Meeting Type...</option>
+                        </select>
+                    </div>
+                    <div id="new_custom_meeting_wrap" style="display: none;">
+                        <input type="text" id="new_custom_meeting_type" name="custom_meeting_type" class="form-control" placeholder="e.g. Ad-hoc Building Committee">
+                    </div>
                 </div>
             </div>
 
@@ -764,7 +860,7 @@
             <div class="grid-2" style="margin-bottom: 1.25rem; gap: 1rem;">
                 <div>
                     <label class="form-label" for="edit_category">Category *</label>
-                    <select id="edit_category" name="category" class="form-select" required>
+                    <select id="edit_category" name="category" class="form-select" onchange="onNoticeCategoryChange('edit')" required>
                         <option value="GENERAL">📄 General Circular</option>
                         <option value="MAINTENANCE">⚡ Maintenance &amp; Repairs</option>
                         <option value="WATER_SUPPLY">💧 Water &amp; Utilities</option>
@@ -783,6 +879,33 @@
                         <option value="HIGH">⚠️ High Priority</option>
                         <option value="URGENT">🚨 URGENT (Emergency Alert)</option>
                     </select>
+                </div>
+            </div>
+
+            <!-- Meeting Type Sub-Category in Edit Modal -->
+            <div id="edit_meeting_type_wrap" style="display: none; margin-bottom: 1.25rem; background: rgba(168, 85, 247, 0.08); padding: 0.95rem 1rem; border-radius: var(--radius-md); border: 1px solid rgba(168, 85, 247, 0.35);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <label class="form-label" for="edit_meeting_type" style="margin: 0; color: #d8b4fe; font-weight: 700; font-size: 0.9rem;">
+                        🏛️ Meeting Type Sub-Category *
+                    </label>
+                    <span style="font-size: 0.76rem; color: #c084fc;">Placeholder sub-category</span>
+                </div>
+                <div class="grid-2" style="gap: 0.75rem;">
+                    <div>
+                        <select id="edit_meeting_type" name="meeting_type" class="form-select" onchange="onNoticeMeetingTypeChange('edit')">
+                            <option value="AGM">🏛️ Annual General Meeting (AGM)</option>
+                            <option value="GB">👥 General Body Meeting (GB)</option>
+                            <option value="SGB">📜 Special General Body Meeting (SGB)</option>
+                            <option value="GOVERNING_BODY">🏛️ Governing Body Meeting</option>
+                            <option value="EGM">🚨 Extraordinary General Meeting (EGM)</option>
+                            <option value="MANAGING_COMMITTEE">💼 Managing / Executive Committee Meeting</option>
+                            <option value="EMERGENCY">⚡ Emergency Meeting</option>
+                            <option value="CUSTOM">✍️ Custom Meeting Type...</option>
+                        </select>
+                    </div>
+                    <div id="edit_custom_meeting_wrap" style="display: none;">
+                        <input type="text" id="edit_custom_meeting_type" name="custom_meeting_type" class="form-control" placeholder="e.g. Ad-hoc Building Committee">
+                    </div>
                 </div>
             </div>
 
@@ -856,6 +979,22 @@ function onNoticeCallerChange(prefix) {
     }
 }
 
+function onNoticeCategoryChange(prefix) {
+    var cat = document.getElementById(prefix + '_category');
+    var wrap = document.getElementById(prefix + '_meeting_type_wrap');
+    if (cat && wrap) {
+        wrap.style.display = (cat.value === 'AGM_MEETING') ? 'block' : 'none';
+    }
+}
+
+function onNoticeMeetingTypeChange(prefix) {
+    var sel = document.getElementById(prefix + '_meeting_type');
+    var wrap = document.getElementById(prefix + '_custom_meeting_wrap');
+    if (sel && wrap) {
+        wrap.style.display = (sel.value === 'CUSTOM') ? 'block' : 'none';
+    }
+}
+
 function openEditModal(notice) {
     var form = document.getElementById('editNoticeForm');
     form.action = '/notices/' + notice.id + '/edit';
@@ -865,6 +1004,28 @@ function openEditModal(notice) {
     document.getElementById('edit_status').value = notice.status || 'ACTIVE';
     document.getElementById('edit_content').value = notice.content || '';
     document.getElementById('edit_is_pinned').checked = (notice.is_pinned == 1);
+
+    // Dynamic category and meeting type
+    onNoticeCategoryChange('edit');
+    var mtSelect = document.getElementById('edit_meeting_type');
+    var customMtWrap = document.getElementById('edit_custom_meeting_wrap');
+    var customMtInput = document.getElementById('edit_custom_meeting_type');
+    var mtVal = notice.meeting_type || '';
+
+    var standardMeetingTypes = ['AGM', 'GB', 'SGB', 'GOVERNING_BODY', 'EGM', 'MANAGING_COMMITTEE', 'EMERGENCY'];
+    if (standardMeetingTypes.includes(mtVal)) {
+        if (mtSelect) mtSelect.value = mtVal;
+        if (customMtWrap) customMtWrap.style.display = 'none';
+        if (customMtInput) customMtInput.value = '';
+    } else if (mtVal) {
+        if (mtSelect) mtSelect.value = 'CUSTOM';
+        if (customMtWrap) customMtWrap.style.display = 'block';
+        if (customMtInput) customMtInput.value = mtVal;
+    } else {
+        if (mtSelect) mtSelect.value = 'AGM';
+        if (customMtWrap) customMtWrap.style.display = 'none';
+        if (customMtInput) customMtInput.value = '';
+    }
 
     // Populate caller role
     var roleSelect = document.getElementById('edit_caller_role');
@@ -920,6 +1081,16 @@ function openViewDocModal(notice) {
 
     var catBadge = document.getElementById('docCatBadge');
     catBadge.innerText = '📂 ' + (notice.category || 'GENERAL').replace('_', ' ');
+
+    var mtBadge = document.getElementById('docMeetingBadge');
+    if (notice.meeting_type) {
+        if (mtBadge) {
+            mtBadge.style.display = 'inline-block';
+            mtBadge.innerText = '🏛️ Meeting: ' + notice.meeting_type;
+        }
+    } else {
+        if (mtBadge) mtBadge.style.display = 'none';
+    }
 
     openModal('viewDocModal');
 }
@@ -1061,4 +1232,105 @@ window.launchNoticeWhatsAppBroadcast = function() {
         </div>
     </div>
 </div>
+
+{% if is_admin and recipients_info %}
+<!-- Verified Notice Email Broadcast Recipients Directory Modal -->
+<div id="emailRecipientsModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 780px;">
+        <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span style="font-size: 1.5rem;">📬</span>
+                <div>
+                    <h3 class="card-title" style="margin: 0; font-size: 1.15rem;">Notice Broadcast Email Recipients Registry</h3>
+                    <span class="text-secondary" style="font-size: 0.82rem;">Official registry of verified flat residents who receive broadcast notices.</span>
+                </div>
+            </div>
+            <button type="button" class="close-btn" onclick="closeModal('emailRecipientsModal')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.25rem;">
+            <!-- Summary Stats Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;">
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-md); padding: 0.85rem; text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #10b981;">{{ recipients_info.flats_with_email }} <span style="font-size: 0.85rem; color: var(--text-muted);">/ {{ recipients_info.total_flats }}</span></div>
+                    <div style="font-size: 0.78rem; color: var(--text-secondary);">Flats with Active Email</div>
+                </div>
+                <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); padding: 0.85rem; text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #3b82f6;">{{ recipients_info.total_email_count }}</div>
+                    <div style="font-size: 0.78rem; color: var(--text-secondary);">Unique Recipient Inboxes</div>
+                </div>
+                <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-md); padding: 0.85rem; text-align: center;">
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #f59e0b;">{{ recipients_info.total_flats - recipients_info.flats_with_email }}</div>
+                    <div style="font-size: 0.78rem; color: var(--text-secondary);">Flats Pending Email Entry</div>
+                </div>
+            </div>
+
+            <!-- Search box -->
+            <div style="margin-bottom: 1rem;">
+                <input type="text" id="recipientSearchInput" class="form-control" placeholder="🔍 Search member name, flat (e.g. A/4-C), or email address..." oninput="filterRecipientsTable()">
+            </div>
+
+            <!-- Recipients Table -->
+            <div style="max-height: 380px; overflow-y: auto; border: 1px solid var(--surface-border); border-radius: var(--radius-md);">
+                <table class="custom-table" id="recipientsTable" style="margin: 0; font-size: 0.84rem;">
+                    <thead>
+                        <tr style="position: sticky; top: 0; background: var(--surface-card); z-index: 2;">
+                            <th style="padding: 0.6rem 0.8rem;">Flat</th>
+                            <th style="padding: 0.6rem 0.8rem;">Resident Member</th>
+                            <th style="padding: 0.6rem 0.8rem;">Broadcast Email Address(es)</th>
+                            <th style="padding: 0.6rem 0.8rem;">Contact</th>
+                            <th style="padding: 0.6rem 0.8rem;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in recipients_info.members %}
+                        <tr class="recipient-row" data-flat="{{ m.flat_no|lower }}" data-name="{{ m.member_name|lower }}" data-emails="{{ m.emails|join(' ')|lower }}">
+                            <td style="font-weight: 700; color: var(--text-main);">{{ m.flat_no }}</td>
+                            <td>{{ m.member_name }}</td>
+                            <td>
+                                {% if m.emails %}
+                                    {% for e in m.emails %}
+                                    <div style="font-family: monospace; font-size: 0.8rem; color: var(--text-highlight-blue);"><a href="mailto:{{ e }}" style="color: inherit; text-decoration: none;">✉️ {{ e }}</a></div>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted" style="font-style: italic;">No email recorded</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted">{{ m.mobile }}</td>
+                            <td>
+                                {% if m.has_email %}
+                                    <span class="badge badge-success" style="font-size: 0.72rem;">✓ Active</span>
+                                {% else %}
+                                    <span class="badge badge-secondary" style="font-size: 0.72rem;">⚠️ Missing</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('emailRecipientsModal')">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterRecipientsTable() {
+    var q = (document.getElementById('recipientSearchInput')?.value || '').toLowerCase().trim();
+    var rows = document.querySelectorAll('#recipientsTable .recipient-row');
+    rows.forEach(function(row) {
+        var flat = row.getAttribute('data-flat') || '';
+        var name = row.getAttribute('data-name') || '';
+        var emails = row.getAttribute('data-emails') || '';
+        if (!q || flat.includes(q) || name.includes(q) || emails.includes(q)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endif %}
 {% endblock %}

@@ -224,7 +224,7 @@
         </div>
 
         <!-- Category & Priority Tag -->
-        <div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
             {% if notice.priority == 'URGENT' %}
             <span class="badge badge-urgent">🚨 URGENT NOTICE</span>
             {% elif notice.priority == 'HIGH' %}
@@ -232,9 +232,14 @@
             {% else %}
             <span class="badge badge-normal">📢 OFFICIAL CIRCULAR</span>
             {% endif %}
-            <span class="badge" style="background: #f1f5f9; color: #334155; margin-left: 6px; border: 1px solid #cbd5e1;">
+            <span class="badge" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;">
                 📂 {{ notice.category.replace('_', ' ').title() }}
             </span>
+            {% if notice.meeting_type %}
+            <span class="badge" style="background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd;">
+                🏛️ Meeting: {{ notice.meeting_type }}
+            </span>
+            {% endif %}
         </div>
 
         <!-- Title -->

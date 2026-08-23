@@ -63,13 +63,19 @@
         <div style="background: rgba(0, 0, 0, 0.28); border: 1px solid {% if n.priority == 'URGENT' %}rgba(239, 68, 68, 0.45){% elif n.priority == 'HIGH' %}rgba(245, 158, 11, 0.35){% else %}rgba(255, 255, 255, 0.08){% endif %}; border-radius: var(--radius-md, 12px); padding: 1.15rem; display: flex; flex-direction: column; justify-content: space-between;">
             <div>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                    {% if n.priority == 'URGENT' %}
-                    <span class="badge" style="background: rgba(239, 68, 68, 0.25); color: #f87171; border: 1px solid #ef4444; font-size: 0.72rem; font-weight: 700;">🚨 URGENT</span>
-                    {% elif n.priority == 'HIGH' %}
-                    <span class="badge" style="background: rgba(245, 158, 11, 0.25); color: #fbbf24; border: 1px solid #f59e0b; font-size: 0.72rem; font-weight: 600;">⚠️ HIGH</span>
-                    {% else %}
-                    <span class="badge" style="background: rgba(59, 130, 246, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); font-size: 0.72rem;">📢 CIRCULAR</span>
-                    {% endif %}
+                    <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
+                        {% if n.priority == 'URGENT' %}
+                        <span class="badge" style="background: rgba(239, 68, 68, 0.25); color: #f87171; border: 1px solid #ef4444; font-size: 0.72rem; font-weight: 700;">🚨 URGENT</span>
+                        {% elif n.priority == 'HIGH' %}
+                        <span class="badge" style="background: rgba(245, 158, 11, 0.25); color: #fbbf24; border: 1px solid #f59e0b; font-size: 0.72rem; font-weight: 600;">⚠️ HIGH</span>
+                        {% else %}
+                        <span class="badge" style="background: rgba(59, 130, 246, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); font-size: 0.72rem;">📢 CIRCULAR</span>
+                        {% endif %}
+
+                        {% if n.meeting_type %}
+                        <span class="badge" style="background: rgba(168, 85, 247, 0.22); color: #d8b4fe; border: 1px solid rgba(192, 132, 252, 0.4); font-size: 0.72rem; font-weight: 600;">🏛️ {{ n.meeting_type }}</span>
+                        {% endif %}
+                    </div>
 
                     {% if n.is_pinned %}
                     <span style="font-size: 0.75rem; color: #fbbf24; font-weight: 600;">📌 Pinned</span>

@@ -185,12 +185,16 @@ def format_notice_whatsapp_message(notice, base_url=""):
     else:
         content_preview = content_clean
 
+    meeting_type = notice.get('meeting_type')
+    meeting_line = f"*Meeting Type:* {meeting_type}\n" if meeting_type else ""
+
     msg = (
         f"*{Config.ASSOCIATION_NAME}*\n"
         f"{prio_header}\n"
         f"{divider}\n"
         f"*Title:* {title}\n"
         f"*Category:* {category} | *Date:* {date_str}\n"
+        f"{meeting_line}"
         f"*Issued By:* {posted_by} ({posted_by_role})\n"
         f"{divider}\n"
         f"{content_preview}\n\n"

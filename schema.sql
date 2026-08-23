@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS tbl_notices (
     title VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
     category VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
+    meeting_type VARCHAR(50) DEFAULT NULL,
     priority VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
     is_pinned TINYINT(1) NOT NULL DEFAULT 0,
     posted_by VARCHAR(100) NOT NULL,
@@ -90,6 +91,7 @@ CREATE TABLE IF NOT EXISTS tbl_notices (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_category (category),
+    INDEX idx_meeting_type (meeting_type),
     INDEX idx_priority (priority),
     INDEX idx_is_pinned (is_pinned),
     INDEX idx_status (status)
