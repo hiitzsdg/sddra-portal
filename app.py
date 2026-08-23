@@ -60,6 +60,12 @@ except Exception as _e:
 ADMIN_ROLES = {'super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker'}
 EXECUTIVE_ROLES = {'super_admin', 'billing_admin', 'president', 'secretary', 'treasurer'}
 
+def get_app_base_url():
+    """Retrieve canonical absolute base URL, supporting Vercel HTTPS reverse proxy."""
+    proto = request.headers.get('X-Forwarded-Proto', request.scheme or 'https')
+    host = request.headers.get('X-Forwarded-Host', request.host)
+    return f"{proto}://{host}".rstrip('/')
+
 @app.context_processor
 def inject_globals():
     user = session.get('user')
@@ -933,7 +939,7 @@ def whatsapp_receipt(receipt_no):
     if not target_phone and contact_info:
         target_phone = contact_info.get('mobile_num_1') or contact_info.get('mobile_num_2')
         
-    base_url = request.host_url.rstrip('/')
+    base_url = get_app_base_url()
     formatted_msg = format_receipt_whatsapp_message(receipt, member_info, contact_info, base_url=base_url)
     
     sender_name = user.get('name') or user.get('username') or 'Admin'
@@ -1725,7 +1731,7 @@ def admin_whatsapp_penalty_reminder():
             target_date = None
             
     calc = calculate_flat_penalty(flat_no, member=member, target_date=target_date)
-    base_url = request.host_url.rstrip('/')
+    base_url = get_app_base_url()
     formatted_msg = format_dues_reminder_whatsapp_message(calc, contact_info=contact, base_url=base_url)
     
     target_phone = custom_phone
@@ -2077,7 +2083,7 @@ def notices_create():
             broadcast_msg += f" • Email dispatched to {res.get('recipients_count', 'all')} inboxes."
             
         if do_whatsapp:
-            base_url = request.host_url.rstrip('/')
+            base_url = get_app_base_url()
             wa_text = format_notice_whatsapp_message(notice_dict, base_url=base_url)
             log_whatsapp_dispatch('ALL_RESIDENTS', 'Broadcast / Society Group', title, 'NOTICE_BROADCAST', wa_text, 'LINK_GENERATED', sent_by=posted_by)
             broadcast_msg += " • WhatsApp Broadcast draft created."
@@ -2178,7 +2184,7 @@ def notices_whatsapp_broadcast(notice_id):
         flash("Notice not found.", 'danger')
         return redirect(url_for('notices_list'))
         
-    base_url = request.host_url.rstrip('/')
+    base_url = get_app_base_url()
     formatted_msg = format_notice_whatsapp_message(notice, base_url=base_url)
     
     custom_phone = request.args.get('phone') or (request.get_json(silent=True) or {}).get('phone') or request.form.get('phone')
@@ -2214,7 +2220,7 @@ def api_whatsapp_preview():
     item_type = request.args.get('type', '').strip().lower() # 'receipt', 'penalty', 'notice', 'custom'
     item_id = request.args.get('id', '').strip()
     flat_no = request.args.get('flat', '').strip()
-    base_url = request.host_url.rstrip('/')
+    base_url = get_app_base_url()
     
     if item_type == 'receipt' and item_id:
         receipt = query_db("SELECT * FROM tbl_receipts WHERE receipt_no = %s", (item_id,), one=True)
