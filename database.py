@@ -442,6 +442,14 @@ def ensure_notices_table_sqlite():
             except Exception:
                 pass
 
+        # Ensure updated vendor / staff / contractor names in tbl_helpdesk_tickets
+        try:
+            cur.execute("UPDATE tbl_helpdesk_tickets SET assigned_to = 'Das Elevators' WHERE assigned_to LIKE '%OTIS%';")
+            cur.execute("UPDATE tbl_helpdesk_tickets SET assigned_to = 'Plumbing Contractor (Chittaranjan Sahani)' WHERE assigned_to LIKE '%Subhas%' OR assigned_to = 'Plumbing Contractor';")
+            cur.execute("UPDATE tbl_helpdesk_tickets SET assigned_to = 'Sanitation Staff (Sahadev Das)' WHERE assigned_to LIKE '%Ratan%' OR assigned_to = 'Sanitation Staff';")
+        except Exception:
+            pass
+
         cur.execute("SELECT COUNT(*) FROM tbl_activity_logs;")
         act_cnt = cur.fetchone()[0]
         if act_cnt == 0:
@@ -790,6 +798,12 @@ def ensure_mysql_schema(conn):
                 cur.executemany(tkt_sql, tkt_vals)
                 conn.commit()
                 print(f"[DB Init] Seeded {len(tkt_vals)} records into tbl_helpdesk_tickets in MySQL.")
+            else:
+                # Ensure updated vendor / staff / contractor names in tbl_helpdesk_tickets
+                cur.execute("UPDATE tbl_helpdesk_tickets SET assigned_to = 'Das Elevators' WHERE assigned_to LIKE '%OTIS%';")
+                cur.execute("UPDATE tbl_helpdesk_tickets SET assigned_to = 'Plumbing Contractor (Chittaranjan Sahani)' WHERE assigned_to LIKE '%Subhas%' OR assigned_to = 'Plumbing Contractor';")
+                cur.execute("UPDATE tbl_helpdesk_tickets SET assigned_to = 'Sanitation Staff (Sahadev Das)' WHERE assigned_to LIKE '%Ratan%' OR assigned_to = 'Sanitation Staff';")
+                conn.commit()
         except Exception as e_tkt:
             print(f"[DB Warning] Could not seed tbl_helpdesk_tickets: {e_tkt}")
 

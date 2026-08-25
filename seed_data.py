@@ -45,7 +45,7 @@ SEED_HELPDESK_TICKETS = [
         'description': 'Water flow pressure in bathroom pipeline is lower than usual since yesterday morning.',
         'priority': 'Urgent',
         'status': 'ASSIGNED',
-        'assigned_to': 'Plumbing Contractor (Subhas)',
+        'assigned_to': 'Plumbing Contractor (Chittaranjan Sahani)',
         'admin_notes': 'Primary valve line being cleared.',
         'created_at': '2026-08-24 08:30:00',
         'updated_at': '2026-08-24 09:15:00'
@@ -59,7 +59,7 @@ SEED_HELPDESK_TICKETS = [
         'description': 'Routine quarterly lubrication and door sensor calibration requested.',
         'priority': 'Normal',
         'status': 'OPEN',
-        'assigned_to': 'OTIS Lift AMC Tech Team',
+        'assigned_to': 'Das Elevators',
         'admin_notes': 'Service visit booked for Thursday.',
         'created_at': '2026-08-25 09:00:00',
         'updated_at': '2026-08-25 09:00:00'
@@ -73,7 +73,7 @@ SEED_HELPDESK_TICKETS = [
         'description': 'Dry leaves accumulated near rooftop rainwater outlet.',
         'priority': 'Normal',
         'status': 'RESOLVED',
-        'assigned_to': 'Sanitation Staff (Ratan)',
+        'assigned_to': 'Sanitation Staff (Sahadev Das)',
         'admin_notes': 'Cleaned and cleared on 22nd Aug.',
         'created_at': '2026-08-21 14:20:00',
         'updated_at': '2026-08-22 10:00:00'
