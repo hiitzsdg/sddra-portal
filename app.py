@@ -1469,42 +1469,89 @@ def admin_members():
     return render_template('admin_members.html', members=members, search_q=search_q)
 
 @app.route('/admin/members/update-contact', methods=['POST'])
+@app.route('/admin/members/update', methods=['POST'])
 @roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
 def admin_update_member_contact():
     flat_no = request.form.get('flat_no', '').strip()
+    member_name = request.form.get('member_name', '').strip()
     email = request.form.get('email', '').strip()
     phone = request.form.get('phone', '').strip()
+    sync_receipts = request.form.get('sync_receipts') in ('1', 'on', 'true', True)
     
     if not flat_no:
         flash('Flat number is required.', 'danger')
         return redirect(url_for('admin_members'))
         
     try:
-        cnt = query_db("SELECT flat_no FROM tbl_mbr_cntct WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (flat_no,), one=True)
-        if cnt:
+        updated_items = []
+        # 1. Update resident name in tbl_membership
+        if member_name:
             execute_db(
-                "UPDATE tbl_mbr_cntct SET email_1 = %s, mobile_num_1 = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))",
-                (email, phone, flat_no)
+                "UPDATE tbl_membership SET member_name = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))",
+                (member_name, flat_no)
             )
-        else:
-            execute_db(
-                "INSERT INTO tbl_mbr_cntct (flat_no, email_1, mobile_num_1) VALUES (%s, %s, %s)",
-                (flat_no, email, phone)
-            )
+            updated_items.append(f"Name: {member_name}")
+            
+            # Sync to tbl_receipts if checked/requested
+            if sync_receipts:
+                execute_db(
+                    "UPDATE tbl_receipts SET member_name = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))",
+                    (member_name, flat_no)
+                )
 
-        # Sync officer admin table if flat belongs to a committee bearer
+        # 2. Update contact details in tbl_mbr_cntct
+        if email or phone:
+            cnt = query_db("SELECT flat_no FROM tbl_mbr_cntct WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (flat_no,), one=True)
+            if cnt:
+                execute_db(
+                    "UPDATE tbl_mbr_cntct SET email_1 = %s, mobile_num_1 = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))",
+                    (email, phone, flat_no)
+                )
+            else:
+                execute_db(
+                    "INSERT INTO tbl_mbr_cntct (flat_no, email_1, mobile_num_1) VALUES (%s, %s, %s)",
+                    (flat_no, email, phone)
+                )
+            if email:
+                updated_items.append(f"Email: {email}")
+            if phone:
+                updated_items.append(f"Phone: {phone}")
+
+        # 3. Synchronize local SQLite database fallback if exists
+        import os, sqlite3
+        if os.path.exists('sddra.db'):
+            try:
+                sq_conn = sqlite3.connect('sddra.db')
+                sq_cur = sq_conn.cursor()
+                if member_name:
+                    sq_cur.execute("UPDATE tbl_membership SET member_name = ? WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(?))", (member_name, flat_no))
+                    if sync_receipts:
+                        sq_cur.execute("UPDATE tbl_receipts SET member_name = ? WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(?))", (member_name, flat_no))
+                if email or phone:
+                    cnt_sq = sq_cur.execute("SELECT flat_no FROM tbl_mbr_cntct WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(?))", (flat_no,)).fetchone()
+                    if cnt_sq:
+                        sq_cur.execute("UPDATE tbl_mbr_cntct SET email_1 = ?, mobile_num_1 = ? WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(?))", (email, phone, flat_no))
+                    else:
+                        sq_cur.execute("INSERT INTO tbl_mbr_cntct (flat_no, email_1, mobile_num_1) VALUES (?, ?, ?)", (flat_no, email, phone))
+                sq_conn.commit()
+                sq_conn.close()
+            except Exception as sq_err:
+                print(f"[SQLite Sync Warning] {sq_err}")
+
+        # 4. Sync officer admin table if flat belongs to a committee bearer
         officer_flats_map = {'A/4-C': 'treasurer', 'A/2-A': 'president', 'A/1-C': 'secretary', 'Estate Office': 'caretaker', 'Office': 'admin'}
         u_name = officer_flats_map.get(flat_no)
-        if u_name:
+        if u_name and (email or phone):
             try:
                 execute_db("UPDATE tbl_admins SET email = %s, phone = %s WHERE LOWER(username) = LOWER(%s)", (email, phone, u_name))
             except Exception:
                 pass
             
-        log_activity('PROFILE_UPDATE', f"Treasurer/Admin updated official contact registry for Flat {flat_no} (Email: {email}, Phone: {phone})")
-        flash(f"✓ Contact details for Flat {flat_no} updated successfully ({email}).", 'success')
+        details_str = ", ".join(updated_items) if updated_items else "Updated"
+        log_activity('PROFILE_UPDATE', f"Treasurer/Admin updated official resident registry for Flat {flat_no} ({details_str})")
+        flash(f"✓ Resident details for Flat {flat_no} updated successfully ({details_str}).", 'success')
     except Exception as e:
-        flash(f"Error updating contact details for Flat {flat_no}: {e}", 'danger')
+        flash(f"Error updating resident details for Flat {flat_no}: {e}", 'danger')
         
     return redirect(url_for('admin_members'))
 
