@@ -34,6 +34,7 @@
         <button type="button" class="btn btn-secondary" onclick="window.openCommandPalette && window.openCommandPalette()" title="Omnisearch (⌘K)">
             🔍 <kbd style="font-size: 0.72rem; padding: 1px 4px; background: rgba(0,0,0,0.25); border-radius: 3px;">⌘K</kbd>
         </button>
+        <a href="{{ url_for('admin_billing_rates') }}" class="btn btn-outline-primary">⚡ Tariff &amp; Rates</a>
         <a href="{{ url_for('notices_list') }}#new-notice" class="btn btn-outline-primary">📢 Post Notice</a>
         <a href="{{ url_for('admin_penalties') }}" class="btn btn-outline-primary">⚖️ Penalties</a>
         <a href="{{ url_for('expenses_list') }}#new-expense" class="btn btn-primary">➕ Record Expense</a>
@@ -137,6 +138,36 @@
             <div class="stat-sub">
                 <a href="{{ url_for('admin_penalties') }}" class="text-highlight-blue" style="font-weight: 600;">Penalty: ₹ {{ "{:,.0f}".format(total_penalty_accumulated) }} &rarr;</a>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Maintenance Tariff & Rates Quick Management Hub -->
+<div class="card" style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, var(--surface-card) 100%); border: 1px solid var(--surface-border); border-left: 4px solid #3b82f6; padding: 1.35rem 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div style="flex: 1; min-width: 280px;">
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.35rem;">
+                <span style="font-size: 1.4rem;">⚡</span>
+                <h3 class="card-title" style="margin: 0; font-size: 1.15rem;">Maintenance Tariff &amp; Billing Rates Console</h3>
+                <span class="badge badge-info" style="font-size: 0.72rem;">Active Formula</span>
+            </div>
+            <p style="margin: 0 0 0.75rem 0; color: var(--text-secondary); font-size: 0.86rem; line-height: 1.5;">
+                Configure association rate scales (Flat Area Rates, Capital Fund, Common Expenses, CPS &amp; TWS Parking) and recalculate or fine-tune monthly maintenance values across all 44 units.
+            </p>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; font-size: 0.78rem;">
+                <span style="background: rgba(59, 130, 246, 0.12); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600;">📐 Flat Rate: ₹1.55 / sq.ft</span>
+                <span style="background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600;">🏦 Capital Fund: ₹0.21 / sq.ft</span>
+                <span style="background: rgba(139, 92, 246, 0.12); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600;">⚡ Common: ₹170 / mo</span>
+                <span style="background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600;">🚗 CPS: ₹160 &bull; 🛵 TWS: ₹150</span>
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.65rem; align-items: center; flex-wrap: wrap;">
+            <a href="{{ url_for('admin_members') }}" class="btn btn-outline-primary" style="padding: 0.6rem 1rem; font-size: 0.86rem;">
+                👥 Resident Roster
+            </a>
+            <a href="{{ url_for('admin_billing_rates') }}" class="btn btn-primary" style="padding: 0.6rem 1.15rem; font-size: 0.88rem; font-weight: 700; white-space: nowrap;">
+                ⚡ Open Tariff Console &rarr;
+            </a>
         </div>
     </div>
 </div>
@@ -284,6 +315,11 @@
                     <button type="button" id="visModalResetPwdBtn" class="btn btn-outline-warning" style="justify-content: center; font-size: 0.85rem; padding: 0.65rem 1rem;" onclick="closeModal('flatVisualizerModal'); if(typeof openAdminResetPasswordModal==='function') openAdminResetPasswordModal(this.getAttribute('data-flat'), this.getAttribute('data-name'));">
                         🔑 Reset Password
                     </button>
+                </div>
+                <div style="margin-top: 0.2rem;">
+                    <a href="{{ url_for('admin_billing_rates') }}" class="btn btn-outline-primary" style="width: 100%; justify-content: center; font-size: 0.82rem; padding: 0.5rem;">
+                        ⚡ Open Tariff &amp; Rates Console &rarr;
+                    </a>
                 </div>
                 {% endif %}
             </div>
