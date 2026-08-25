@@ -264,7 +264,7 @@ def generate_receipt_pdf_bytes(receipt, member_info=None, contact_info=None):
     )
     
     sig_name = Paragraph(
-        "<b><font size=9.5 color='#0F172A'>Swapnadeep Ganguly</font></b>", 
+        "<b><font size=9.5 color='#0F172A'>Mr. Swapnadeep Ganguly</font></b>", 
         ParagraphStyle('SigName', parent=styles['Normal'], alignment=1, leading=11)
     )
     sig_title = Paragraph(
@@ -521,11 +521,11 @@ def generate_expense_voucher_pdf_bytes(expense):
     )
     
     sig_name = Paragraph(
-        "<b><font size=9.5 color='#0F172A'>Honorary Treasurer</font></b>", 
+        "<b><font size=9.5 color='#0F172A'>Mr. Swapnadeep Ganguly</font></b>", 
         ParagraphStyle('SigName', parent=styles['Normal'], alignment=1, leading=11)
     )
     sig_title = Paragraph(
-        "<b><font size=8 color='#1E3A8A'>Executive Committee</font></b><br/>"
+        "<b><font size=8 color='#1E3A8A'>Honorary Treasurer</font></b><br/>"
         f"<font size=6.5 color='#64748B'>{Config.ASSOCIATION_NAME}</font>", 
         ParagraphStyle('SigTitle', parent=styles['Normal'], alignment=1, leading=9)
     )
