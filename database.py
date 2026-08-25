@@ -882,8 +882,8 @@ def ensure_mysql_schema(conn):
                 print(f"[DB Warning] Seed data load error: {ex_all}")
 
 _INIT_DB_DONE = False
-SDERA_HASH = '$2b$12$pUxg9hjJZPcG01LOx65fkOmpNwGznM6UCHP5EoQ4RH8//ZDyFWHMS'
-PASSWD_HASH = '$2b$12$N7Lq1igJAuiprlykUoyqWuY9u6V7VSEFzmscm4rsAhL2j9JrQ0Sha'
+SDERA_HASH = '$2b$12$dFQkx.QLFxmEAOMjJFfsPeBOVshPQln/aclNHCcarSNGE.MqKpYQq'
+PASSWD_HASH = '$2b$12$bSr1zF4ireuB1Si2mbsldeoEDbTxRZGCqrd0S6/.F8BiVNz9m42Ma'
 
 def init_db(force=False):
     """
