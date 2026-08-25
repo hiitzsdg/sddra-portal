@@ -1,5 +1,7 @@
 import os
+import io
 import re
+import zipfile
 import calendar
 import traceback
 from functools import wraps
@@ -9,7 +11,11 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from config import Config
 from database import init_db, query_db, execute_db, verify_password, hash_password, determine_engine
 from email_service import send_receipt_email, broadcast_notice_email, get_notice_email_recipients
-from pdf_service import generate_receipt_pdf_bytes
+from pdf_service import (
+    generate_receipt_pdf_bytes,
+    generate_expense_voucher_pdf_bytes,
+    generate_all_expenses_book_pdf_bytes
+)
 from whatsapp_service import (
     normalize_whatsapp_phone,
     build_whatsapp_url,
@@ -1173,6 +1179,104 @@ def edit_expense(voucher_no):
 def delete_expense(voucher_no):
     flash('Deleting society expense records is disabled to maintain financial and audit integrity.', 'warning')
     return redirect(url_for('expenses_list'))
+
+@app.route('/expenses/<int:voucher_no>/pdf')
+@login_required
+def download_expense_pdf(voucher_no):
+    expense = query_db("SELECT * FROM tbl_expenses WHERE voucher_no = %s", (voucher_no,), one=True)
+    if not expense:
+        abort(404, description="Expense voucher not found")
+    
+    pdf_bytes = generate_expense_voucher_pdf_bytes(expense)
+    filename = f"SDERA_Expense_Voucher_{int(voucher_no):03d}.pdf"
+    
+    return Response(
+        pdf_bytes,
+        mimetype='application/pdf',
+        headers={
+            'Content-Disposition': f'inline; filename="{filename}"',
+            'Content-Type': 'application/pdf'
+        }
+    )
+
+@app.route('/expenses/export-zip')
+@login_required
+def export_all_expenses_zip():
+    expenses = query_db("SELECT * FROM tbl_expenses ORDER BY voucher_no ASC") or []
+    if not expenses:
+        flash("No expense vouchers available for export.", "warning")
+        return redirect(url_for('expenses_list'))
+        
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for exp in expenses:
+            v_no = int(exp['voucher_no'])
+            pdf_data = generate_expense_voucher_pdf_bytes(exp)
+            filename = f"SDERA_Expense_Voucher_{v_no:03d}.pdf"
+            zip_file.writestr(filename, pdf_data)
+            
+    zip_buffer.seek(0)
+    zip_bytes = zip_buffer.getvalue()
+    zip_buffer.close()
+    
+    timestamp = datetime.now().strftime('%Y%m%d')
+    archive_filename = f"SDERA_All_Expense_Vouchers_{timestamp}.zip"
+    
+    return Response(
+        zip_bytes,
+        mimetype='application/zip',
+        headers={
+            'Content-Disposition': f'attachment; filename="{archive_filename}"',
+            'Content-Type': 'application/zip'
+        }
+    )
+
+@app.route('/expenses/export-master-pdf')
+@login_required
+def export_all_expenses_master_pdf():
+    expenses = query_db("SELECT * FROM tbl_expenses ORDER BY voucher_no ASC") or []
+    if not expenses:
+        flash("No expense vouchers available for compilation.", "warning")
+        return redirect(url_for('expenses_list'))
+        
+    pdf_bytes = generate_all_expenses_book_pdf_bytes(expenses)
+    timestamp = datetime.now().strftime('%Y%m%d')
+    filename = f"SDERA_Master_Expense_Book_{timestamp}.pdf"
+    
+    return Response(
+        pdf_bytes,
+        mimetype='application/pdf',
+        headers={
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Content-Type': 'application/pdf'
+        }
+    )
+
+@app.route('/api/expenses/list-json')
+@login_required
+def api_expenses_list_json():
+    expenses = query_db("SELECT voucher_no, voucher_date, expense_description, particulars, spl_head, payment_by, amount FROM tbl_expenses ORDER BY voucher_no ASC") or []
+    items = []
+    for e in expenses:
+        v_no = int(e['voucher_no'])
+        items.append({
+            'voucher_no': v_no,
+            'voucher_date': str(e['voucher_date'])[:10],
+            'description': e['expense_description'],
+            'particulars': e['particulars'],
+            'spl_head': e['spl_head'] or '',
+            'payment_by': e['payment_by'],
+            'amount': float(e['amount']),
+            'pdf_url': url_for('download_expense_pdf', voucher_no=v_no),
+            'filename': f"SDERA_Expense_Voucher_{v_no:03d}.pdf"
+        })
+    return jsonify({
+        'success': True,
+        'count': len(items),
+        'vouchers': items,
+        'zip_url': url_for('export_all_expenses_zip'),
+        'master_pdf_url': url_for('export_all_expenses_master_pdf')
+    })
 
 # --- Administrative: Receipts Ledger ---
 @app.route('/admin/receipts')

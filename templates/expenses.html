@@ -9,7 +9,16 @@
         <p>Complete transparent record of 81 incurred expense vouchers, bills, service charges, and maintenance outlays.</p>
     </div>
 
-    <div class="page-header-actions">
+    <div class="page-header-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button type="button" class="btn btn-outline-primary" onclick="openGoogleDriveBulkModal()" style="display: inline-flex; align-items: center; gap: 0.4rem;" title="Save all vouchers to Google Drive in one go">
+            <span>☁️</span> Save All to Drive
+        </button>
+        <a href="{{ url_for('export_all_expenses_zip') }}" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem;" title="Download ZIP archive of all individual PDF vouchers">
+            <span>📦</span> All PDFs (ZIP)
+        </a>
+        <a href="{{ url_for('export_all_expenses_master_pdf') }}" class="btn btn-secondary" target="_blank" style="display: inline-flex; align-items: center; gap: 0.4rem;" title="View & Download Master Multi-Page PDF Compendium">
+            <span>📑</span> Master PDF
+        </a>
         {% if is_admin or is_executive %}
         <button type="button" class="btn btn-primary" onclick="openModal('addExpenseModal')">
             ➕ Record Incurred Expense <span class="badge badge-info" style="margin-left: 0.35rem; background: rgba(255,255,255,0.22); color: #fff; font-weight: 700;">#{{ next_voucher_no }}</span>
@@ -126,9 +135,7 @@
                     <th>Special Head</th>
                     <th>Payment Mode</th>
                     <th>Amount</th>
-                    {% if is_executive %}
-                    <th>Action</th>
-                    {% endif %}
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -149,24 +156,41 @@
                     <td>
                         <strong class="text-amount-danger" style="font-size: 0.95rem;">₹ {{ "{:,.2f}".format(e.amount) }}</strong>
                     </td>
-                    {% if is_admin or is_executive %}
                     <td>
-                        <button type="button" 
-                                class="btn btn-sm btn-outline-primary" 
-                                style="padding: 0.25rem 0.55rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" 
-                                title="Edit Voucher #{{ e.voucher_no }}"
-                                onclick="openEditExpenseModal(this)"
-                                data-voucher-no="{{ e.voucher_no }}"
-                                data-voucher-date="{{ e.voucher_date }}"
-                                data-description="{{ e.expense_description }}"
-                                data-particulars="{{ e.particulars }}"
-                                data-spl-head="{{ e.spl_head or '' }}"
-                                data-payment-by="{{ e.payment_by }}"
-                                data-amount="{{ e.amount }}">
-                            <span>✏️</span> Edit
-                        </button>
+                        <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
+                            <a href="{{ url_for('download_expense_pdf', voucher_no=e.voucher_no) }}" 
+                               class="btn btn-sm btn-secondary" 
+                               target="_blank"
+                               download="SDERA_Expense_Voucher_{{ '{:03d}'.format(e.voucher_no) }}.pdf"
+                               style="padding: 0.25rem 0.5rem; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 0.25rem;" 
+                               title="Download Official PDF Voucher #{{ e.voucher_no }}">
+                                <span>📄</span> PDF
+                            </a>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-primary" 
+                                    style="padding: 0.25rem 0.5rem; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 0.25rem;" 
+                                    title="Save Voucher #{{ e.voucher_no }} to Google Drive"
+                                    onclick="saveSingleVoucherToDrive('{{ e.voucher_no }}', '{{ e.voucher_date }}', '{{ e.amount }}', '{{ (e.expense_description|replace('\'', '\\\'')) }}')">
+                                <span>☁️</span> Drive
+                            </button>
+                            {% if is_admin or is_executive %}
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-primary" 
+                                    style="padding: 0.25rem 0.5rem; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 0.25rem;" 
+                                    title="Edit Voucher #{{ e.voucher_no }}"
+                                    onclick="openEditExpenseModal(this)"
+                                    data-voucher-no="{{ e.voucher_no }}"
+                                    data-voucher-date="{{ e.voucher_date }}"
+                                    data-description="{{ e.expense_description }}"
+                                    data-particulars="{{ e.particulars }}"
+                                    data-spl-head="{{ e.spl_head or '' }}"
+                                    data-payment-by="{{ e.payment_by }}"
+                                    data-amount="{{ e.amount }}">
+                                <span>✏️</span> Edit
+                            </button>
+                            {% endif %}
+                        </div>
                     </td>
-                    {% endif %}
                 </tr>
                 {% else %}
                 <tr>
@@ -438,4 +462,202 @@ function openEditExpenseModal(btn) {
 }
 </script>
 {% endif %}
+
+<!-- Modal: Google Drive Bulk Export (Save All in One Go) -->
+<div id="googleDriveBulkModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 600px;">
+        <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <span style="font-size: 1.5rem;">☁️</span>
+                <div>
+                    <h3 class="card-title" style="font-size: 1.2rem; margin: 0;">Save All Vouchers to Google Drive</h3>
+                    <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">Sync &amp; archive all {{ expenses|length }} society expense vouchers</p>
+                </div>
+            </div>
+            <button type="button" class="close-btn" onclick="closeModal('googleDriveBulkModal')">&times;</button>
+        </div>
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <!-- Summary Stats Card -->
+            <div style="background: var(--surface-hover); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                <div>
+                    <span class="text-muted" style="font-size: 0.75rem; display: block; text-transform: uppercase;">Total Vouchers</span>
+                    <strong class="text-main" style="font-size: 1.15rem;">{{ expenses|length }} Vouchers</strong>
+                </div>
+                <div>
+                    <span class="text-muted" style="font-size: 0.75rem; display: block; text-transform: uppercase;">Total Outlay</span>
+                    <strong class="text-amount-danger" style="font-size: 1.15rem;">₹ {{ "{:,.2f}".format(total_incurred) }}</strong>
+                </div>
+                <div>
+                    <span class="text-muted" style="font-size: 0.75rem; display: block; text-transform: uppercase;">Format</span>
+                    <strong class="text-highlight-blue" style="font-size: 0.95rem;">Vector PDF</strong>
+                </div>
+            </div>
+
+            <!-- Option 1: ZIP of all individual PDFs -->
+            <div style="background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 1.1rem; display: flex; flex-direction: column; gap: 0.65rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap;">
+                    <div>
+                        <strong style="font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem;">
+                            📦 Package 1: All Individual PDF Vouchers (ZIP)
+                        </strong>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0.25rem 0 0 0; line-height: 1.4;">
+                            Contains all {{ expenses|length }} numbered PDFs (<code>SDERA_Expense_Voucher_001.pdf</code> to <code>081.pdf</code>). Ideal for uploading as an organized Google Drive folder.
+                        </p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.25rem;">
+                    <a href="{{ url_for('export_all_expenses_zip') }}" class="btn btn-primary" style="font-size: 0.85rem; padding: 0.5rem 1rem;">
+                        ⬇️ Download All PDFs (ZIP)
+                    </a>
+                    <a href="https://drive.google.com/drive/my-drive" target="_blank" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.5rem 1rem;">
+                        🚀 Open Google Drive
+                    </a>
+                </div>
+            </div>
+
+            <!-- Option 2: Master Multi-Page PDF Book -->
+            <div style="background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 1.1rem; display: flex; flex-direction: column; gap: 0.65rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap;">
+                    <div>
+                        <strong style="font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem;">
+                            📑 Package 2: Master Multi-Page PDF Ledger
+                        </strong>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0.25rem 0 0 0; line-height: 1.4;">
+                            Single bound official PDF book compiling the cover summary, category breakdowns, and all 81+ vouchers into 1 document for Google Drive.
+                        </p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.25rem;">
+                    <a href="{{ url_for('export_all_expenses_master_pdf') }}" target="_blank" class="btn btn-primary" style="font-size: 0.85rem; padding: 0.5rem 1rem;">
+                        📄 Open &amp; Save Master PDF Book
+                    </a>
+                </div>
+            </div>
+
+            <!-- Mobile & Cloud Sync Guide -->
+            <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-md); padding: 0.85rem 1rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;">
+                💡 <strong>How to save into Google Drive in 1 step:</strong>
+                <ol style="margin: 0.35rem 0 0 1.25rem; padding: 0;">
+                    <li>Download the ZIP or Master PDF book above.</li>
+                    <li>Click <strong>Open Google Drive</strong> and drag the file directly into your <em>"SDERA Society Vouchers"</em> folder.</li>
+                    <li>On mobile: Tap any voucher's <strong>"☁️ Drive"</strong> button to save directly via your phone's Google Drive app.</li>
+                </ol>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('googleDriveBulkModal')">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Google Drive Single Voucher Saver -->
+<div id="googleDriveSingleModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 520px;">
+        <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+                <span style="font-size: 1.4rem;">☁️</span>
+                <div>
+                    <h3 class="card-title" style="font-size: 1.15rem; margin: 0;">Save Voucher to Google Drive</h3>
+                    <span id="gdriveSingleVoucherBadge" class="badge badge-info" style="font-size: 0.8rem; font-weight: 700; margin-top: 2px;"></span>
+                </div>
+            </div>
+            <button type="button" class="close-btn" onclick="closeModal('googleDriveSingleModal')">&times;</button>
+        </div>
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="background: var(--surface-hover); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 0.85rem 1rem; font-size: 0.86rem; line-height: 1.6;">
+                <div>📅 <strong>Date:</strong> <span id="gdriveSingleDate" class="text-main"></span></div>
+                <div>💰 <strong>Amount:</strong> <strong id="gdriveSingleAmount" class="text-amount-danger"></strong></div>
+                <div>📝 <strong>Description:</strong> <span id="gdriveSingleDesc" class="text-main"></span></div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+                <button type="button" id="gdriveNativeShareBtn" class="btn btn-primary" style="justify-content: center; padding: 0.65rem;" onclick="shareVoucherToMobileDrive()">
+                    📱 Save via Google Drive App (Direct Share)
+                </button>
+                <a id="gdriveDownloadPdfLink" href="#" class="btn btn-secondary" style="justify-content: center; padding: 0.6rem;" target="_blank" download>
+                    📄 Download Official PDF File
+                </a>
+                <a href="https://drive.google.com/drive/my-drive" target="_blank" class="btn btn-outline-primary" style="justify-content: center; padding: 0.6rem;">
+                    🚀 Open My Google Drive in New Tab
+                </a>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('googleDriveSingleModal')">Done</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentDriveVoucher = { no: '', date: '', amount: '', desc: '', pdfUrl: '' };
+
+function openGoogleDriveBulkModal() {
+    openModal('googleDriveBulkModal');
+}
+
+function saveSingleVoucherToDrive(voucherNo, voucherDate, amount, desc) {
+    currentDriveVoucher = {
+        no: voucherNo,
+        date: voucherDate,
+        amount: '₹ ' + (parseFloat(amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        desc: desc,
+        pdfUrl: '/expenses/' + voucherNo + '/pdf'
+    };
+
+    const badge = document.getElementById('gdriveSingleVoucherBadge');
+    if (badge) badge.textContent = 'Voucher #' + voucherNo;
+
+    const dateEl = document.getElementById('gdriveSingleDate');
+    if (dateEl) dateEl.textContent = voucherDate;
+
+    const amtEl = document.getElementById('gdriveSingleAmount');
+    if (amtEl) amtEl.textContent = currentDriveVoucher.amount;
+
+    const descEl = document.getElementById('gdriveSingleDesc');
+    if (descEl) descEl.textContent = desc;
+
+    const dlLink = document.getElementById('gdriveDownloadPdfLink');
+    if (dlLink) {
+        dlLink.href = currentDriveVoucher.pdfUrl;
+        dlLink.download = 'SDERA_Expense_Voucher_' + String(voucherNo).padStart(3, '0') + '.pdf';
+    }
+
+    openModal('googleDriveSingleModal');
+}
+
+async function shareVoucherToMobileDrive() {
+    if (!currentDriveVoucher.pdfUrl) return;
+    const filename = 'SDERA_Expense_Voucher_' + String(currentDriveVoucher.no).padStart(3, '0') + '.pdf';
+    
+    try {
+        if (navigator.canShare) {
+            const resp = await fetch(currentDriveVoucher.pdfUrl);
+            const blob = await resp.blob();
+            const file = new File([blob], filename, { type: 'application/pdf' });
+            
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: filename,
+                    text: `SDERA Society Expense Voucher #${currentDriveVoucher.no} - ${currentDriveVoucher.amount} (${currentDriveVoucher.desc})`,
+                    files: [file]
+                });
+                return;
+            }
+        }
+    } catch(err) {
+        if (err.name !== 'AbortError') {
+            console.log('Web share error:', err);
+        }
+    }
+
+    // Fallback: trigger download and open Google Drive
+    const link = document.createElement('a');
+    link.href = currentDriveVoucher.pdfUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.open('https://drive.google.com/drive/my-drive', '_blank');
+}
+</script>
 {% endblock %}
