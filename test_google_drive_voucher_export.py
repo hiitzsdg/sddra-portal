@@ -86,5 +86,14 @@ class TestGoogleDriveVoucherExport(unittest.TestCase):
         self.assertIn('googleDriveSingleModal', html)
         self.assertIn('saveSingleVoucherToDrive', html)
 
+    def test_06_amount_to_indian_words(self):
+        """Verify amount to Indian words converter properly translates numbers and currency"""
+        from pdf_service import amount_to_indian_words
+        self.assertEqual(amount_to_indian_words(0), 'Rupees Zero Only')
+        self.assertEqual(amount_to_indian_words(500), 'Rupees Five Hundred Only')
+        self.assertEqual(amount_to_indian_words(18500), 'Rupees Eighteen Thousand Five Hundred Only')
+        self.assertEqual(amount_to_indian_words(323283), 'Rupees Three Lakh Twenty Three Thousand Two Hundred Eighty Three Only')
+        self.assertEqual(amount_to_indian_words(1250.50), 'Rupees One Thousand Two Hundred Fifty and Fifty Paise Only')
+
 if __name__ == '__main__':
     unittest.main()

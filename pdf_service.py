@@ -30,6 +30,81 @@ def _draw_page_decorations(canvas_obj, doc):
     
     canvas_obj.restoreState()
 
+def amount_to_indian_words(amount):
+    """
+    Convert a numeric currency amount into Indian English Words (Rupees ... Only).
+    Example: 18500.50 -> 'Rupees Eighteen Thousand Five Hundred and Fifty Paise Only'
+    """
+    try:
+        amt = float(amount)
+    except (ValueError, TypeError):
+        return "Rupees Zero Only"
+        
+    if amt == 0:
+        return "Rupees Zero Only"
+
+    rupees = int(amt)
+    paise = int(round((amt - rupees) * 100))
+
+    units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
+    teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]
+    tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
+
+    def _convert_two_digits(num):
+        if num < 10:
+            return units[num]
+        elif num < 20:
+            return teens[num - 10]
+        else:
+            t = tens[num // 10]
+            u = units[num % 10]
+            return f"{t} {u}".strip() if u else t
+
+    def _convert_three_digits(num):
+        h = num // 100
+        rem = num % 100
+        words = []
+        if h > 0:
+            words.append(f"{units[h]} Hundred")
+        if rem > 0:
+            words.append(_convert_two_digits(rem))
+        return " ".join(words).strip()
+
+    parts = []
+    # Crores (10,000,000)
+    crores = rupees // 10000000
+    rem_cr = rupees % 10000000
+
+    # Lakhs (100,000)
+    lakhs = rem_cr // 100000
+    rem_lakh = rem_cr % 100000
+
+    # Thousands (1,000)
+    thousands = rem_lakh // 1000
+    rem_th = rem_lakh % 1000
+
+    # Hundreds & units
+    hundreds = rem_th
+
+    if crores > 0:
+        parts.append(f"{_convert_two_digits(crores)} Crore")
+    if lakhs > 0:
+        parts.append(f"{_convert_two_digits(lakhs)} Lakh")
+    if thousands > 0:
+        parts.append(f"{_convert_two_digits(thousands)} Thousand")
+    if hundreds > 0:
+        parts.append(_convert_three_digits(hundreds))
+
+    rupees_str = " ".join(parts).strip() if parts else "Zero"
+    result = f"Rupees {rupees_str}"
+
+    if paise > 0:
+        paise_str = _convert_two_digits(paise)
+        result += f" and {paise_str} Paise"
+
+    result += " Only"
+    return result
+
 def generate_receipt_pdf_bytes(receipt, member_info=None, contact_info=None):
     """
     Generate an official, high-resolution, vector PDF Money Receipt voucher
@@ -238,13 +313,14 @@ def generate_receipt_pdf_bytes(receipt, member_info=None, contact_info=None):
     elements.append(Spacer(1, 8))
     
     # 5. Total Amount Box
+    amount_words = amount_to_indian_words(amount)
     total_data = [
         [
-            Paragraph("<b><font color='#166534' size=9.5>TOTAL AMOUNT RECEIVED</font></b><br/><font color='#475569' size=7.5><i>Maintenance &amp; Common Services Charge</i></font>", cell_value_style),
+            Paragraph(f"<b><font color='#166534' size=9.5>TOTAL AMOUNT RECEIVED</font></b><br/><font color='#475569' size=7.5><i>Maintenance &amp; Common Services Charge</i></font><br/><font color='#14532D' size=8><b>Amount in Words:</b> {amount_words}</font>", cell_value_style),
             Paragraph(f"<b><font color='#1E3A8A' size=15>INR {amount:,.2f}</font></b>", ParagraphStyle('Amt', parent=styles['Normal'], alignment=2))
         ]
     ]
-    total_table = Table(total_data, colWidths=[320, 200])
+    total_table = Table(total_data, colWidths=[330, 190])
     total_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#DCFCE7')),
         ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor('#86EFAC')),
@@ -495,13 +571,14 @@ def generate_expense_voucher_pdf_bytes(expense):
     elements.append(Spacer(1, 8))
     
     # 5. Total Outlay Amount Box
+    amount_words = amount_to_indian_words(amount)
     total_data = [
         [
-            Paragraph("<b><font color='#991B1B' size=9.5>TOTAL DISBURSED AMOUNT</font></b><br/><font color='#475569' size=7.5><i>Authorized Society Expenditure Voucher</i></font>", cell_value_style),
+            Paragraph(f"<b><font color='#991B1B' size=9.5>TOTAL DISBURSED AMOUNT</font></b><br/><font color='#475569' size=7.5><i>Authorized Society Expenditure Voucher</i></font><br/><font color='#7F1D1D' size=8><b>Amount in Words:</b> {amount_words}</font>", cell_value_style),
             Paragraph(f"<b><font color='#B91C1C' size=15>INR {amount:,.2f}</font></b>", ParagraphStyle('Amt', parent=styles['Normal'], alignment=2))
         ]
     ]
-    total_table = Table(total_data, colWidths=[320, 200])
+    total_table = Table(total_data, colWidths=[330, 190])
     total_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FEE2E2')),
         ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor('#F87171')),
@@ -647,6 +724,7 @@ def generate_all_expenses_book_pdf_bytes(expenses_list):
     
     total_amount = sum(float(e.get('amount', 0)) for e in expenses_list)
     total_vouchers = len(expenses_list)
+    total_words = amount_to_indian_words(total_amount)
     
     summary_data = [
         [
@@ -654,6 +732,12 @@ def generate_all_expenses_book_pdf_bytes(expenses_list):
             Paragraph(f"<b>{total_vouchers} Vouchers</b>", cell_body_style),
             Paragraph("<b>Total Expenditure Incurred</b>", cell_body_style),
             Paragraph(f"<b><font color='#B91C1C'>INR {total_amount:,.2f}</font></b>", cell_body_style)
+        ],
+        [
+            Paragraph("<b>Total Outlay in Words</b>", cell_body_style),
+            Paragraph(f"<b><font color='#7F1D1D'>{total_words}</font></b>", cell_body_style),
+            "",
+            ""
         ],
         [
             Paragraph("<b>Generated On</b>", cell_body_style),
@@ -666,8 +750,9 @@ def generate_all_expenses_book_pdf_bytes(expenses_list):
     summary_table.setStyle(TableStyle([
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('SPAN', (1, 1), (3, 1)),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
         ('LEFTPADDING', (0,0), (-1,-1), 8),
         ('RIGHTPADDING', (0,0), (-1,-1), 8),
     ]))
