@@ -79,6 +79,75 @@
       --form-border: #cbd5e1;
       --form-text: #0f172a;
     }
+
+    .btn-logout {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.32rem 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      background: rgba(244, 63, 94, 0.08);
+      border: 1px solid rgba(244, 63, 94, 0.28);
+      border-radius: var(--radius-pill);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      line-height: 1;
+    }
+    .btn-logout .logout-icon {
+      width: 14px;
+      height: 14px;
+      stroke-width: 2.2;
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      color: #f43f5e;
+      flex-shrink: 0;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .btn-logout .logout-label {
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+    [data-theme="light"] .btn-logout {
+      background: rgba(225, 29, 72, 0.06);
+      border-color: rgba(225, 29, 72, 0.25);
+      color: #475569;
+    }
+    .btn-logout:hover {
+      background: rgba(244, 63, 94, 0.18);
+      color: #f43f5e;
+      border-color: rgba(244, 63, 94, 0.55);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(244, 63, 94, 0.22);
+    }
+    [data-theme="light"] .btn-logout:hover {
+      background: rgba(225, 29, 72, 0.14);
+      color: #e11d48;
+      border-color: rgba(225, 29, 72, 0.45);
+      box-shadow: 0 3px 12px rgba(225, 29, 72, 0.18);
+    }
+    .btn-logout:hover .logout-icon {
+      transform: translateX(2.5px);
+      color: #f43f5e;
+    }
+    [data-theme="light"] .btn-logout:hover .logout-icon {
+      color: #e11d48;
+    }
+    .btn-logout:active {
+      transform: translateY(0) scale(0.96);
+    }
+    .btn-logout-mobile {
+      padding: 0.45rem 0.95rem;
+      font-size: 0.85rem;
+    }
+    .btn-logout-mobile .logout-icon {
+      width: 16px;
+      height: 16px;
+    }
     </style>
     <script>
     // Immediate Theme Initialization (Prevents flash and guarantees zero-delay theme switching)
@@ -180,7 +249,14 @@
                         <span class="user-sub">Flat {{ current_user.flat_no }}</span>
                     </div>
                     <span class="badge badge-{{ current_user.role|lower }}">{{ current_user.role }}</span>
-                    <a href="{{ url_for('logout') }}" class="btn btn-sm btn-secondary" style="padding: 0.25rem 0.6rem;" title="Sign Out">🚪</a>
+                    <a href="{{ url_for('logout') }}" class="btn-logout" title="Sign Out of SDDRA Portal" aria-label="Sign Out">
+                        <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                        <span class="logout-label">Sign Out</span>
+                    </a>
                 </div>
 
                 <!-- Mobile Hamburger Toggle Button -->
@@ -225,7 +301,14 @@
                     <span class="user-name">{{ current_user.name }}</span>
                     <span class="user-sub">Flat {{ current_user.flat_no }} ({{ current_user.role }})</span>
                 </div>
-                <a href="{{ url_for('logout') }}" class="btn btn-sm btn-secondary" style="padding: 0.35rem 0.8rem;">Sign Out 🚪</a>
+                <a href="{{ url_for('logout') }}" class="btn-logout btn-logout-mobile" aria-label="Sign Out">
+                    <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    <span>Sign Out</span>
+                </a>
             </div>
         </div>
         {% endif %}

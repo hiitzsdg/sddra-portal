@@ -3,10 +3,20 @@
 {% block title %}My Profile & Account Settings - SDDRA Portal{% endblock %}
 
 {% block content %}
-<div class="page-header">
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
     <div class="page-header-title">
         <h2>⚙️ Account Settings & Member Profile</h2>
         <p>Manage your contact preferences, registered email for digital receipt delivery, and portal security credentials.</p>
+    </div>
+    <div>
+        <a href="{{ url_for('logout') }}" class="btn-logout" style="padding: 0.45rem 1rem; font-size: 0.85rem;" title="Sign Out of Portal">
+            <svg class="logout-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span>Sign Out</span>
+        </a>
     </div>
 </div>
 

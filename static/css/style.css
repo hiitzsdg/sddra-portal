@@ -478,6 +478,86 @@ code, pre, kbd {
   font-weight: 500;
 }
 
+/* ================= Professional Logout Button ================= */
+.btn-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.32rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: rgba(244, 63, 94, 0.08);
+  border: 1px solid rgba(244, 63, 94, 0.28);
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.btn-logout .logout-icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.2;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #f43f5e;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.btn-logout .logout-label {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+[data-theme="light"] .btn-logout {
+  background: rgba(225, 29, 72, 0.06);
+  border-color: rgba(225, 29, 72, 0.25);
+  color: #475569;
+}
+
+.btn-logout:hover {
+  background: rgba(244, 63, 94, 0.18);
+  color: #f43f5e;
+  border-color: rgba(244, 63, 94, 0.55);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.22);
+}
+
+[data-theme="light"] .btn-logout:hover {
+  background: rgba(225, 29, 72, 0.14);
+  color: #e11d48;
+  border-color: rgba(225, 29, 72, 0.45);
+  box-shadow: 0 3px 12px rgba(225, 29, 72, 0.18);
+}
+
+.btn-logout:hover .logout-icon {
+  transform: translateX(2.5px);
+  color: #f43f5e;
+}
+
+[data-theme="light"] .btn-logout:hover .logout-icon {
+  color: #e11d48;
+}
+
+.btn-logout:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.btn-logout-mobile {
+  padding: 0.45rem 0.95rem;
+  font-size: 0.85rem;
+}
+
+.btn-logout-mobile .logout-icon {
+  width: 16px;
+  height: 16px;
+}
+
 /* Theme Toggle Button (Light/Dark Switcher) */
 .theme-toggle-btn {
   background: var(--surface-card);
