@@ -456,7 +456,7 @@ def login():
                     next_p = None
                 return redirect(next_p or url_for('dashboard'))
             else:
-                flash('Invalid credentials. Please verify your Flat Number (e.g. A/4-C) and password (default: sdera@123).', 'danger')
+                flash('Invalid credentials. Please verify your Flat Number (e.g. A/4-C) and password.', 'danger')
         except Exception as e:
             flash(f"Database login error: {e}", 'danger')
 
