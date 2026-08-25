@@ -21,3 +21,61 @@ SEED_ACTIVITY_LOGS = [
     {'actor_username': 'treasurer', 'actor_name': 'Mr. Swapnadeep Ganguly', 'actor_role': 'super_admin', 'flat_no': 'A/4-C', 'action_type': 'LOGIN', 'description': 'Administrative sign in (Treasurer Mr. Swapnadeep Ganguly)', 'ip_address': '127.0.0.1', 'created_at': '2026-08-22 12:00:00'}
 ]
 
+SEED_HELPDESK_TICKETS = [
+    {
+        'ticket_number': 'SD-4182',
+        'flat_no': 'A/4-C',
+        'resident_name': 'Mr. Swapnadeep Ganguly',
+        'category': 'Electrical',
+        'title': 'Corridor Light & MCB Inspection',
+        'description': '4th floor Block A corridor light flickering and MCB tripped once during evening peak load.',
+        'priority': 'Normal',
+        'status': 'IN_PROGRESS',
+        'assigned_to': 'Caretaker (Mr. Sanjoy Chakraborty)',
+        'admin_notes': 'Electrician scheduled for inspection on Wednesday morning.',
+        'created_at': '2026-08-23 10:15:00',
+        'updated_at': '2026-08-23 11:30:00'
+    },
+    {
+        'ticket_number': 'SD-4183',
+        'flat_no': 'B/2-A',
+        'resident_name': 'Mr. Suman Chakraborty',
+        'category': 'Plumbing',
+        'title': 'Overhead Tank Valve Pressure Low',
+        'description': 'Water flow pressure in bathroom pipeline is lower than usual since yesterday morning.',
+        'priority': 'Urgent',
+        'status': 'ASSIGNED',
+        'assigned_to': 'Plumbing Contractor (Subhas)',
+        'admin_notes': 'Primary valve line being cleared.',
+        'created_at': '2026-08-24 08:30:00',
+        'updated_at': '2026-08-24 09:15:00'
+    },
+    {
+        'ticket_number': 'SD-4184',
+        'flat_no': 'A/1-B',
+        'resident_name': 'Mrs. Kripa Ghosal',
+        'category': 'Lift',
+        'title': 'Lift 1 Annual Maintenance & Lubrication',
+        'description': 'Routine quarterly lubrication and door sensor calibration requested.',
+        'priority': 'Normal',
+        'status': 'OPEN',
+        'assigned_to': 'OTIS Lift AMC Tech Team',
+        'admin_notes': 'Service visit booked for Thursday.',
+        'created_at': '2026-08-25 09:00:00',
+        'updated_at': '2026-08-25 09:00:00'
+    },
+    {
+        'ticket_number': 'SD-4180',
+        'flat_no': 'B/3-B',
+        'resident_name': 'Mrs. Khusi Mitra',
+        'category': 'Cleaning',
+        'title': 'Rooftop Drain Grating Clearance',
+        'description': 'Dry leaves accumulated near rooftop rainwater outlet.',
+        'priority': 'Normal',
+        'status': 'RESOLVED',
+        'assigned_to': 'Sanitation Staff (Ratan)',
+        'admin_notes': 'Cleaned and cleared on 22nd Aug.',
+        'created_at': '2026-08-21 14:20:00',
+        'updated_at': '2026-08-22 10:00:00'
+    }
+]

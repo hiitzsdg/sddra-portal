@@ -484,50 +484,87 @@
 
 <!-- Resident Helpdesk & Maintenance Ticketing Widget -->
 <div class="card" style="margin-bottom: 2rem;">
-    <div class="card-header">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 0.6rem;">
             <span style="font-size: 1.25rem;">🛠️</span>
             <h3 class="card-title">Society Helpdesk &amp; Maintenance Requests</h3>
+            {% if my_tickets %}
+            <span class="badge badge-info" style="font-size: 0.72rem;">{{ my_tickets|length }} Ticket{% if my_tickets|length > 1 %}s{% endif %}</span>
+            {% endif %}
         </div>
         <button type="button" class="btn btn-sm btn-outline-primary" id="openHelpdeskBtnSecondary" onclick="document.getElementById('helpdeskModal').classList.add('active'); document.body.style.overflow = 'hidden';">
             + Raise New Ticket
         </button>
     </div>
 
-    <!-- Active Ticket Demo Card -->
-    <div class="helpdesk-ticket-card">
-        <div class="ticket-header-line">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <strong class="text-main" style="font-size: 0.95rem;">Corridor Light &amp; MCB Inspection</strong>
-                <span class="ticket-category-pill cat-electrical">⚡ Electrical</span>
+    {% if my_tickets %}
+        {% for t in my_tickets %}
+        <div class="helpdesk-ticket-card" style="margin-bottom: {% if not loop.last %}1rem{% else %}0{% endif %};">
+            <div class="ticket-header-line">
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <strong class="text-main" style="font-size: 0.95rem;">{{ t.title }}</strong>
+                    {% if t.category == 'Plumbing' %}
+                    <span class="ticket-category-pill cat-plumbing">🚰 Plumbing</span>
+                    {% elif t.category == 'Electrical' %}
+                    <span class="ticket-category-pill cat-electrical">⚡ Electrical</span>
+                    {% elif t.category == 'Lift' %}
+                    <span class="ticket-category-pill cat-lift">🛗 Lift</span>
+                    {% elif t.category == 'Cleaning' %}
+                    <span class="ticket-category-pill cat-cleaning">🧹 Cleaning</span>
+                    {% elif t.category == 'Security' %}
+                    <span class="ticket-category-pill cat-security">🛡️ Security</span>
+                    {% else %}
+                    <span class="ticket-category-pill">📌 {{ t.category }}</span>
+                    {% endif %}
+                </div>
+                <div style="display: flex; gap: 0.4rem; align-items: center;">
+                    {% if t.priority == 'Urgent' %}<span class="badge badge-warning">🚨 Urgent</span>{% endif %}
+                    {% if t.priority == 'Emergency' %}<span class="badge badge-danger">🔥 Emergency</span>{% endif %}
+                    <span class="badge badge-info">Ticket #{{ t.ticket_number }}</span>
+                </div>
             </div>
-            <span class="badge badge-info">Ticket #SD-4182</span>
-        </div>
 
-        <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0 0 0.5rem 0;">
-            Assigned to Caretaker Mr. Sanjoy Chakraborty for 4th floor Block A inspection.
-        </p>
+            <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0 0 0.5rem 0;">
+                {{ t.description }}
+                {% if t.assigned_to %}
+                &bull; <span class="text-main"><strong>Assigned To:</strong> {{ t.assigned_to }}</span>
+                {% endif %}
+                {% if t.admin_notes %}
+                &bull; <span class="text-highlight-blue"><strong>Update:</strong> {{ t.admin_notes }}</span>
+                {% endif %}
+            </p>
 
-        <!-- 4-Stage Status Stepper -->
-        <div class="status-stepper-container">
-            <div class="stepper-node done">
-                <div class="stepper-icon-circle">✓</div>
-                <div class="stepper-label">Submitted</div>
-            </div>
-            <div class="stepper-node done">
-                <div class="stepper-icon-circle">✓</div>
-                <div class="stepper-label">Assigned</div>
-            </div>
-            <div class="stepper-node active">
-                <div class="stepper-icon-circle">⚙️</div>
-                <div class="stepper-label">In Progress</div>
-            </div>
-            <div class="stepper-node">
-                <div class="stepper-icon-circle">4</div>
-                <div class="stepper-label">Resolved</div>
+            <!-- Dynamic 4-Stage Status Stepper -->
+            {% set s = t.status|upper %}
+            <div class="status-stepper-container">
+                <div class="stepper-node {% if s in ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] %}done{% else %}active{% endif %}">
+                    <div class="stepper-icon-circle">✓</div>
+                    <div class="stepper-label">Submitted</div>
+                </div>
+                <div class="stepper-node {% if s in ['ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] %}done{% elif s == 'OPEN' %}active{% endif %}">
+                    <div class="stepper-icon-circle">{% if s in ['ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] %}✓{% else %}2{% endif %}</div>
+                    <div class="stepper-label">Assigned</div>
+                </div>
+                <div class="stepper-node {% if s in ['RESOLVED', 'CLOSED'] %}done{% elif s == 'IN_PROGRESS' %}active{% endif %}">
+                    <div class="stepper-icon-circle">{% if s in ['RESOLVED', 'CLOSED'] %}✓{% elif s == 'IN_PROGRESS' %}⚙️{% else %}3{% endif %}</div>
+                    <div class="stepper-label">In Progress</div>
+                </div>
+                <div class="stepper-node {% if s in ['RESOLVED', 'CLOSED'] %}done{% endif %}">
+                    <div class="stepper-icon-circle">{% if s in ['RESOLVED', 'CLOSED'] %}✓{% else %}4{% endif %}</div>
+                    <div class="stepper-label">Resolved</div>
+                </div>
             </div>
         </div>
+        {% endfor %}
+    {% else %}
+    <div style="text-align: center; padding: 2rem 1rem;">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🛠️</div>
+        <p class="text-secondary" style="margin-bottom: 1rem; font-size: 0.88rem;">Have a plumbing, electrical, lift, or general maintenance issue in your flat or common area?</p>
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('helpdeskModal').classList.add('active'); document.body.style.overflow = 'hidden';">
+            + Report Maintenance Issue
+        </button>
     </div>
+    {% endif %}
 </div>
 
 <!-- My Personal Receipts Table -->

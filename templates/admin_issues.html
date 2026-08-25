@@ -1,0 +1,385 @@
+{% extends 'base.html' %}
+
+{% block title %}Raised Issues & Maintenance Helpdesk - SDDRA Admin{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="page-header-title">
+        <h2>🛠️ Resident Grievances &amp; Raised Issues</h2>
+        <p>Review, assign, track resolution progress, and dispatch WhatsApp updates for resident maintenance requests.</p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('logIssueModal').classList.add('active'); document.body.style.overflow = 'hidden';">
+            ➕ Log Maintenance Issue
+        </button>
+    </div>
+</div>
+
+<!-- Quick Statistics KPI Cards -->
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="stat-card">
+        <div class="stat-label">Total Raised Issues</div>
+        <div class="stat-value text-main">{{ total_tickets_count }}</div>
+        <div class="stat-sub">Across all 44 flats</div>
+    </div>
+    <div class="stat-card" style="border-color: rgba(245, 158, 11, 0.4);">
+        <div class="stat-label">🚨 Open / Unassigned</div>
+        <div class="stat-value" style="color: #f59e0b;">{{ open_tickets_count }}</div>
+        <div class="stat-sub">Awaiting technician action</div>
+    </div>
+    <div class="stat-card" style="border-color: rgba(59, 130, 246, 0.4);">
+        <div class="stat-label">⚙️ In Progress</div>
+        <div class="stat-value" style="color: #3b82f6;">{{ inprogress_tickets_count }}</div>
+        <div class="stat-sub">Active repairs &amp; inspections</div>
+    </div>
+    <div class="stat-card" style="border-color: rgba(16, 185, 129, 0.4);">
+        <div class="stat-label">✅ Resolved / Closed</div>
+        <div class="stat-value" style="color: #10b981;">{{ resolved_tickets_count }}</div>
+        <div class="stat-sub">Completed maintenance</div>
+    </div>
+</div>
+
+<!-- Filters & Search Toolbar -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1rem 1.25rem;">
+    <form method="GET" action="{{ url_for('admin_issues') }}" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between;">
+        <div style="display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; flex: 1; min-width: 280px;">
+            <!-- Text Search -->
+            <div style="position: relative; flex: 1; min-width: 200px;">
+                <input type="text" name="q" value="{{ search_q }}" class="form-control" placeholder="🔍 Search Ticket #, Flat, Name, or Description..." style="padding-left: 0.85rem; font-size: 0.85rem;">
+            </div>
+
+            <!-- Status Filter -->
+            <select name="status" class="form-control" style="width: auto; min-width: 140px; font-size: 0.85rem;" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>🚨 Pending (Open/Assigned/Active)</option>
+                <option value="OPEN" {% if status_filter == 'OPEN' %}selected{% endif %}>Open</option>
+                <option value="ASSIGNED" {% if status_filter == 'ASSIGNED' %}selected{% endif %}>Assigned</option>
+                <option value="IN_PROGRESS" {% if status_filter == 'IN_PROGRESS' %}selected{% endif %}>In Progress</option>
+                <option value="RESOLVED" {% if status_filter == 'RESOLVED' %}selected{% endif %}>Resolved</option>
+                <option value="CLOSED" {% if status_filter == 'CLOSED' %}selected{% endif %}>Closed</option>
+            </select>
+
+            <!-- Category Filter -->
+            <select name="category" class="form-control" style="width: auto; min-width: 140px; font-size: 0.85rem;" onchange="this.form.submit()">
+                <option value="">All Categories</option>
+                <option value="Plumbing" {% if category_filter == 'Plumbing' %}selected{% endif %}>🚰 Plumbing</option>
+                <option value="Electrical" {% if category_filter == 'Electrical' %}selected{% endif %}>⚡ Electrical</option>
+                <option value="Lift" {% if category_filter == 'Lift' %}selected{% endif %}>🛗 Lift</option>
+                <option value="Cleaning" {% if category_filter == 'Cleaning' %}selected{% endif %}>🧹 Cleaning</option>
+                <option value="Security" {% if category_filter == 'Security' %}selected{% endif %}>🛡️ Security</option>
+                <option value="Other" {% if category_filter == 'Other' %}selected{% endif %}>📌 Other</option>
+            </select>
+
+            <!-- Priority Filter -->
+            <select name="priority" class="form-control" style="width: auto; min-width: 130px; font-size: 0.85rem;" onchange="this.form.submit()">
+                <option value="">All Priorities</option>
+                <option value="Normal" {% if priority_filter == 'Normal' %}selected{% endif %}>Normal</option>
+                <option value="Urgent" {% if priority_filter == 'Urgent' %}selected{% endif %}>🚨 Urgent</option>
+                <option value="Emergency" {% if priority_filter == 'Emergency' %}selected{% endif %}>🔥 Emergency</option>
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.45rem 0.9rem; font-size: 0.85rem;">Filter</button>
+            {% if search_q or status_filter or category_filter or priority_filter %}
+            <a href="{{ url_for('admin_issues') }}" class="btn btn-secondary" style="padding: 0.45rem 0.85rem; font-size: 0.85rem;" title="Reset filters">Reset</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Raised Issues Data Table Card -->
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title">📋 Maintenance Grievances &amp; Work Orders ({{ tickets|length }})</h3>
+        <span class="text-secondary" style="font-size: 0.82rem;">Showing active recorded issues</span>
+    </div>
+
+    {% if tickets %}
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 110px;">Ticket #</th>
+                    <th style="width: 130px;">Flat &amp; Resident</th>
+                    <th>Issue Summary &amp; Description</th>
+                    <th style="width: 100px;">Priority</th>
+                    <th style="width: 120px;">Status</th>
+                    <th style="width: 170px;">Assigned To</th>
+                    <th style="width: 110px;">Logged On</th>
+                    <th style="width: 130px; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tickets %}
+                <tr>
+                    <td>
+                        <strong class="text-highlight-blue" style="font-size: 0.88rem;">#{{ t.ticket_number }}</strong>
+                        <div style="margin-top: 0.25rem;">
+                            {% if t.category == 'Plumbing' %}
+                            <span class="badge badge-info" style="font-size: 0.7rem; padding: 2px 6px;">🚰 Plumbing</span>
+                            {% elif t.category == 'Electrical' %}
+                            <span class="badge badge-warning" style="font-size: 0.7rem; padding: 2px 6px;">⚡ Electrical</span>
+                            {% elif t.category == 'Lift' %}
+                            <span class="badge badge-primary" style="font-size: 0.7rem; padding: 2px 6px;">🛗 Lift</span>
+                            {% elif t.category == 'Cleaning' %}
+                            <span class="badge badge-success" style="font-size: 0.7rem; padding: 2px 6px;">🧹 Cleaning</span>
+                            {% elif t.category == 'Security' %}
+                            <span class="badge badge-danger" style="font-size: 0.7rem; padding: 2px 6px;">🛡️ Security</span>
+                            {% else %}
+                            <span class="badge badge-secondary" style="font-size: 0.7rem; padding: 2px 6px;">📌 {{ t.category }}</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        <strong class="text-main" style="font-size: 0.88rem;">Flat {{ t.flat_no }}</strong>
+                        <div class="text-secondary" style="font-size: 0.78rem; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ t.resident_name }}">
+                            {{ t.resident_name }}
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-weight: 700; color: var(--text-main); font-size: 0.88rem; margin-bottom: 0.2rem;">
+                            {{ t.title }}
+                        </div>
+                        <div style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.4; max-width: 380px;">
+                            {{ t.description }}
+                        </div>
+                        {% if t.admin_notes %}
+                        <div style="margin-top: 0.35rem; font-size: 0.78rem; color: var(--highlight-blue); background: var(--surface-hover); padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); border-left: 2px solid var(--highlight-blue);">
+                            <strong>Admin Note:</strong> {{ t.admin_notes }}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if t.priority == 'Emergency' %}
+                        <span class="badge badge-danger" style="font-weight: 800; font-size: 0.74rem;">🔥 Emergency</span>
+                        {% elif t.priority == 'Urgent' %}
+                        <span class="badge badge-warning" style="font-weight: 700; font-size: 0.74rem;">🚨 Urgent</span>
+                        {% else %}
+                        <span class="badge badge-secondary" style="font-size: 0.74rem;">Normal</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if t.status == 'OPEN' %}
+                        <span class="badge badge-warning" style="font-size: 0.78rem; font-weight: 700;">🟡 Open</span>
+                        {% elif t.status == 'ASSIGNED' %}
+                        <span class="badge badge-info" style="font-size: 0.78rem; font-weight: 700;">🔵 Assigned</span>
+                        {% elif t.status == 'IN_PROGRESS' %}
+                        <span class="badge badge-primary" style="font-size: 0.78rem; font-weight: 700;">⚙️ In Progress</span>
+                        {% elif t.status == 'RESOLVED' %}
+                        <span class="badge badge-success" style="font-size: 0.78rem; font-weight: 700;">✅ Resolved</span>
+                        {% elif t.status == 'CLOSED' %}
+                        <span class="badge badge-secondary" style="font-size: 0.78rem; font-weight: 700;">🔒 Closed</span>
+                        {% else %}
+                        <span class="badge badge-secondary" style="font-size: 0.78rem;">{{ t.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="font-size: 0.82rem; color: var(--text-main); font-weight: 600;">
+                            {{ t.assigned_to or 'Unassigned' }}
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                            {{ (t.created_at|string)[:10] }}
+                        </div>
+                    </td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        <!-- Edit / Status Modal Trigger -->
+                        <button type="button" class="btn btn-sm btn-outline-primary" style="padding: 0.25rem 0.55rem; font-size: 0.78rem;" 
+                                data-id="{{ t.id }}"
+                                data-ticket="{{ t.ticket_number }}"
+                                data-flat="{{ t.flat_no }}"
+                                data-status="{{ t.status }}"
+                                data-assigned="{{ t.assigned_to or '' }}"
+                                data-notes="{{ t.admin_notes or '' }}"
+                                onclick="openUpdateTicketModalFromBtn(this)"
+                                title="Update Status &amp; Assign Staff">
+                            ✏️ Status
+                        </button>
+
+                        <!-- WhatsApp Dispatch to Resident -->
+                        {% set wa_update_text = "*SDERA Helpdesk Update: Ticket #" ~ t.ticket_number ~ "*\n*Flat:* " ~ t.flat_no ~ "\n*Category:* " ~ t.category ~ "\n*Status:* " ~ t.status ~ "\n*Assigned To:* " ~ (t.assigned_to or 'Caretaker') ~ (("\n*Notes:* " ~ t.admin_notes) if t.admin_notes else "") ~ "\n\n_South Dumdum Enclave Residents\' Association_" %}
+                        <a href="https://api.whatsapp.com/send?text={{ wa_update_text|urlencode }}" target="_blank" class="btn btn-sm btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.78rem; margin-left: 0.25rem;" title="Send WhatsApp Update">
+                            💬
+                        </a>
+
+                        <!-- Delete Ticket -->
+                        <form method="POST" action="{{ url_for('admin_issues') }}" style="display: inline; margin-left: 0.25rem;" onsubmit="return confirm('Are you sure you want to delete Ticket #{{ t.ticket_number }}?')">
+                            <input type="hidden" name="action" value="delete_ticket">
+                            <input type="hidden" name="ticket_id" value="{{ t.id }}">
+                            <button type="submit" class="btn btn-sm btn-secondary" style="padding: 0.25rem 0.45rem; font-size: 0.78rem; color: var(--rose-500); border-color: rgba(244,63,94,0.3);" title="Delete ticket">
+                                🗑️
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 3rem 1rem;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🎉</div>
+        <h4 class="text-main" style="margin-bottom: 0.5rem;">No Raised Issues Found</h4>
+        <p class="text-secondary" style="font-size: 0.9rem; max-width: 400px; margin: 0 auto 1.5rem auto;">
+            {% if search_q or status_filter or category_filter or priority_filter %}
+            No tickets match your active filter criteria. Try resetting filters.
+            {% else %}
+            All resident maintenance tickets and grievances are resolved!
+            {% endif %}
+        </p>
+        {% if search_q or status_filter or category_filter or priority_filter %}
+        <a href="{{ url_for('admin_issues') }}" class="btn btn-primary">Reset Filters</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- ================= Modal: Log New Maintenance Issue ================= -->
+<div class="modal-backdrop" id="logIssueModal" role="dialog" aria-modal="true" aria-labelledby="logIssueModalTitle">
+    <div class="modal-dialog" style="max-width: 540px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="logIssueModalTitle">🛠️ Log Maintenance Issue</h3>
+            <button type="button" class="close-btn" onclick="document.getElementById('logIssueModal').classList.remove('active'); document.body.style.overflow = '';">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('admin_issues') }}">
+            <input type="hidden" name="action" value="create_ticket">
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label class="form-label" for="issue_flat_no">Flat Number *</label>
+                    <select name="flat_no" id="issue_flat_no" class="form-control" required onchange="updateResidentNameFromSelect(this)">
+                        <option value="">-- Select Flat --</option>
+                        {% for m in all_members %}
+                        <option value="{{ m.flat_no }}" data-name="{{ m.member_name }}">Flat {{ m.flat_no }} ({{ m.member_name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label class="form-label" for="issue_resident_name">Resident Name</label>
+                    <input type="text" name="resident_name" id="issue_resident_name" class="form-control" placeholder="Resident Name" required>
+                </div>
+
+                <div class="grid-2" style="margin-bottom: 1rem; gap: 0.75rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="issue_category">Category *</label>
+                        <select name="category" id="issue_category" class="form-control" required>
+                            <option value="Plumbing">🚰 Plumbing &amp; Water</option>
+                            <option value="Electrical" selected>⚡ Electrical &amp; Power</option>
+                            <option value="Lift">🛗 Lift Maintenance</option>
+                            <option value="Cleaning">🧹 Common Cleaning &amp; Waste</option>
+                            <option value="Security">🛡️ Security &amp; Gates</option>
+                            <option value="Other">📌 Other Grievance</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="issue_priority">Urgency / Priority *</label>
+                        <select name="priority" id="issue_priority" class="form-control" required>
+                            <option value="Normal" selected>Normal (48 hrs)</option>
+                            <option value="Urgent">🚨 Urgent (24 hrs)</option>
+                            <option value="Emergency">🔥 Emergency (Immediate)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label class="form-label" for="issue_title">Issue Title / Subject</label>
+                    <input type="text" name="title" id="issue_title" class="form-control" placeholder="e.g. 4th floor corridor light flickering" required>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label class="form-label" for="issue_desc">Detailed Description *</label>
+                    <textarea name="description" id="issue_desc" rows="3" class="form-control" placeholder="Provide full details of the issue, location in the building, and symptoms..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="issue_assigned_to">Assign Technician / Staff</label>
+                    <input type="text" name="assigned_to" id="issue_assigned_to" class="form-control" value="Caretaker (Mr. Sanjoy Chakraborty)" placeholder="e.g. Caretaker Mr. Sanjoy Chakraborty, Electrician Subhas">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('logIssueModal').classList.remove('active'); document.body.style.overflow = '';">Cancel</button>
+                <button type="submit" class="btn btn-primary">Log Issue &amp; Create Ticket &rarr;</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= Modal: Update Ticket Status & Notes ================= -->
+<div class="modal-backdrop" id="updateTicketModal" role="dialog" aria-modal="true" aria-labelledby="updateTicketModalTitle">
+    <div class="modal-dialog" style="max-width: 480px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="updateTicketModalTitle">⚙️ Update Ticket Status</h3>
+            <button type="button" class="close-btn" onclick="document.getElementById('updateTicketModal').classList.remove('active'); document.body.style.overflow = '';">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('admin_issues') }}">
+            <input type="hidden" name="action" value="update_status">
+            <input type="hidden" name="ticket_id" id="modal_tkt_id">
+
+            <div class="modal-body">
+                <div style="background: var(--surface-hover); padding: 0.75rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); margin-bottom: 1rem;">
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Updating Ticket:</div>
+                    <strong class="text-highlight-blue" id="modal_tkt_heading" style="font-size: 1rem;">#SD-4182 (Flat A/4-C)</strong>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label class="form-label" for="modal_tkt_status">Resolution Status *</label>
+                    <select name="status" id="modal_tkt_status" class="form-control" required>
+                        <option value="OPEN">🟡 Open (Under Review)</option>
+                        <option value="ASSIGNED">🔵 Assigned to Technician</option>
+                        <option value="IN_PROGRESS">⚙️ In Progress (Work Ongoing)</option>
+                        <option value="RESOLVED">✅ Resolved (Work Finished)</option>
+                        <option value="CLOSED">🔒 Closed</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label class="form-label" for="modal_tkt_assigned_to">Assigned Technician / Staff</label>
+                    <input type="text" name="assigned_to" id="modal_tkt_assigned_to" class="form-control" placeholder="e.g. Caretaker (Mr. Sanjoy Chakraborty)">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="modal_tkt_admin_notes">Admin Resolution Notes / Progress Remarks</label>
+                    <textarea name="admin_notes" id="modal_tkt_admin_notes" rows="3" class="form-control" placeholder="e.g. Electrician inspected line, replaced 4th floor MCB fuse, tested OK."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('updateTicketModal').classList.remove('active'); document.body.style.overflow = '';">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Status Update &rarr;</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function updateResidentNameFromSelect(sel) {
+    const opt = sel.options[sel.selectedIndex];
+    const name = opt.getAttribute('data-name');
+    if (name) {
+        document.getElementById('issue_resident_name').value = name;
+    }
+}
+
+function openUpdateTicketModalFromBtn(btn) {
+    const id = btn.getAttribute('data-id');
+    const ticketNo = btn.getAttribute('data-ticket');
+    const flatNo = btn.getAttribute('data-flat');
+    const status = btn.getAttribute('data-status');
+    const assignedTo = btn.getAttribute('data-assigned');
+    const adminNotes = btn.getAttribute('data-notes');
+
+    document.getElementById('modal_tkt_id').value = id || '';
+    document.getElementById('modal_tkt_heading').textContent = '#' + ticketNo + ' (Flat ' + flatNo + ')';
+    document.getElementById('modal_tkt_status').value = status || 'OPEN';
+    document.getElementById('modal_tkt_assigned_to').value = assignedTo || '';
+    document.getElementById('modal_tkt_admin_notes').value = adminNotes || '';
+
+    const modal = document.getElementById('updateTicketModal');
+    if (modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+</script>
+{% endblock %}

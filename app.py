@@ -163,6 +163,15 @@ def inject_globals():
     is_admin = bool(user and (user.get('role') in ADMIN_ROLES or user.get('is_admin', False)))
     is_exec = bool(user and (user.get('role') in EXECUTIVE_ROLES or user.get('is_admin', False)))
     is_billing_admin = bool(user and (user.get('role') in {'super_admin', 'billing_admin'} or user.get('username') == 'admin'))
+    open_issues_cnt = 0
+    if is_admin:
+        try:
+            r_cnt = query_db("SELECT COUNT(*) as cnt FROM tbl_helpdesk_tickets WHERE status NOT IN ('RESOLVED', 'CLOSED')", one=True)
+            if r_cnt:
+                open_issues_cnt = int(r_cnt.get('cnt') or 0)
+        except Exception:
+            open_issues_cnt = 0
+
     return {
         'config': Config,
         'now': get_ist_now(),
@@ -170,6 +179,7 @@ def inject_globals():
         'is_admin': is_admin,
         'is_executive': is_exec,
         'is_billing_admin': is_billing_admin,
+        'open_issues_count': open_issues_cnt,
         'committee_whatsapp_contacts': get_whatsapp_committee_contacts(),
         'asset_version': '2.2.0'
     }
@@ -750,6 +760,11 @@ def dashboard():
                 pinned_notices = []
                 recent_notices = []
                 
+            try:
+                recent_tickets = query_db("SELECT * FROM tbl_helpdesk_tickets ORDER BY id DESC LIMIT 5") or []
+            except Exception:
+                recent_tickets = []
+                
             return render_template(
                 'dashboard.html',
                 is_admin=True,
@@ -767,6 +782,7 @@ def dashboard():
                 recent_expenses=recent_expenses,
                 pinned_notices=pinned_notices,
                 recent_notices=recent_notices,
+                recent_tickets=recent_tickets,
                 search_q=search_q,
                 current_year=2026
             )
@@ -820,6 +836,11 @@ def dashboard():
                 pinned_notices = []
                 recent_notices = []
 
+            try:
+                my_tickets = query_db("SELECT * FROM tbl_helpdesk_tickets WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s)) ORDER BY id DESC", (flat_no,)) or []
+            except Exception:
+                my_tickets = []
+
             return render_template(
                 'dashboard.html',
                 is_admin=False,
@@ -832,6 +853,7 @@ def dashboard():
                 recent_expenses=recent_expenses,
                 pinned_notices=pinned_notices,
                 recent_notices=recent_notices,
+                my_tickets=my_tickets,
                 current_year=2026
             )
     except Exception as e:
@@ -878,6 +900,7 @@ def command_palette_data():
     if is_admin:
         nav_items.extend([
             {'id': 'nav-members', 'title': 'Resident Directory', 'desc': '44 Flat roster & contacts', 'category': 'Admin Console', 'icon': '👥', 'url': url_for('admin_members')},
+            {'id': 'nav-issues', 'title': 'Raised Issues & Helpdesk', 'desc': 'Track resident grievances & repairs', 'category': 'Admin Console', 'icon': '🛠️', 'url': url_for('admin_issues')},
             {'id': 'nav-receipts', 'title': 'Receipts Ledger', 'desc': 'Issue & print official slips', 'category': 'Admin Console', 'icon': '💳', 'url': url_for('admin_receipts')},
             {'id': 'nav-penalties', 'title': 'Penalties & Defaulters', 'desc': 'Track overdue accounts', 'category': 'Admin Console', 'icon': '⚖️', 'url': url_for('admin_penalties')},
             {'id': 'nav-audit', 'title': 'Activity & Audit Logs', 'desc': 'Trace system actions & IPs', 'category': 'Admin Console', 'icon': '🛡️', 'url': url_for('admin_audit_logs')},
@@ -886,10 +909,12 @@ def command_palette_data():
 
     # 2. Quick Actions
     action_items = [
-        {'id': 'act-theme', 'title': 'Toggle Dark / Light Theme', 'desc': 'Switch visual color palette', 'category': 'Actions', 'icon': '🌓', 'action': 'toggle_theme'}
+        {'id': 'act-theme', 'title': 'Toggle Dark / Light Theme', 'desc': 'Switch visual color palette', 'category': 'Actions', 'icon': '🌓', 'action': 'toggle_theme'},
+        {'id': 'act-raise-issue', 'title': 'Raise Maintenance / Helpdesk Ticket', 'desc': 'Report plumbing, electrical, or lift issue', 'category': 'Actions', 'icon': '🛠️', 'url': url_for('dashboard') + '#report-issue'}
     ]
     if is_admin:
         action_items.extend([
+            {'id': 'act-log-issue', 'title': 'Log Raised Issue / Work Order', 'desc': 'Create maintenance ticket for resident', 'category': 'Actions', 'icon': '🛠️', 'url': url_for('admin_issues')},
             {'id': 'act-expense', 'title': 'Record New Society Expense', 'desc': 'Log vendor invoice or voucher', 'category': 'Actions', 'icon': '➕', 'url': url_for('expenses_list') + '#new-expense'},
             {'id': 'act-notice', 'title': 'Post New Notice Broadcast', 'desc': 'Draft official circular', 'category': 'Actions', 'icon': '📢', 'url': url_for('notices_list') + '#new-notice'},
             {'id': 'act-receipt', 'title': 'Issue Maintenance Receipt', 'desc': 'Generate verified payment slip', 'category': 'Actions', 'icon': '💳', 'url': url_for('admin_receipts') + '#issue-receipt'}
@@ -2095,6 +2120,259 @@ def admin_whatsapp_penalty_reminder():
         
     return redirect(result['direct_url'])
 
+# --- Administrative: Raised Issues & Helpdesk Management Console ---
+def generate_ticket_number():
+    try:
+        max_row = query_db("SELECT MAX(id) as max_id FROM tbl_helpdesk_tickets", one=True)
+        max_id = int(max_row['max_id'] or 0) if max_row else 0
+    except Exception:
+        max_id = 0
+    candidate = f"SD-{4185 + max_id}"
+    try:
+        existing = query_db("SELECT id FROM tbl_helpdesk_tickets WHERE ticket_number = %s", (candidate,), one=True)
+        if existing:
+            import time
+            candidate = f"SD-{4185 + max_id}-{int(time.time()) % 1000}"
+    except Exception:
+        pass
+    return candidate
+
+@app.route('/admin/tickets', methods=['GET', 'POST'])
+@app.route('/admin/helpdesk', methods=['GET', 'POST'])
+@app.route('/admin/issues', methods=['GET', 'POST'])
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def admin_issues():
+    user = session.get('user', {})
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'update_status':
+            ticket_id = request.form.get('ticket_id')
+            new_status = request.form.get('status', 'OPEN').strip().upper()
+            assigned_to = request.form.get('assigned_to', '').strip()
+            admin_notes = request.form.get('admin_notes', '').strip()
+            now_dt = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            try:
+                execute_db(
+                    """UPDATE tbl_helpdesk_tickets 
+                       SET status = %s, assigned_to = %s, admin_notes = %s, updated_at = %s 
+                       WHERE id = %s""",
+                    (new_status, assigned_to or None, admin_notes or None, now_dt, ticket_id)
+                )
+                
+                # Sync SQLite fallback
+                import os, sqlite3
+                if os.path.exists('sddra.db'):
+                    try:
+                        sq_conn = sqlite3.connect('sddra.db')
+                        sq_cur = sq_conn.cursor()
+                        sq_cur.execute(
+                            "UPDATE tbl_helpdesk_tickets SET status = ?, assigned_to = ?, admin_notes = ?, updated_at = ? WHERE id = ?",
+                            (new_status, assigned_to or None, admin_notes or None, now_dt, ticket_id)
+                        )
+                        sq_conn.commit()
+                        sq_conn.close()
+                    except Exception as sq_err:
+                        print(f"[SQLite Sync Warning] {sq_err}")
+
+                tkt = query_db("SELECT * FROM tbl_helpdesk_tickets WHERE id = %s", (ticket_id,), one=True)
+                tkt_no = tkt.get('ticket_number') if tkt else str(ticket_id)
+                log_activity('TICKET_UPDATED', f"Updated Status of Ticket #{tkt_no} to '{new_status}' (Assigned to: {assigned_to or 'None'})")
+                flash(f"✓ Ticket #{tkt_no} status updated to {new_status}.", 'success')
+            except Exception as e:
+                flash(f"Could not update ticket status: {e}", 'danger')
+            return redirect(url_for('admin_issues'))
+            
+        elif action == 'create_ticket':
+            flat_no = request.form.get('flat_no', '').strip()
+            resident_name = request.form.get('resident_name', '').strip()
+            category = request.form.get('category', 'Other').strip()
+            title = request.form.get('title', '').strip()
+            description = request.form.get('description', '').strip()
+            priority = request.form.get('priority', 'Normal').strip()
+            assigned_to = request.form.get('assigned_to', 'Caretaker (Mr. Sanjoy Chakraborty)').strip()
+            
+            if not flat_no or not description:
+                flash('Please specify both the Flat and Issue Description.', 'danger')
+                return redirect(url_for('admin_issues'))
+                
+            if not resident_name:
+                m_row = query_db("SELECT member_name FROM tbl_membership WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (flat_no,), one=True)
+                resident_name = m_row.get('member_name', 'Resident') if m_row else 'Resident'
+                
+            if not title:
+                title = f"{category} Maintenance - Flat {flat_no}"
+                
+            tkt_no = generate_ticket_number()
+            now_dt = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            try:
+                execute_db(
+                    """INSERT INTO tbl_helpdesk_tickets (ticket_number, flat_no, resident_name, category, title, description, priority, status, assigned_to, created_at, updated_at)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, 'OPEN', %s, %s, %s)""",
+                    (tkt_no, flat_no, resident_name, category, title, description, priority, assigned_to or None, now_dt, now_dt)
+                )
+                
+                # Sync SQLite fallback
+                import os, sqlite3
+                if os.path.exists('sddra.db'):
+                    try:
+                        sq_conn = sqlite3.connect('sddra.db')
+                        sq_cur = sq_conn.cursor()
+                        sq_cur.execute(
+                            """INSERT INTO tbl_helpdesk_tickets (ticket_number, flat_no, resident_name, category, title, description, priority, status, assigned_to, created_at, updated_at)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?)""",
+                            (tkt_no, flat_no, resident_name, category, title, description, priority, assigned_to or None, now_dt, now_dt)
+                        )
+                        sq_conn.commit()
+                        sq_conn.close()
+                    except Exception as sq_err:
+                        print(f"[SQLite Sync Warning] {sq_err}")
+
+                log_activity('TICKET_CREATED', f"Logged new maintenance ticket #{tkt_no} for Flat {flat_no} ({category}: {title})")
+                flash(f"✓ Maintenance Ticket #{tkt_no} logged successfully for Flat {flat_no}!", 'success')
+            except Exception as e:
+                flash(f"Could not log ticket: {e}", 'danger')
+            return redirect(url_for('admin_issues'))
+            
+        elif action == 'delete_ticket':
+            ticket_id = request.form.get('ticket_id')
+            try:
+                tkt = query_db("SELECT * FROM tbl_helpdesk_tickets WHERE id = %s", (ticket_id,), one=True)
+                tkt_no = tkt.get('ticket_number') if tkt else str(ticket_id)
+                execute_db("DELETE FROM tbl_helpdesk_tickets WHERE id = %s", (ticket_id,))
+                
+                # Sync SQLite fallback
+                import os, sqlite3
+                if os.path.exists('sddra.db'):
+                    try:
+                        sq_conn = sqlite3.connect('sddra.db')
+                        sq_cur = sq_conn.cursor()
+                        sq_cur.execute("DELETE FROM tbl_helpdesk_tickets WHERE id = ?", (ticket_id,))
+                        sq_conn.commit()
+                        sq_conn.close()
+                    except Exception as sq_err:
+                        print(f"[SQLite Sync Warning] {sq_err}")
+
+                log_activity('TICKET_DELETED', f"Deleted maintenance ticket #{tkt_no}")
+                flash(f"✓ Ticket #{tkt_no} deleted from register.", 'info')
+            except Exception as e:
+                flash(f"Could not delete ticket: {e}", 'danger')
+            return redirect(url_for('admin_issues'))
+
+    # Filters
+    status_filter = request.args.get('status', '').strip().upper()
+    category_filter = request.args.get('category', '').strip()
+    priority_filter = request.args.get('priority', '').strip()
+    search_q = request.args.get('q', '').strip()
+    
+    query = "SELECT * FROM tbl_helpdesk_tickets WHERE 1=1"
+    params = []
+    
+    if status_filter:
+        if status_filter == 'PENDING':
+            query += " AND status NOT IN ('RESOLVED', 'CLOSED')"
+        else:
+            query += " AND status = %s"
+            params.append(status_filter)
+            
+    if category_filter:
+        query += " AND LOWER(category) = LOWER(%s)"
+        params.append(category_filter)
+        
+    if priority_filter:
+        query += " AND LOWER(priority) = LOWER(%s)"
+        params.append(priority_filter)
+        
+    if search_q:
+        query += " AND (ticket_number LIKE %s OR flat_no LIKE %s OR resident_name LIKE %s OR title LIKE %s OR description LIKE %s OR assigned_to LIKE %s)"
+        params.extend([f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", f"%{search_q}%"])
+        
+    query += " ORDER BY CASE WHEN status = 'OPEN' THEN 1 WHEN status = 'ASSIGNED' THEN 2 WHEN status = 'IN_PROGRESS' THEN 3 ELSE 4 END, id DESC"
+    
+    tickets = query_db(query, params) or []
+    all_members = query_db("SELECT flat_no, member_name FROM tbl_membership ORDER BY flat_no") or []
+    
+    # Calculate statistics
+    all_t = query_db("SELECT status, priority FROM tbl_helpdesk_tickets") or []
+    total_tickets_count = len(all_t)
+    open_tickets_count = sum(1 for t in all_t if t.get('status') in ('OPEN', 'ASSIGNED'))
+    inprogress_tickets_count = sum(1 for t in all_t if t.get('status') == 'IN_PROGRESS')
+    resolved_tickets_count = sum(1 for t in all_t if t.get('status') in ('RESOLVED', 'CLOSED'))
+    urgent_tickets_count = sum(1 for t in all_t if str(t.get('priority')).lower() in ('urgent', 'emergency'))
+
+    return render_template(
+        'admin_issues.html',
+        tickets=tickets,
+        all_members=all_members,
+        total_tickets_count=total_tickets_count,
+        open_tickets_count=open_tickets_count,
+        inprogress_tickets_count=inprogress_tickets_count,
+        resolved_tickets_count=resolved_tickets_count,
+        urgent_tickets_count=urgent_tickets_count,
+        status_filter=status_filter,
+        category_filter=category_filter,
+        priority_filter=priority_filter,
+        search_q=search_q
+    )
+
+# --- API: Resident / Admin Helpdesk Ticket Creation ---
+@app.route('/api/helpdesk/create', methods=['POST'])
+@login_required
+def api_helpdesk_create():
+    user = session.get('user', {})
+    data = request.get_json(silent=True) if request.is_json else request.form
+    
+    category = data.get('category', 'Other').strip()
+    description = data.get('description', '').strip()
+    priority = data.get('priority', 'Normal').strip()
+    title = data.get('title', '').strip()
+    
+    flat_no = user.get('flat_no') or data.get('flat_no', 'N/A')
+    resident_name = user.get('name') or data.get('resident_name', 'Resident')
+    
+    if not description:
+        return jsonify({'success': False, 'message': 'Please describe the issue.'}), 400
+        
+    if not title:
+        title = f"{category} Maintenance - Flat {flat_no}"
+        
+    tkt_no = generate_ticket_number()
+    now_dt = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    try:
+        execute_db(
+            """INSERT INTO tbl_helpdesk_tickets (ticket_number, flat_no, resident_name, category, title, description, priority, status, assigned_to, created_at, updated_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, 'OPEN', 'Caretaker (Mr. Sanjoy Chakraborty)', %s, %s)""",
+            (tkt_no, flat_no, resident_name, category, title, description, priority, now_dt, now_dt)
+        )
+        
+        # Sync SQLite fallback
+        import os, sqlite3
+        if os.path.exists('sddra.db'):
+            try:
+                sq_conn = sqlite3.connect('sddra.db')
+                sq_cur = sq_conn.cursor()
+                sq_cur.execute(
+                    """INSERT INTO tbl_helpdesk_tickets (ticket_number, flat_no, resident_name, category, title, description, priority, status, assigned_to, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', 'Caretaker (Mr. Sanjoy Chakraborty)', ?, ?)""",
+                    (tkt_no, flat_no, resident_name, category, title, description, priority, now_dt, now_dt)
+                )
+                sq_conn.commit()
+                sq_conn.close()
+            except Exception as sq_err:
+                print(f"[SQLite Sync Warning] {sq_err}")
+
+        log_activity('TICKET_RAISED', f"Resident from Flat {flat_no} ({resident_name}) submitted maintenance ticket #{tkt_no} ({category})")
+        return jsonify({
+            'success': True,
+            'ticket_number': tkt_no,
+            'message': f"Ticket #{tkt_no} registered successfully ({category}). Caretaker dispatched!"
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f"Error registering ticket: {e}"}), 500
 
 # --- Chart Data API ---
 @app.route('/api/expenses/chart-data')

@@ -407,6 +407,41 @@ def ensure_notices_table_sqlite():
             );
         """)
 
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tbl_helpdesk_tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticket_number TEXT NOT NULL UNIQUE,
+                flat_no TEXT NOT NULL,
+                resident_name TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT 'Other',
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                priority TEXT NOT NULL DEFAULT 'Normal',
+                status TEXT NOT NULL DEFAULT 'OPEN',
+                assigned_to TEXT DEFAULT 'Caretaker (Mr. Sanjoy Chakraborty)',
+                admin_notes TEXT DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        cur.execute("SELECT COUNT(*) FROM tbl_helpdesk_tickets;")
+        tkt_cnt = cur.fetchone()[0]
+        if tkt_cnt == 0:
+            try:
+                from seed_data import SEED_HELPDESK_TICKETS
+                for t in SEED_HELPDESK_TICKETS:
+                    cur.execute("""
+                        INSERT INTO tbl_helpdesk_tickets (ticket_number, flat_no, resident_name, category, title, description, priority, status, assigned_to, admin_notes, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    """, (
+                        t['ticket_number'], t['flat_no'], t['resident_name'], t['category'],
+                        t['title'], t['description'], t['priority'], t['status'],
+                        t['assigned_to'], t['admin_notes'], t['created_at'], t['updated_at']
+                    ))
+            except Exception:
+                pass
+
         cur.execute("SELECT COUNT(*) FROM tbl_activity_logs;")
         act_cnt = cur.fetchone()[0]
         if act_cnt == 0:
@@ -710,7 +745,53 @@ def ensure_mysql_schema(conn):
                 INDEX idx_wa_time (sent_at)
             ) ENGINE=InnoDB;
         """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tbl_helpdesk_tickets (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                ticket_number VARCHAR(30) NOT NULL UNIQUE,
+                flat_no VARCHAR(20) NOT NULL,
+                resident_name VARCHAR(150) NOT NULL,
+                category VARCHAR(50) NOT NULL DEFAULT 'Other',
+                title VARCHAR(200) NOT NULL,
+                description TEXT NOT NULL,
+                priority VARCHAR(20) NOT NULL DEFAULT 'Normal',
+                status VARCHAR(30) NOT NULL DEFAULT 'OPEN',
+                assigned_to VARCHAR(100) DEFAULT 'Caretaker (Mr. Sanjoy Chakraborty)',
+                admin_notes TEXT DEFAULT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_tkt_flat (flat_no),
+                INDEX idx_tkt_status (status),
+                INDEX idx_tkt_cat (category),
+                INDEX idx_tkt_time (created_at)
+            ) ENGINE=InnoDB;
+        """)
         conn.commit()
+
+        # Seed tbl_helpdesk_tickets if empty
+        try:
+            cur.execute("SELECT COUNT(*) as cnt FROM tbl_helpdesk_tickets;")
+            r_tkt = cur.fetchone()
+            tkt_cnt = r_tkt['cnt'] if isinstance(r_tkt, dict) else r_tkt[0]
+            if tkt_cnt == 0:
+                from seed_data import SEED_HELPDESK_TICKETS
+                tkt_sql = """
+                    INSERT INTO tbl_helpdesk_tickets (ticket_number, flat_no, resident_name, category, title, description, priority, status, assigned_to, admin_notes, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                """
+                tkt_vals = [
+                    (
+                        t['ticket_number'], t['flat_no'], t['resident_name'], t['category'],
+                        t['title'], t['description'], t['priority'], t['status'],
+                        t['assigned_to'], t['admin_notes'], t['created_at'], t['updated_at']
+                    ) for t in SEED_HELPDESK_TICKETS
+                ]
+                cur.executemany(tkt_sql, tkt_vals)
+                conn.commit()
+                print(f"[DB Init] Seeded {len(tkt_vals)} records into tbl_helpdesk_tickets in MySQL.")
+        except Exception as e_tkt:
+            print(f"[DB Warning] Could not seed tbl_helpdesk_tickets: {e_tkt}")
 
         # Seed tbl_activity_logs if empty
         try:
@@ -865,6 +946,13 @@ def init_db(force=False):
                 print(f"[DB Init] Connected successfully to MySQL '{Config.DB_NAME}' on {Config.DB_HOST}:{Config.DB_PORT}")
         finally:
             conn.close()
+
+        if os.path.exists('sddra.db'):
+            try:
+                ensure_notices_table_sqlite()
+            except Exception:
+                pass
+
         _INIT_DB_DONE = True
     except Exception as e:
         print(f"[DB Warning] Could not connect to MySQL database ({e}). Switching to SQLite.")

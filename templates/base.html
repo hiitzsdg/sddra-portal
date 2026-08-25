@@ -238,6 +238,7 @@
                     
                     {% if is_admin %}
                     <li><a href="{{ url_for('admin_members') }}" class="nav-link {% if request.endpoint == 'admin_members' %}active{% endif %}">👥 Resident Directory</a></li>
+                    <li><a href="{{ url_for('admin_issues') }}" class="nav-link {% if request.endpoint in ['admin_issues', 'admin_tickets', 'admin_helpdesk'] %}active{% endif %}">🛠️ Raised Issues{% if open_issues_count and open_issues_count > 0 %} <span class="badge badge-warning" style="font-size: 0.68rem; padding: 2px 5px; margin-left: 2px;">{{ open_issues_count }}</span>{% endif %}</a></li>
                     <li><a href="{{ url_for('admin_receipts') }}" class="nav-link {% if request.endpoint == 'admin_receipts' %}active{% endif %}">💳 Receipts Ledger</a></li>
                     <li><a href="{{ url_for('admin_penalties') }}" class="nav-link {% if request.endpoint == 'admin_penalties' %}active{% endif %}">⚖️ Penalties</a></li>
                     <li><a href="{{ url_for('admin_audit_logs') }}" class="nav-link {% if request.endpoint == 'admin_audit_logs' %}active{% endif %}">🛡️ Activity Logs</a></li>
@@ -312,6 +313,7 @@
                 
                 {% if is_admin %}
                 <li><a href="{{ url_for('admin_members') }}" class="nav-link {% if request.endpoint == 'admin_members' %}active{% endif %}">👥 Resident Directory</a></li>
+                <li><a href="{{ url_for('admin_issues') }}" class="nav-link {% if request.endpoint in ['admin_issues', 'admin_tickets', 'admin_helpdesk'] %}active{% endif %}">🛠️ Raised Issues{% if open_issues_count and open_issues_count > 0 %} <span class="badge badge-warning" style="font-size: 0.68rem; padding: 2px 5px; margin-left: 4px;">{{ open_issues_count }}</span>{% endif %}</a></li>
                 <li><a href="{{ url_for('admin_receipts') }}" class="nav-link {% if request.endpoint == 'admin_receipts' %}active{% endif %}">💳 Receipts Ledger</a></li>
                 <li><a href="{{ url_for('admin_penalties') }}" class="nav-link {% if request.endpoint == 'admin_penalties' %}active{% endif %}">⚖️ Penalties & Defaulters</a></li>
                 <li><a href="{{ url_for('admin_audit_logs') }}" class="nav-link {% if request.endpoint == 'admin_audit_logs' %}active{% endif %}">🛡️ Activity Logs</a></li>

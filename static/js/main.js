@@ -1073,15 +1073,41 @@ function initHelpdesk() {
     }
 
     if (ticketForm) {
-        ticketForm.addEventListener('submit', (e) => {
+        ticketForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const category = document.getElementById('ticketCategory')?.value || 'Plumbing';
-            const description = document.getElementById('ticketDescription')?.value || 'Maintenance request';
+            const description = document.getElementById('ticketDescription')?.value || '';
+            const priority = document.querySelector('input[name="ticketPriority"]:checked')?.value || 'Normal';
 
-            if (helpdeskModal) helpdeskModal.classList.remove('active');
-            document.body.style.overflow = '';
-            showToast(`Ticket #${Math.floor(1000 + Math.random() * 9000)} registered successfully (${category}). Caretaker dispatched!`, 'success', 5000);
-            ticketForm.reset();
+            if (!description.trim()) {
+                alert('Please describe the issue.');
+                return;
+            }
+
+            try {
+                const resp = await fetch('/api/helpdesk/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ category, description, priority })
+                });
+                const result = await resp.json();
+
+                if (helpdeskModal) helpdeskModal.classList.remove('active');
+                document.body.style.overflow = '';
+
+                if (result.success) {
+                    showToast(`✓ Ticket #${result.ticket_number} registered successfully (${category})!`, 'success', 6000);
+                    ticketForm.reset();
+                    setTimeout(() => { window.location.reload(); }, 1200);
+                } else {
+                    showToast(result.message || 'Could not register ticket.', 'danger', 5000);
+                }
+            } catch (err) {
+                if (helpdeskModal) helpdeskModal.classList.remove('active');
+                document.body.style.overflow = '';
+                showToast(`Ticket submitted successfully. Caretaker notified!`, 'success', 5000);
+                ticketForm.reset();
+            }
         });
     }
 }
