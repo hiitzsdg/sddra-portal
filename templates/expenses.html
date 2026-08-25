@@ -47,9 +47,9 @@
 </div>
 
 <!-- Expense Filter and Search -->
-<div class="card" style="margin-bottom: 1.5rem; padding: 1.35rem;">
+<div class="card filter-box" style="margin-bottom: 1.5rem; padding: 1.35rem;">
     <form method="GET" action="{{ url_for('expenses_list') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 240px;">
+        <div style="flex: 1 1 240px; min-width: 0;">
             <label class="form-label" for="q">Live Instant Search / Filter</label>
             <div class="live-search-box">
                 <span class="search-icon">🔍</span>
@@ -58,7 +58,7 @@
             </div>
         </div>
 
-        <div style="width: 210px;">
+        <div style="flex: 0 1 210px; min-width: 0;">
             <label class="form-label" for="particulars">Particulars (A-Z)</label>
             <select id="particulars" name="particulars" class="form-select">
                 <option value="">All Particulars</option>
@@ -70,7 +70,7 @@
             </select>
         </div>
 
-        <div style="width: 210px;">
+        <div style="flex: 0 1 210px; min-width: 0;">
             <label class="form-label" for="spl_head">Special Head (Sorted A-Z)</label>
             <select id="spl_head" name="spl_head" class="form-select">
                 <option value="">All Special Heads</option>
@@ -82,8 +82,8 @@
             </select>
         </div>
 
-        <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn-primary">🔍 Query</button>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="submit" class="btn btn-primary">🔍 Filter</button>
             <a href="{{ url_for('expenses_list') }}" class="btn btn-secondary">Reset</a>
         </div>
     </form>

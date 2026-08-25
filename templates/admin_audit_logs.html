@@ -67,9 +67,9 @@
 </div>
 
 <!-- Filters & Search Form -->
-<div class="card" style="margin-bottom: 1.5rem; padding: 1.35rem;">
+<div class="card filter-box" style="margin-bottom: 1.5rem; padding: 1.35rem;">
     <form method="GET" action="{{ url_for('admin_audit_logs') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 240px;">
+        <div style="flex: 1 1 240px; min-width: 0;">
             <label class="form-label" for="liveAuditSearch">Live Instant Search / Filter</label>
             <div class="live-search-box">
                 <span class="search-icon">🔍</span>
@@ -78,7 +78,7 @@
             </div>
         </div>
 
-        <div style="width: 180px;">
+        <div style="flex: 0 1 180px; min-width: 0;">
             <label class="form-label" for="roleFilter">Filter by Role</label>
             <select id="roleFilter" name="role" class="form-select">
                 <option value="">All Roles</option>
@@ -90,7 +90,7 @@
             </select>
         </div>
 
-        <div style="width: 200px;">
+        <div style="flex: 0 1 190px; min-width: 0;">
             <label class="form-label" for="actionFilter">Filter by Action</label>
             <select id="actionFilter" name="action" class="form-select">
                 <option value="">All Action Types</option>
@@ -102,7 +102,7 @@
             </select>
         </div>
 
-        <div style="width: 160px;">
+        <div style="flex: 0 1 150px; min-width: 0;">
             <label class="form-label" for="daysFilter">Time Range</label>
             <select id="daysFilter" name="days" class="form-select">
                 <option value="7" {% if current_days == '7' %}selected{% endif %}>Last 7 Days</option>
@@ -112,8 +112,8 @@
             </select>
         </div>
 
-        <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn-primary">🔍 Query</button>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="submit" class="btn btn-primary">🔍 Filter</button>
             <a href="{{ url_for('admin_audit_logs') }}" class="btn btn-secondary">Reset</a>
         </div>
     </form>

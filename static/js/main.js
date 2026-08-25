@@ -1030,14 +1030,16 @@ function initBuildingVisualizer() {
                 </div>
             `;
 
-            // Position popover near target button
+            // Position popover near target button safely within viewport
             const rect = btn.getBoundingClientRect();
             let top = rect.bottom + 8;
             let left = rect.left - 40;
+            const popWidth = Math.min(290, window.innerWidth - 20);
+            popover.style.width = `${popWidth}px`;
 
-            if (left + 310 > window.innerWidth) left = window.innerWidth - 325;
+            if (left + popWidth > window.innerWidth - 10) left = window.innerWidth - popWidth - 10;
             if (left < 10) left = 10;
-            if (top + 210 > window.innerHeight) top = rect.top - 210;
+            if (top + 210 > window.innerHeight) top = Math.max(10, rect.top - 210);
 
             popover.style.top = `${top}px`;
             popover.style.left = `${left}px`;

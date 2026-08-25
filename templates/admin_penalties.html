@@ -95,34 +95,34 @@
             <p class="text-secondary" style="font-size: 0.9rem; margin-bottom: 0.75rem; line-height: 1.5;">
                 Late charges accrue progressively for every unpaid month ($N$) that has elapsed past its monthly payment due date (e.g. members paid till July incur no penalty till 31st August; penalty applies from 1st September for unpaid August maintenance).
             </p>
-            <div style="display: inline-block; background: var(--surface-card); padding: 0.5rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); font-family: monospace; font-size: 1.05rem; font-weight: 700; color: #60a5fa;">
+            <div style="display: inline-block; max-width: 100%; word-break: break-word; background: var(--surface-card); padding: 0.5rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); font-family: monospace; font-size: 0.95rem; font-weight: 700; color: #60a5fa;">
                 Cumulative Penalty = (N &times; (N + 1) / 2) &times; ₹ 100
             </div>
         </div>
 
-        <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; max-width: 580px;">
-            <div style="background: var(--surface-card); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center; min-width: 95px;">
-                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 1 Month</span>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(85px, 1fr)); gap: 0.5rem; width: 100%; max-width: 580px;">
+            <div style="background: var(--surface-card); padding: 0.5rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center;">
+                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 1 Mo</span>
                 <strong style="color: #f59e0b; font-size: 0.88rem;">₹ 100</strong>
             </div>
-            <div style="background: var(--surface-card); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center; min-width: 95px;">
-                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 2 Months</span>
+            <div style="background: var(--surface-card); padding: 0.5rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center;">
+                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 2 Mo</span>
                 <strong style="color: #f97316; font-size: 0.88rem;">₹ 300</strong>
             </div>
-            <div style="background: var(--surface-card); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center; min-width: 95px;">
-                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 3 Months</span>
+            <div style="background: var(--surface-card); padding: 0.5rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center;">
+                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 3 Mo</span>
                 <strong style="color: #ef4444; font-size: 0.88rem;">₹ 600</strong>
             </div>
-            <div style="background: var(--surface-card); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center; min-width: 95px;">
-                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 4 Months</span>
+            <div style="background: var(--surface-card); padding: 0.5rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center;">
+                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 4 Mo</span>
                 <strong style="color: #dc2626; font-size: 0.88rem;">₹ 1,000</strong>
             </div>
-            <div style="background: var(--surface-card); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center; min-width: 95px;">
-                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 5 Months</span>
+            <div style="background: var(--surface-card); padding: 0.5rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center;">
+                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 5 Mo</span>
                 <strong style="color: #b91c1c; font-size: 0.88rem;">₹ 1,500</strong>
             </div>
-            <div style="background: var(--surface-card); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center; min-width: 95px;">
-                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 6 Months</span>
+            <div style="background: var(--surface-card); padding: 0.5rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); text-align: center;">
+                <span class="text-muted" style="font-size: 0.72rem; display: block;">N = 6 Mo</span>
                 <strong style="color: #991b1b; font-size: 0.88rem;">₹ 2,100</strong>
             </div>
         </div>
@@ -130,10 +130,10 @@
 </div>
 
 <!-- ================= CONTROLS & FILTER SECTION ================= -->
-<div class="card" style="margin-bottom: 1.75rem;">
+<div class="card filter-box" style="margin-bottom: 1.75rem;">
     <form method="GET" action="{{ url_for('admin_penalties') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; justify-content: space-between;">
         <!-- Search Input -->
-        <div style="flex: 1; min-width: 260px;">
+        <div style="flex: 1 1 240px; min-width: 0;">
             <label class="form-label" for="penaltySearch">🔍 Search Flat or Resident</label>
             <div class="live-search-box">
                 <span class="search-icon">🔍</span>
@@ -143,13 +143,13 @@
         </div>
 
         <!-- As-Of Calculation Date Picker -->
-        <div style="min-width: 200px;">
+        <div style="flex: 0 1 200px; min-width: 0;">
             <label class="form-label" for="as_of_date">📅 Calculation "As of" Date</label>
             <input type="date" id="as_of_date" name="as_of" value="{{ target_date }}" class="form-control" onchange="this.form.submit()">
         </div>
 
         <!-- Filter Status Select -->
-        <div style="min-width: 180px;">
+        <div style="flex: 0 1 220px; min-width: 0;">
             <label class="form-label" for="status_filter">Filter by Status</label>
             <select id="status_filter" name="status" class="form-control" onchange="this.form.submit()">
                 <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All 44 Units (Full Roster)</option>
@@ -159,10 +159,12 @@
         </div>
 
         <!-- Actions -->
-        <div style="display: flex; gap: 0.5rem;">
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <button type="submit" class="btn btn-secondary">🔄 Refresh</button>
             <a href="{{ url_for('admin_penalties') }}" class="btn btn-outline-primary" title="Reset Filters">Reset</a>
         </div>
+    </form>
+</div>
     </form>
 </div>
 

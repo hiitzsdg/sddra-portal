@@ -489,7 +489,7 @@
         <input type="hidden" name="category" value="{{ current_category }}">
         <input type="hidden" name="meeting_type" value="{{ current_meeting_type }}">
         
-        <div style="flex: 1; min-width: 250px;">
+        <div style="flex: 1 1 240px; min-width: 0;">
             <label class="form-label" for="q">Search Notice Content &amp; Titles</label>
             <div class="live-search-box">
                 <span class="search-icon">🔍</span>
@@ -500,7 +500,7 @@
             </div>
         </div>
 
-        <div style="width: 170px;">
+        <div style="flex: 0 1 170px; min-width: 0;">
             <label class="form-label" for="priority">Priority Filter</label>
             <select id="priority" name="priority" class="form-select" onchange="this.form.submit()">
                 <option value="ALL" {% if current_priority == 'ALL' %}selected{% endif %}>All Priorities</option>
@@ -510,7 +510,7 @@
             </select>
         </div>
 
-        <div style="width: 150px;">
+        <div style="flex: 0 1 160px; min-width: 0;">
             <label class="form-label" for="status">Status</label>
             <select id="status" name="status" class="form-select" onchange="this.form.submit()">
                 <option value="ACTIVE" {% if current_status == 'ACTIVE' %}selected{% endif %}>Active Notices</option>
@@ -519,7 +519,7 @@
             </select>
         </div>
 
-        <div style="display: flex; gap: 0.5rem;">
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <button type="submit" class="btn btn-primary">Filter</button>
             <a href="{{ url_for('notices_list') }}" class="btn btn-secondary">Reset</a>
         </div>

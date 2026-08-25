@@ -203,6 +203,10 @@ body[data-theme="light"],
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -215,10 +219,19 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100vw;
   overflow-x: hidden;
   position: relative;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Media element constraints to eliminate horizontal blowout */
+img, video, canvas, svg {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
 }
 
 /* Ambient animated luminous orbs */
@@ -229,6 +242,8 @@ body::before {
   right: -120px;
   width: 550px;
   height: 550px;
+  max-width: 100vw;
+  max-height: 100vh;
   border-radius: 50%;
   background: radial-gradient(circle, var(--orb-1) 0%, rgba(59, 130, 246, 0) 70%);
   z-index: 0;
@@ -243,6 +258,8 @@ body::after {
   left: -150px;
   width: 600px;
   height: 600px;
+  max-width: 100vw;
+  max-height: 100vh;
   border-radius: 50%;
   background: radial-gradient(circle, var(--orb-2) 0%, rgba(139, 92, 246, 0) 70%);
   z-index: 0;
@@ -269,6 +286,7 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.02em;
+  word-break: break-word;
 }
 
 a {
@@ -281,7 +299,7 @@ a:hover {
   opacity: 0.85;
 }
 
-code {
+code, pre, kbd {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.85em;
   padding: 0.2em 0.45em;
@@ -289,6 +307,8 @@ code {
   background: rgba(59, 130, 246, 0.12);
   border: 1px solid rgba(59, 130, 246, 0.25);
   color: var(--highlight-blue);
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* Semantic Typography Utility Classes for High Readability */
@@ -1196,40 +1216,524 @@ code {
   gap: 1.25rem;
 }
 
-/* ================= Responsive Breakpoints ================= */
+/* ================= Comprehensive Multi-Device Responsive System ================= */
+
+/* Medium Devices (Tablets, Laptops < 1024px) */
 @media (max-width: 1024px) {
-  .login-container { grid-template-columns: 1fr; max-width: 650px; margin: 2rem auto; }
+  .login-container {
+    grid-template-columns: 1fr;
+    max-width: 600px;
+    margin: 2rem auto;
+    gap: 1.75rem;
+  }
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
   .grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
 }
 
+/* Tablet & Mobile Nav Switch (< 900px) */
 @media (max-width: 900px) {
   .navbar-nav-desktop { display: none !important; }
-  .mobile-toggle-btn { display: flex; }
+  .mobile-toggle-btn { display: flex !important; }
+  .navbar { padding: 0.75rem 1.25rem; }
 }
 
+/* Standard Mobile & Small Tablets (< 768px) */
 @media (max-width: 768px) {
-  .page-header { flex-direction: column; align-items: flex-start; padding: 1.25rem; }
-  .page-header-actions { width: 100%; flex-direction: column; }
-  .page-header-actions .btn { width: 100%; }
-  .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
-  .main-wrapper { padding: 1.25rem 1rem; }
-  .receipt-voucher { padding: 1.5rem; }
-  .receipt-signatures { flex-direction: column; gap: 2rem; align-items: center; }
-  .signature-box { width: 100%; }
+  /* Prevent iOS Safari 16px Auto-Zoom bug */
+  input[type="text"],
+  input[type="password"],
+  input[type="number"],
+  input[type="date"],
+  input[type="email"],
+  input[type="search"],
+  select,
+  textarea,
+  .form-control,
+  .form-select {
+    font-size: 16px !important;
+  }
+
+  /* Ambient orbs downscaled for mobile */
+  body::before {
+    width: 320px;
+    height: 320px;
+    top: -60px;
+    right: -60px;
+  }
+  body::after {
+    width: 340px;
+    height: 340px;
+    bottom: -80px;
+    left: -80px;
+  }
+
+  /* Main wrapper & Layout */
+  .main-wrapper {
+    padding: 1.15rem 0.85rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1.15rem 1.25rem;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .page-header-title h2 {
+    font-size: 1.35rem;
+  }
+
+  .page-header-title p {
+    font-size: 0.84rem;
+  }
+
+  .page-header-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .page-header-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Grid Conversions */
+  .grid-4, .grid-3, .grid-2, .stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem;
+  }
+
+  /* Cards */
+  .card {
+    padding: 1.25rem;
+    border-radius: var(--radius-md);
+  }
+
+  .card-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.65rem;
+  }
+
+  .card-title {
+    font-size: 1.08rem;
+  }
+
+  .stat-card {
+    padding: 1.25rem;
+    gap: 1rem;
+  }
+
+  .stat-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+  }
+
+  .stat-value {
+    font-size: 1.55rem;
+  }
+
+  /* Filter Bars and Form Elements in Cards */
+  .filter-box form,
+  .card form {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+
+  .filter-box form > div,
+  .card form > div {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .filter-box form select,
+  .filter-box form input,
+  .filter-box form .form-select,
+  .filter-box form .form-control {
+    width: 100% !important;
+  }
+
+  /* Table Containers: Touch momentum and horizontal scrolling */
+  .table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.5rem;
+    border: 1px solid var(--table-td-border);
+  }
+
+  .custom-table th,
+  .custom-table td {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.84rem;
+    white-space: nowrap;
+  }
+
+  /* Building Matrix Visualizer */
+  .building-visualizer-card {
+    padding: 1rem;
+  }
+
+  .building-matrix-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .building-filters-toolbar {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.35rem;
+    flex-wrap: nowrap;
+  }
+
+  .building-grid-columns {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .block-column {
+    padding: 0.85rem;
+  }
+
+  .floor-level-row {
+    gap: 0.4rem;
+  }
+
+  .floor-badge {
+    width: 38px;
+    font-size: 0.68rem;
+  }
+
+  .floor-units-cluster {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.35rem;
+  }
+
+  .unit-cell-btn {
+    padding: 0.4rem 0.2rem;
+  }
+
+  .unit-cell-flat {
+    font-size: 0.76rem;
+  }
+
+  .unit-cell-sub {
+    font-size: 0.62rem;
+    max-width: 48px;
+  }
+
+  /* Official Receipts & Single Notice Voucher */
+  .receipt-voucher {
+    padding: 1.25rem 0.95rem;
+    border-radius: var(--radius-md);
+  }
+
+  .receipt-header h2 {
+    font-size: 1.2rem;
+  }
+
+  .receipt-meta-bar {
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .receipt-details-table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .receipt-details-table td {
+    padding: 0.65rem 0.75rem;
+    font-size: 0.84rem;
+  }
+
+  .receipt-total-box {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+    padding: 0.95rem 1rem;
+  }
+
+  .receipt-signatures {
+    flex-direction: column;
+    gap: 1.75rem;
+    align-items: center;
+    margin-top: 2rem;
+  }
+
+  .signature-box {
+    width: 100%;
+    max-width: 240px;
+  }
+
+  /* Modals */
+  .modal-backdrop {
+    padding: 0.75rem;
+  }
+
+  .modal-card,
+  .modal-container {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: var(--radius-lg);
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 1rem 1.15rem;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+  }
+
+  .modal-footer .btn {
+    width: 100%;
+  }
+
+  /* Footer */
+  .footer {
+    padding: 1.5rem 1rem;
+  }
+
+  .footer-container {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .footer-container > div:last-child {
+    text-align: center !important;
+  }
 }
 
+/* Small Smartphone Devices (< 640px) */
+@media (max-width: 640px) {
+  /* Navbar */
+  .navbar {
+    padding: 0.65rem 0.85rem;
+  }
+
+  .navbar-container {
+    gap: 0.45rem;
+  }
+
+  .brand-wrapper {
+    gap: 0.55rem;
+  }
+
+  .brand-logo-badge {
+    width: 38px;
+    height: 38px;
+    font-size: 1.15rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .brand-info h1 {
+    font-size: 0.98rem;
+    letter-spacing: -0.01em;
+  }
+
+  .brand-info p {
+    font-size: 0.68rem;
+  }
+
+  .command-palette-trigger {
+    padding: 0.35rem 0.55rem;
+  }
+
+  .command-palette-trigger .cmd-text,
+  .command-palette-trigger kbd {
+    display: none !important;
+  }
+
+  .theme-toggle-btn {
+    padding: 0.38rem 0.55rem;
+    font-size: 1rem;
+  }
+
+  .mobile-toggle-btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 1.15rem;
+  }
+
+  .mobile-nav-drawer {
+    padding: 1rem 1.15rem;
+  }
+
+  /* Login Page */
+  .login-container {
+    margin: 1rem auto;
+    padding: 0;
+    gap: 1.25rem;
+  }
+
+  .login-card {
+    padding: 1.5rem 1.15rem;
+    border-radius: var(--radius-lg);
+  }
+
+  .login-card h2 {
+    font-size: 1.35rem;
+  }
+
+  .demo-hub-card {
+    padding: 1.35rem 1.15rem;
+    border-radius: var(--radius-lg);
+  }
+
+  .demo-btn {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+    padding: 0.75rem 0.85rem;
+  }
+
+  .demo-btn .badge {
+    align-self: flex-start;
+  }
+
+  /* UPI Quick Pay Hero */
+  .upi-payment-card {
+    padding: 1.15rem;
+  }
+
+  .upi-hero-grid {
+    grid-template-columns: 1fr;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .upi-qr-wrapper {
+    margin: 0 auto;
+  }
+
+  .upi-details-col {
+    align-items: center;
+    width: 100%;
+  }
+
+  .upi-badge-container {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    text-align: center;
+  }
+
+  .upi-badge-text {
+    word-break: break-all;
+    font-size: 0.84rem;
+  }
+
+  .upi-apps-row {
+    justify-content: center;
+    width: 100%;
+  }
+
+  /* Command Palette Modal */
+  .cmd-palette-backdrop {
+    padding: 1.5vh 0.5rem 0.5rem 0.5rem;
+  }
+
+  .cmd-palette-modal {
+    max-height: 88vh;
+  }
+
+  .cmd-shortcuts-tips {
+    display: none;
+  }
+
+  .cmd-footer-bar {
+    justify-content: center;
+  }
+}
+
+/* Extra-Small Phones (< 480px) */
 @media (max-width: 480px) {
-  .stat-card { padding: 1.25rem; }
-  .stat-icon { width: 48px; height: 48px; font-size: 1.4rem; }
-  .stat-value { font-size: 1.5rem; }
-  .btn { width: 100%; }
+  .stat-card {
+    padding: 1.15rem 1rem;
+  }
+
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 1.35rem;
+  }
+
+  .stat-value {
+    font-size: 1.4rem;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 0.65rem 1rem;
+  }
+
+  .status-stepper-container {
+    padding: 0;
+  }
+
+  .stepper-label {
+    font-size: 0.65rem;
+  }
+
+  .stepper-icon-circle {
+    width: 22px;
+    height: 22px;
+    font-size: 0.65rem;
+  }
+
+  .wa-launcher-btn .wa-launcher-text {
+    display: none;
+  }
+
+  .wa-launcher-btn {
+    padding: 0.6rem 0.75rem;
+  }
+}
+
+/* Very Narrow Devices (< 380px) */
+@media (max-width: 380px) {
+  .brand-info p {
+    display: none !important;
+  }
+
+  .brand-info h1 {
+    font-size: 0.88rem;
+  }
+
+  .main-wrapper {
+    padding: 0.85rem 0.5rem;
+  }
+
+  .card, .login-card, .demo-hub-card {
+    padding: 1.15rem 0.85rem;
+  }
 }
 
 /* Print Rules */
 @media print {
   body { background: #ffffff !important; color: #000000 !important; }
-  .navbar, .footer, .no-print, .alerts-container, .page-header-actions { display: none !important; }
+  .navbar, .footer, .no-print, .alerts-container, .page-header-actions, .wa-floating-widget { display: none !important; }
   .main-wrapper { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
   .receipt-voucher { box-shadow: none !important; border: 1px solid #000000 !important; margin: 0 !important; max-width: 100% !important; }
 }

@@ -17,9 +17,9 @@
 </div>
 
 <!-- Filter Bar -->
-<div class="card" style="margin-bottom: 1.5rem; padding: 1.35rem;">
+<div class="card filter-box" style="margin-bottom: 1.5rem; padding: 1.35rem;">
     <form method="GET" action="{{ url_for('admin_receipts') }}" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 220px;">
+        <div style="flex: 1 1 220px; min-width: 0;">
             <label class="form-label" for="liveReceiptSearch">Live Instant Search</label>
             <div class="live-search-box">
                 <span class="search-icon">🔍</span>
@@ -28,7 +28,7 @@
             </div>
         </div>
 
-        <div style="width: 200px;">
+        <div style="flex: 0 1 200px; min-width: 0;">
             <label class="form-label" for="flat">Filter by Flat</label>
             <select id="flat" name="flat" class="form-select">
                 <option value="">All Flats (44)</option>
@@ -40,7 +40,7 @@
             </select>
         </div>
 
-        <div style="width: 170px;">
+        <div style="flex: 0 1 170px; min-width: 0;">
             <label class="form-label" for="month">Filter by Month</label>
             <select id="month" name="month" class="form-select">
                 <option value="">All Months</option>
@@ -50,7 +50,7 @@
             </select>
         </div>
 
-        <div style="display: flex; gap: 0.5rem;">
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
             <button type="submit" class="btn btn-primary">🔍 Query</button>
             <a href="{{ url_for('admin_receipts') }}" class="btn btn-secondary">Reset</a>
         </div>

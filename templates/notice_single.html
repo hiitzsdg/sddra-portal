@@ -11,12 +11,21 @@
     
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        html {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            -webkit-text-size-adjust: 100%;
+        }
         body {
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: #f1f5f9;
             color: #0f172a;
             padding: 30px 15px;
             line-height: 1.6;
+            width: 100%;
+            max-width: 100vw;
+            overflow-x: hidden;
         }
 
         .no-print {
@@ -25,11 +34,14 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
         .btn {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
             padding: 8px 16px;
             border-radius: 8px;
@@ -53,6 +65,7 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             border: 1px solid #cbd5e1;
             padding: 40px 45px;
+            box-sizing: border-box;
         }
 
         /* Official Association Letterhead */
@@ -182,6 +195,22 @@
             font-size: 13px;
             font-weight: 600;
             color: #475569;
+        }
+
+        @media (max-width: 640px) {
+            body { padding: 15px 10px; }
+            .no-print { flex-direction: column; align-items: stretch; gap: 10px; }
+            .no-print .btn { width: 100%; justify-content: center; }
+            .no-print > div { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+            .notice-document { padding: 22px 14px; border-radius: 8px; }
+            .letterhead-title { font-size: 16px; letter-spacing: 0.2px; }
+            .letterhead-pill { font-size: 10.5px; padding: 3px 10px; }
+            .letterhead-address, .letterhead-email { font-size: 11.5px; }
+            .meta-bar { flex-direction: column; align-items: flex-start; gap: 6px; }
+            .notice-headline { font-size: 17px; }
+            .notice-content { font-size: 14px; margin-bottom: 25px; min-height: auto; }
+            .sign-off-box { flex-direction: column; align-items: flex-start; gap: 20px; }
+            .signature-block { text-align: left; }
         }
 
         @media print {

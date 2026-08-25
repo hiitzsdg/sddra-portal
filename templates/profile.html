@@ -45,20 +45,20 @@
         </div>
 
         <!-- Membership Quick Badges Summary -->
-        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem; padding: 0.85rem 1rem; background: var(--surface-hover); border-radius: var(--radius-md); border: 1px solid var(--surface-border);">
-            <div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; padding: 0.85rem 1rem; background: var(--surface-hover); border-radius: var(--radius-md); border: 1px solid var(--surface-border);">
+            <div style="background: var(--surface-card); padding: 0.5rem 0.65rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border);">
                 <span class="text-muted" style="font-size: 0.75rem; display: block;">Flat Size</span>
                 <strong class="text-main" style="font-size: 0.95rem;">
                     {{ (member.RvsdFlatSize if member else current_user.sq_feet) or '-' }} sq. ft.
                 </strong>
             </div>
-            <div style="border-left: 1px solid var(--surface-border); padding-left: 0.75rem;">
+            <div style="background: var(--surface-card); padding: 0.5rem 0.65rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border);">
                 <span class="text-muted" style="font-size: 0.75rem; display: block;">Monthly Maintenance</span>
                 <strong class="text-amount-success" style="font-size: 0.95rem;">
                     ₹ {{ "{:,.2f}".format((member.monthly_charge if member else current_user.monthly_charge) or 0) }}
                 </strong>
             </div>
-            <div style="border-left: 1px solid var(--surface-border); padding-left: 0.75rem;">
+            <div style="background: var(--surface-card); padding: 0.5rem 0.65rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border);">
                 <span class="text-muted" style="font-size: 0.75rem; display: block;">Parking Status</span>
                 <strong class="text-main" style="font-size: 0.95rem;">
                     {% if member and member.cps_owner %}
@@ -68,7 +68,7 @@
                     {% endif %}
                 </strong>
             </div>
-            <div style="border-left: 1px solid var(--surface-border); padding-left: 0.75rem;">
+            <div style="background: var(--surface-card); padding: 0.5rem 0.65rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border);">
                 <span class="text-muted" style="font-size: 0.75rem; display: block;">TWS Status</span>
                 <strong class="text-main" style="font-size: 0.95rem;">
                     {% if member and (member.tws_owner or (member.tws_count and member.tws_count > 0)) %}
@@ -82,7 +82,7 @@
                 </strong>
             </div>
             {% if penalty_info %}
-            <div style="border-left: 1px solid var(--surface-border); padding-left: 0.75rem;">
+            <div style="background: var(--surface-card); padding: 0.5rem 0.65rem; border-radius: var(--radius-sm); border: 1px solid var(--surface-border);">
                 <span class="text-muted" style="font-size: 0.75rem; display: block;">Covered Through</span>
                 {% if penalty_info.overdue_months == 0 %}
                 <strong class="text-amount-success" style="font-size: 0.95rem;">
