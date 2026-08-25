@@ -2553,7 +2553,7 @@ def compute_flat_monthly_charge(sq_feet, flat_charges, capital_fund, common_expe
         return 0
 
 @app.route('/admin/billing-rates', methods=['GET', 'POST'])
-@roles_required('super_admin', 'billing_admin')
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
 def admin_billing_rates():
     if request.method == 'POST':
         action = request.form.get('action')
@@ -2668,7 +2668,7 @@ def admin_billing_rates():
     )
 
 @app.route('/admin/billing-rates/unit/<int:member_id>', methods=['POST'])
-@roles_required('super_admin', 'billing_admin')
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
 def admin_update_unit_rates(member_id):
     try:
         member = query_db("SELECT * FROM tbl_membership WHERE id = %s", (member_id,), one=True)

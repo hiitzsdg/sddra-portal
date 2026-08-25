@@ -203,7 +203,7 @@ class TestSDDRABillingPortal(unittest.TestCase):
         execute_db("UPDATE tbl_admins SET password_hash = %s WHERE username = 'treasurer'", (default_h,))
 
     def test_12_tariff_dashboard_rbac_restrictions(self):
-        """Verify that /admin/billing-rates is strictly restricted to super_admin and billing_admin."""
+        """Verify that /admin/billing-rates is accessible to executive admins (treasurer, admin) and restricted from ordinary residents."""
         # 1. Anonymous access -> redirect to login
         self.client.get('/logout', follow_redirects=True)
         resp_anon = self.client.get('/admin/billing-rates', follow_redirects=True)
@@ -215,11 +215,12 @@ class TestSDDRABillingPortal(unittest.TestCase):
         resp_res = self.client.get('/admin/billing-rates', follow_redirects=True)
         self.assertIn(b'Access Denied', resp_res.data)
 
-        # 3. Committee non-billing admin (president) -> Access denied
+        # 3. Committee Treasurer (treasurer) -> Access granted
         self.client.get('/logout', follow_redirects=True)
-        self.client.post('/login', data={'username': 'president', 'password': 'sdera@123'}, follow_redirects=True)
-        resp_pres = self.client.get('/admin/billing-rates', follow_redirects=True)
-        self.assertIn(b'Access Denied', resp_pres.data)
+        self.client.post('/login', data={'username': 'treasurer', 'password': 'sdera@123'}, follow_redirects=True)
+        resp_tres = self.client.get('/admin/billing-rates', follow_redirects=True)
+        self.assertEqual(resp_tres.status_code, 200)
+        self.assertIn(b'Maintenance Tariff &amp; Billing Rates Console', resp_tres.data)
 
         # 4. Billing Administrator (admin) -> Access granted
         self.client.get('/logout', follow_redirects=True)
