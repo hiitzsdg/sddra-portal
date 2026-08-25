@@ -350,7 +350,8 @@ def login():
                     'is_admin': True,
                     'flat_no': admin_fno,
                     'email': admin_email,
-                    'phone': admin_phone
+                    'phone': admin_phone,
+                    'profile_pic': admin.get('profile_pic') or ''
                 }
                 log_activity('LOGIN', f"Administrative sign in ({officer_titles.get(admin_u, admin['username'])})", actor=session['user'])
                 flash(f"Login successful! Welcome, {officer_titles.get(admin_u, admin['username'])}.", 'success')
@@ -409,7 +410,8 @@ def login():
                     'email': mbr_email,
                     'phone': mbr_phone,
                     'monthly_charge': member.get('monthly_charge', 0),
-                    'sq_feet': member.get('RvsdFlatSize')
+                    'sq_feet': member.get('RvsdFlatSize'),
+                    'profile_pic': member.get('profile_pic') or ''
                 }
                 log_activity('LOGIN', f"Member signed in to resident portal from Flat {member['flat_no']}", actor=session['user'])
                 flash(f"Welcome, {member['member_name']} (Flat {member['flat_no']})!", 'success')
@@ -489,6 +491,49 @@ def profile():
                 flash(f"Could not persist contact details update: {e}", 'danger')
                 return redirect(url_for('profile'))
             
+        elif action == 'update_profile_pic':
+            pic_data = request.form.get('profile_pic', '').strip()
+            # If pic_data is provided, ensure it's a data url or valid string
+            if pic_data and not (pic_data.startswith('data:image/') or pic_data.startswith('http') or pic_data.startswith('/static/')):
+                flash('Invalid image format uploaded. Please provide a valid JPEG/PNG image.', 'danger')
+                return redirect(url_for('profile'))
+                
+            try:
+                if is_admin and admin:
+                    execute_db("UPDATE tbl_admins SET profile_pic = %s WHERE username = %s", (pic_data or None, user.get('username')))
+                if flat_no:
+                    execute_db("UPDATE tbl_membership SET profile_pic = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (pic_data or None, flat_no))
+                
+                # Sync SQLite fallback database
+                import os, sqlite3
+                if os.path.exists('sddra.db'):
+                    try:
+                        sq_conn = sqlite3.connect('sddra.db')
+                        sq_cur = sq_conn.cursor()
+                        if is_admin and admin:
+                            sq_cur.execute("UPDATE tbl_admins SET profile_pic = ? WHERE username = ?", (pic_data or None, user.get('username')))
+                        if flat_no:
+                            sq_cur.execute("UPDATE tbl_membership SET profile_pic = ? WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(?))", (pic_data or None, flat_no))
+                        sq_conn.commit()
+                        sq_conn.close()
+                    except Exception as sq_err:
+                        print(f"[SQLite Sync Warning] {sq_err}")
+
+                if 'user' in session:
+                    session['user']['profile_pic'] = pic_data or ''
+                    session.modified = True
+
+                if pic_data:
+                    log_activity('PROFILE_UPDATE', f"Updated official profile photo for Flat {flat_no or user.get('username')}")
+                    flash('✓ Profile picture updated successfully!', 'success')
+                else:
+                    log_activity('PROFILE_UPDATE', f"Removed profile photo for Flat {flat_no or user.get('username')}")
+                    flash('✓ Profile picture removed.', 'info')
+                return redirect(url_for('profile'))
+            except Exception as e:
+                flash(f"Could not persist profile picture update: {e}", 'danger')
+                return redirect(url_for('profile'))
+
         elif action == 'change_password':
             current_pwd = request.form.get('current_password', '')
             new_pwd = request.form.get('new_password', '')

@@ -354,7 +354,7 @@ def ensure_notices_table_sqlite():
             );
         """)
 
-        # Migration: Ensure meeting_type and meeting_date columns exist
+        # Migration: Ensure meeting_type, meeting_date, and profile_pic columns exist
         try:
             cur.execute("PRAGMA table_info(tbl_notices);")
             cols = [col[1] for col in cur.fetchall()]
@@ -362,6 +362,19 @@ def ensure_notices_table_sqlite():
                 cur.execute("ALTER TABLE tbl_notices ADD COLUMN meeting_type VARCHAR(50) DEFAULT NULL;")
             if 'meeting_date' not in cols:
                 cur.execute("ALTER TABLE tbl_notices ADD COLUMN meeting_date VARCHAR(50) DEFAULT NULL;")
+        except Exception:
+            pass
+
+        try:
+            cur.execute("PRAGMA table_info(tbl_membership);")
+            m_cols = [col[1] for col in cur.fetchall()]
+            if 'profile_pic' not in m_cols:
+                cur.execute("ALTER TABLE tbl_membership ADD COLUMN profile_pic TEXT DEFAULT NULL;")
+            
+            cur.execute("PRAGMA table_info(tbl_admins);")
+            a_cols = [col[1] for col in cur.fetchall()]
+            if 'profile_pic' not in a_cols:
+                cur.execute("ALTER TABLE tbl_admins ADD COLUMN profile_pic TEXT DEFAULT NULL;")
         except Exception:
             pass
 
@@ -572,7 +585,8 @@ def ensure_mysql_schema(conn):
                 tws_charges DECIMAL(10,2) DEFAULT 0.00,
                 capital_fund DECIMAL(10,2) DEFAULT 0.21,
                 monthly_charge DECIMAL(10,2) DEFAULT 0.00,
-                password_hash VARCHAR(255) DEFAULT NULL
+                password_hash VARCHAR(255) DEFAULT NULL,
+                profile_pic MEDIUMTEXT DEFAULT NULL
             ) ENGINE=InnoDB;
         """)
         
@@ -624,15 +638,24 @@ def ensure_mysql_schema(conn):
                 role VARCHAR(50) NOT NULL DEFAULT 'super_admin',
                 email VARCHAR(100) DEFAULT NULL,
                 phone VARCHAR(50) DEFAULT NULL,
+                profile_pic MEDIUMTEXT DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB;
         """)
+        try:
+            cur.execute("ALTER TABLE tbl_membership ADD COLUMN profile_pic MEDIUMTEXT DEFAULT NULL;")
+        except Exception:
+            pass
         try:
             cur.execute("ALTER TABLE tbl_admins ADD COLUMN email VARCHAR(100) DEFAULT NULL;")
         except Exception:
             pass
         try:
             cur.execute("ALTER TABLE tbl_admins ADD COLUMN phone VARCHAR(50) DEFAULT NULL;")
+        except Exception:
+            pass
+        try:
+            cur.execute("ALTER TABLE tbl_admins ADD COLUMN profile_pic MEDIUMTEXT DEFAULT NULL;")
         except Exception:
             pass
 

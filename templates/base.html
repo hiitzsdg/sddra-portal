@@ -140,13 +140,34 @@
     .btn-logout:active {
       transform: translateY(0) scale(0.96);
     }
-    .btn-logout-mobile {
-      padding: 0.45rem 0.95rem;
-      font-size: 0.85rem;
-    }
     .btn-logout-mobile .logout-icon {
       width: 16px;
       height: 16px;
+    }
+
+    .user-nav-avatar-slot {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: #000000;
+      border: 1.2px solid rgba(212, 175, 55, 0.55);
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .user-nav-badge:hover .user-nav-avatar-slot {
+      transform: scale(1.05);
+      box-shadow: 0 0 14px rgba(212, 175, 55, 0.45);
+    }
+    .user-nav-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
     </style>
     <script>
@@ -244,6 +265,13 @@
                 </button>
 
                 <div class="user-nav-badge navbar-nav-desktop">
+                    <a href="{{ url_for('profile') }}" class="user-nav-avatar-slot" title="View / Edit Profile">
+                        {% if current_user.profile_pic %}
+                        <img src="{{ current_user.profile_pic }}" alt="{{ current_user.name }}" class="user-nav-avatar-img">
+                        {% else %}
+                        <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Avatar" class="user-nav-avatar-img">
+                        {% endif %}
+                    </a>
                     <div class="user-nav-details">
                         <span class="user-name">{{ current_user.name }}</span>
                         <span class="user-sub">Flat {{ current_user.flat_no }}</span>
@@ -297,9 +325,18 @@
             </ul>
 
             <div class="user-nav-badge">
-                <div class="user-nav-details" style="text-align: left;">
-                    <span class="user-name">{{ current_user.name }}</span>
-                    <span class="user-sub">Flat {{ current_user.flat_no }} ({{ current_user.role }})</span>
+                <div style="display: flex; align-items: center; gap: 0.65rem;">
+                    <a href="{{ url_for('profile') }}" class="user-nav-avatar-slot" style="width: 38px; height: 38px;">
+                        {% if current_user.profile_pic %}
+                        <img src="{{ current_user.profile_pic }}" alt="{{ current_user.name }}" class="user-nav-avatar-img">
+                        {% else %}
+                        <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Avatar" class="user-nav-avatar-img">
+                        {% endif %}
+                    </a>
+                    <div class="user-nav-details" style="text-align: left;">
+                        <span class="user-name">{{ current_user.name }}</span>
+                        <span class="user-sub">Flat {{ current_user.flat_no }} ({{ current_user.role }})</span>
+                    </div>
                 </div>
                 <a href="{{ url_for('logout') }}" class="btn-logout btn-logout-mobile" aria-label="Sign Out">
                     <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
