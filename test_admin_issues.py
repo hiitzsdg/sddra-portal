@@ -33,12 +33,12 @@ class TestAdminIssues(unittest.TestCase):
         self.assertEqual(resp_issues.status_code, 200)
         self.assertIn(b'Access Denied', resp_issues.data)
 
-    def test_02b_officer_flat_has_admin_access(self):
-        # Login as Treasurer flat A/4-C
-        resp = self.client.post('/login', data={'username': 'A/4-C', 'password': 'sdera@123'}, follow_redirects=True)
+    def test_02b_dedicated_officer_login_has_admin_access(self):
+        # Login as dedicated Treasurer username
+        resp = self.client.post('/login', data={'username': 'treasurer', 'password': 'sdera@123'}, follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
 
-        # Access /admin/issues should succeed for Treasurer flat
+        # Access /admin/issues should succeed for Treasurer admin login
         resp_issues = self.client.get('/admin/issues')
         self.assertEqual(resp_issues.status_code, 200)
         self.assertIn(b'Resident Grievances', resp_issues.data)
