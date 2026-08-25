@@ -502,8 +502,18 @@ def ensure_notices_table_sqlite():
             cur.execute("UPDATE tbl_notices SET meeting_date = '2026-09-14' WHERE category = 'AGM_MEETING' AND (meeting_date IS NULL OR meeting_date = '');")
             
         # Ensure password hashes in SQLite are valid
-        sdera_h = hash_password('sdera@123')
-        cur.execute("UPDATE tbl_membership SET password_hash = ? WHERE password_hash IS NULL OR password_hash = '' OR password_hash LIKE '$2b$12$HxNkW%';", (sdera_h,))
+        sdera_h = SDERA_HASH
+        cur.execute("""
+            UPDATE tbl_membership 
+            SET password_hash = ? 
+            WHERE password_hash IS NULL 
+               OR password_hash = '' 
+               OR password_hash LIKE '$2b$12$HxNkW%'
+               OR password_hash LIKE '$2b$12$S/N7%'
+               OR password_hash LIKE '$2b$12$xw1Ob%'
+               OR password_hash LIKE '$2b$12$tskr%'
+               OR password_hash LIKE '$2b$12$2NTuw%';
+        """, (sdera_h,))
         
         committee_admins = [
             ('admin', hash_password('passwd'), 'billing_admin'),
@@ -530,8 +540,8 @@ def ensure_notices_table_sqlite():
             pass
 
         conn.commit()
-    finally:
-        conn.close()
+    except Exception as e_sq_init:
+        print(f"[DB Warning] SQLite init note: {e_sq_init}")
 
 def ensure_notices_table_mysql(conn):
     """Ensure tbl_notices table, seed notices, meeting_type and meeting_date columns, and name updates exist in MySQL."""
@@ -911,10 +921,17 @@ def init_db(force=False):
                     cur.execute("ALTER TABLE tbl_membership ADD COLUMN password_hash VARCHAR(255) DEFAULT NULL;")
                 
                 # Fast update of default hashes without dynamic bcrypt calculation
-                cur.execute(
-                    "UPDATE tbl_membership SET password_hash = %s WHERE password_hash IS NULL OR password_hash = '' OR password_hash LIKE %s;",
-                    (SDERA_HASH, '$2b$12$HxNkW%')
-                )
+                cur.execute("""
+                    UPDATE tbl_membership 
+                    SET password_hash = %s 
+                    WHERE password_hash IS NULL 
+                       OR password_hash = '' 
+                       OR password_hash LIKE '$2b$12$HxNkW%%'
+                       OR password_hash LIKE '$2b$12$S/N7%%'
+                       OR password_hash LIKE '$2b$12$xw1Ob%%'
+                       OR password_hash LIKE '$2b$12$tskr%%'
+                       OR password_hash LIKE '$2b$12$2NTuw%%';
+                """, (SDERA_HASH,))
                 
                 # 2. Ensure committee admin accounts exist and have valid password hashes in tbl_admins
                 committee_admins = [
