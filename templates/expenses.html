@@ -151,27 +151,20 @@
                     </td>
                     {% if is_admin or is_executive %}
                     <td>
-                        <div style="display: flex; gap: 0.35rem; align-items: center;">
-                            <button type="button" 
-                                    class="btn btn-sm btn-outline-primary" 
-                                    style="padding: 0.25rem 0.55rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" 
-                                    title="Edit Voucher #{{ e.voucher_no }}"
-                                    onclick="openEditExpenseModal(this)"
-                                    data-voucher-no="{{ e.voucher_no }}"
-                                    data-voucher-date="{{ e.voucher_date }}"
-                                    data-description="{{ e.expense_description }}"
-                                    data-particulars="{{ e.particulars }}"
-                                    data-spl-head="{{ e.spl_head or '' }}"
-                                    data-payment-by="{{ e.payment_by }}"
-                                    data-amount="{{ e.amount }}">
-                                <span>✏️</span> Edit
-                            </button>
-                            <form method="POST" action="{{ url_for('delete_expense', voucher_no=e.voucher_no) }}" onsubmit="return confirm('Are you sure you want to delete voucher #{{ e.voucher_no }}?');" style="display: inline;">
-                                <button type="submit" class="btn btn-sm btn-secondary" style="color: var(--amount-danger); padding: 0.25rem 0.5rem;" title="Delete Record">
-                                    🗑️
-                                </button>
-                            </form>
-                        </div>
+                        <button type="button" 
+                                class="btn btn-sm btn-outline-primary" 
+                                style="padding: 0.25rem 0.55rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.25rem;" 
+                                title="Edit Voucher #{{ e.voucher_no }}"
+                                onclick="openEditExpenseModal(this)"
+                                data-voucher-no="{{ e.voucher_no }}"
+                                data-voucher-date="{{ e.voucher_date }}"
+                                data-description="{{ e.expense_description }}"
+                                data-particulars="{{ e.particulars }}"
+                                data-spl-head="{{ e.spl_head or '' }}"
+                                data-payment-by="{{ e.payment_by }}"
+                                data-amount="{{ e.amount }}">
+                            <span>✏️</span> Edit
+                        </button>
                     </td>
                     {% endif %}
                 </tr>
@@ -293,12 +286,12 @@
             <div class="modal-body">
                 <div class="grid-2">
                     <div class="form-group">
-                        <label class="form-label" for="edit_exp_vno">Voucher Number</label>
+                        <label class="form-label" for="edit_exp_vno">Voucher Number <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">(🔒 Non-editable)</span></label>
                         <div style="position: relative; display: flex; align-items: center;">
                             <span style="position: absolute; left: 0.85rem; color: var(--highlight-blue); font-weight: 700; font-size: 1rem;">#</span>
-                            <input type="number" id="edit_exp_vno" class="form-control" style="padding-left: 1.85rem; font-weight: 700; color: var(--highlight-blue); background: var(--surface-card);" readonly>
+                            <input type="text" id="edit_exp_vno" class="form-control" style="padding-left: 1.85rem; font-weight: 700; color: var(--highlight-blue); background: var(--surface-card); cursor: not-allowed;" readonly disabled>
                         </div>
-                        <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem; display: block;">Immutable ledger identifier</small>
+                        <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem; display: block;">Immutable ledger sequence identifier</small>
                     </div>
 
                     <div class="form-group">
@@ -341,13 +334,16 @@
 
                 <div class="grid-2">
                     <div class="form-group">
-                        <label class="form-label" for="edit_exp_amount">Amount (INR) *</label>
-                        <input type="number" step="0.01" id="edit_exp_amount" name="amount" class="form-control" placeholder="e.g. 18500.00" required>
+                        <label class="form-label" for="edit_exp_amount">Amount <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">(🔒 Non-editable)</span></label>
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <input type="text" id="edit_exp_amount" class="form-control text-amount-danger" style="font-weight: 700; background: var(--surface-card); cursor: not-allowed;" readonly disabled>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem; display: block;">Amount is locked to preserve financial ledger integrity</small>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="edit_exp_pay">Payment Mode</label>
-                        <select id="edit_exp_pay" name="payment_by" class="form-select">
+                        <label class="form-label" for="edit_exp_pay">Payment Mode *</label>
+                        <select id="edit_exp_pay" name="payment_by" class="form-select" required>
                             <option value="Online">Online / NEFT / UPI</option>
                             <option value="Cash">Cash</option>
                             <option value="Cheque">Cheque</option>
@@ -407,7 +403,9 @@ function openEditExpenseModal(btn) {
     if (splInput) splInput.value = vSpl;
 
     const amtInput = document.getElementById('edit_exp_amount');
-    if (amtInput) amtInput.value = parseFloat(vAmt) || 0;
+    if (amtInput) {
+        amtInput.value = '₹ ' + (parseFloat(vAmt) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
     const dateInput = document.getElementById('edit_exp_date');
     if (dateInput) {

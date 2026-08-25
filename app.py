@@ -1144,25 +1144,24 @@ def edit_expense(voucher_no):
     particulars = request.form.get('particulars', '').strip()
     spl_head = request.form.get('spl_head', '').strip()
     payment_by = request.form.get('payment_by', 'Online').strip()
-    amount_str = request.form.get('amount', '').strip()
     
-    if not expense_description or not amount_str:
-        flash('Description and Amount are required.', 'danger')
+    if not expense_description or not voucher_date:
+        flash('Expense description and voucher date are required.', 'danger')
         return redirect(url_for('expenses_list'))
         
     try:
-        amount = float(amount_str)
-        if amount <= 0:
-            flash('Amount must be greater than zero.', 'danger')
+        current_exp = query_db("SELECT * FROM tbl_expenses WHERE voucher_no = %s", (voucher_no,), one=True)
+        if not current_exp:
+            flash(f"Expense voucher #{voucher_no} not found.", 'danger')
             return redirect(url_for('expenses_list'))
-            
+
         execute_db(
             """UPDATE tbl_expenses 
-               SET voucher_date = %s, expense_description = %s, particulars = %s, spl_head = %s, payment_by = %s, amount = %s 
+               SET voucher_date = %s, expense_description = %s, particulars = %s, spl_head = %s, payment_by = %s 
                WHERE voucher_no = %s""",
-            (voucher_date, expense_description, particulars, spl_head, payment_by, amount, voucher_no)
+            (voucher_date, expense_description, particulars, spl_head, payment_by, voucher_no)
         )
-        log_activity('EXPENSE_UPDATED', f"Updated Expense Voucher #{voucher_no} ({expense_description}) - INR {amount:,.2f} ({particulars})")
+        log_activity('EXPENSE_UPDATED', f"Updated Expense Voucher #{voucher_no} ({expense_description}) - INR {float(current_exp['amount']):,.2f} ({particulars})")
         flash(f"✓ Expense Voucher #{voucher_no} updated successfully.", 'success')
     except Exception as e:
         flash(f"Error updating expense voucher #{voucher_no}: {e}", 'danger')
@@ -1172,9 +1171,7 @@ def edit_expense(voucher_no):
 @app.route('/admin/expenses/<int:voucher_no>/delete', methods=['POST'])
 @roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
 def delete_expense(voucher_no):
-    execute_db("DELETE FROM tbl_expenses WHERE voucher_no = %s", (voucher_no,))
-    log_activity('EXPENSE_DELETED', f"Deleted Expense Voucher #{voucher_no}")
-    flash(f"Voucher #{voucher_no} deleted.", 'info')
+    flash('Deleting society expense records is disabled to maintain financial and audit integrity.', 'warning')
     return redirect(url_for('expenses_list'))
 
 # --- Administrative: Receipts Ledger ---
