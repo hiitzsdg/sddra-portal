@@ -2390,18 +2390,6 @@ def admin_issues():
                 tkt = query_db("SELECT * FROM tbl_helpdesk_tickets WHERE id = %s", (ticket_id,), one=True)
                 tkt_no = tkt.get('ticket_number') if tkt else str(ticket_id)
                 execute_db("DELETE FROM tbl_helpdesk_tickets WHERE id = %s", (ticket_id,))
-                
-                # Sync SQLite fallback
-                import os, sqlite3
-                if os.path.exists('sddra.db'):
-                    try:
-                        sq_conn = sqlite3.connect('sddra.db')
-                        sq_cur = sq_conn.cursor()
-                        sq_cur.execute("DELETE FROM tbl_helpdesk_tickets WHERE id = ?", (ticket_id,))
-                        sq_conn.commit()
-                        sq_conn.close()
-                    except Exception as sq_err:
-                        print(f"[SQLite Sync Warning] {sq_err}")
 
                 log_activity('TICKET_DELETED', f"Deleted maintenance ticket #{tkt_no}")
                 flash(f"✓ Ticket #{tkt_no} deleted from register.", 'info')

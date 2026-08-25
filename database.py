@@ -83,13 +83,39 @@ _CACHED_SQLITE_CONN = None
 
 def get_sqlite_connection():
     """Establish connection to local/serverless SQLite database with Row factory, custom functions, and path fallbacks."""
+    try:
+        from flask import g, has_request_context
+        if has_request_context():
+            if not hasattr(g, 'sqlite_conn') or g.sqlite_conn is None:
+                db_path = get_writable_sqlite_path()
+                conn = sqlite3.connect(db_path, timeout=30.0, check_same_thread=False)
+                conn.row_factory = sqlite3.Row
+                conn.create_function('DATE_FORMAT', 2, sqlite_date_format)
+                try:
+                    conn.execute("PRAGMA busy_timeout = 30000;")
+                except Exception:
+                    pass
+                g.sqlite_conn = conn
+            return g.sqlite_conn
+    except Exception:
+        pass
+
     global _CACHED_SQLITE_CONN
     if _CACHED_SQLITE_CONN is not None:
-        return _CACHED_SQLITE_CONN
+        try:
+            _CACHED_SQLITE_CONN.execute("SELECT 1;")
+            return _CACHED_SQLITE_CONN
+        except Exception:
+            _CACHED_SQLITE_CONN = None
+
     db_path = get_writable_sqlite_path()
-    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn = sqlite3.connect(db_path, timeout=30.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.create_function('DATE_FORMAT', 2, sqlite_date_format)
+    try:
+        conn.execute("PRAGMA busy_timeout = 30000;")
+    except Exception:
+        pass
     _CACHED_SQLITE_CONN = conn
     return _CACHED_SQLITE_CONN
 
@@ -177,14 +203,17 @@ def query_db(query, params=None, one=False):
         sqlite_query = re.sub(r'%s', '?', query)
         conn = get_db()
         cur = conn.cursor()
-        if params:
-            cur.execute(sqlite_query, params)
-        else:
-            cur.execute(sqlite_query)
-        if one:
-            row = cur.fetchone()
-            return dict(row) if row else None
-        return [dict(r) for r in cur.fetchall()]
+        try:
+            if params:
+                cur.execute(sqlite_query, params)
+            else:
+                cur.execute(sqlite_query)
+            if one:
+                row = cur.fetchone()
+                return dict(row) if row else None
+            return [dict(r) for r in cur.fetchall()]
+        finally:
+            cur.close()
     else:
         for attempt in range(2):
             try:
@@ -221,12 +250,15 @@ def execute_db(query, params=None):
         sqlite_query = re.sub(r'%s', '?', query)
         conn = get_db()
         cur = conn.cursor()
-        if params:
-            cur.execute(sqlite_query, params)
-        else:
-            cur.execute(sqlite_query)
-        conn.commit()
-        return cur.lastrowid if cur.lastrowid else cur.rowcount
+        try:
+            if params:
+                cur.execute(sqlite_query, params)
+            else:
+                cur.execute(sqlite_query)
+            conn.commit()
+            return cur.lastrowid if cur.lastrowid else cur.rowcount
+        finally:
+            cur.close()
     else:
         for attempt in range(2):
             try:
@@ -368,6 +400,8 @@ def ensure_notices_table_sqlite():
         try:
             cur.execute("PRAGMA table_info(tbl_membership);")
             m_cols = [col[1] for col in cur.fetchall()]
+            if 'password_hash' not in m_cols:
+                cur.execute("ALTER TABLE tbl_membership ADD COLUMN password_hash TEXT DEFAULT NULL;")
             if 'profile_pic' not in m_cols:
                 cur.execute("ALTER TABLE tbl_membership ADD COLUMN profile_pic TEXT DEFAULT NULL;")
             
@@ -501,21 +535,22 @@ def ensure_notices_table_sqlite():
             cur.execute("UPDATE tbl_notices SET meeting_type = 'AGM' WHERE category = 'AGM_MEETING' AND (meeting_type IS NULL OR meeting_type = '');")
             cur.execute("UPDATE tbl_notices SET meeting_date = '2026-09-14' WHERE category = 'AGM_MEETING' AND (meeting_date IS NULL OR meeting_date = '');")
             
-        # Ensure password hashes in SQLite are valid
-        sdera_h = SDERA_HASH
-        cur.execute("SELECT id, flat_no, password_hash FROM tbl_membership;")
-        for m in cur.fetchall():
-            m_id = m['id'] if isinstance(m, dict) or hasattr(m, 'keys') else m[0]
-            m_hash = m['password_hash'] if isinstance(m, dict) or hasattr(m, 'keys') else m[2]
-            if not m_hash or not verify_password('sdera@123', m_hash):
-                cur.execute("UPDATE tbl_membership SET password_hash = ? WHERE id = ?;", (sdera_h, m_id))
+        # Ensure password hashes in SQLite are valid (instant single-query execution)
+        cur.execute("""
+            UPDATE tbl_membership 
+            SET password_hash = ? 
+            WHERE password_hash IS NULL 
+               OR password_hash = '' 
+               OR LENGTH(password_hash) != 60 
+               OR password_hash LIKE '$2b$12$HxNkW%';
+        """, (SDERA_HASH,))
         
         committee_admins = [
-            ('admin', hash_password('passwd'), 'billing_admin'),
-            ('treasurer', sdera_h, 'treasurer'),
-            ('president', sdera_h, 'president'),
-            ('secretary', sdera_h, 'secretary'),
-            ('caretaker', sdera_h, 'caretaker')
+            ('admin', PASSWD_HASH, 'billing_admin'),
+            ('treasurer', SDERA_HASH, 'treasurer'),
+            ('president', SDERA_HASH, 'president'),
+            ('secretary', SDERA_HASH, 'secretary'),
+            ('caretaker', SDERA_HASH, 'caretaker')
         ]
         for username, pwd_hash, role in committee_admins:
             cur.execute("SELECT * FROM tbl_admins WHERE LOWER(username) = LOWER(?);", (username,))
@@ -524,7 +559,7 @@ def ensure_notices_table_sqlite():
                 cur.execute("INSERT INTO tbl_admins (username, password_hash, role) VALUES (?, ?, ?);", (username, pwd_hash, role))
             else:
                 existing_hash = existing['password_hash'] if isinstance(existing, dict) or hasattr(existing, 'keys') else existing[2]
-                if not verify_password('passwd' if username == 'admin' else 'sdera@123', existing_hash):
+                if not existing_hash or len(existing_hash) != 60 or existing_hash.startswith('$2b$12$HxNkW') or existing_hash.startswith('$2b$12$MA9Sw'):
                     cur.execute("UPDATE tbl_admins SET password_hash = ?, role = ? WHERE LOWER(username) = LOWER(?);", (pwd_hash, role, username))
 
         try:
@@ -915,12 +950,14 @@ def init_db(force=False):
                     print("[DB Init] Adding 'password_hash' column to tbl_membership...")
                     cur.execute("ALTER TABLE tbl_membership ADD COLUMN password_hash VARCHAR(255) DEFAULT NULL;")
                 
-                cur.execute("SELECT id, flat_no, password_hash FROM tbl_membership;")
-                for m in cur.fetchall():
-                    m_id = m['id']
-                    m_hash = m.get('password_hash')
-                    if not m_hash or not verify_password('sdera@123', m_hash):
-                        cur.execute("UPDATE tbl_membership SET password_hash = %s WHERE id = %s;", (SDERA_HASH, m_id))
+                cur.execute("""
+                    UPDATE tbl_membership 
+                    SET password_hash = %s 
+                    WHERE password_hash IS NULL 
+                       OR password_hash = '' 
+                       OR LENGTH(password_hash) != 60 
+                       OR password_hash LIKE %s;
+                """, (SDERA_HASH, '$2b$12$HxNkW%'))
                 
                 # 2. Ensure committee admin accounts exist and have valid password hashes in tbl_admins
                 committee_admins = [
@@ -941,8 +978,7 @@ def init_db(force=False):
                         )
                     else:
                         existing_hash = existing.get('password_hash', '')
-                        expected_plain = 'passwd' if username == 'admin' else 'sdera@123'
-                        if not verify_password(expected_plain, existing_hash):
+                        if not existing_hash or len(existing_hash) != 60 or existing_hash.startswith('$2b$12$HxNkW') or existing_hash.startswith('$2b$12$MA9Sw'):
                             cur.execute(
                                 "UPDATE tbl_admins SET password_hash = %s, role = %s WHERE admin_id = %s;",
                                 (pwd_hash, role, existing['admin_id'])
