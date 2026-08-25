@@ -503,17 +503,12 @@ def ensure_notices_table_sqlite():
             
         # Ensure password hashes in SQLite are valid
         sdera_h = SDERA_HASH
-        cur.execute("""
-            UPDATE tbl_membership 
-            SET password_hash = ? 
-            WHERE password_hash IS NULL 
-               OR password_hash = '' 
-               OR password_hash LIKE '$2b$12$HxNkW%'
-               OR password_hash LIKE '$2b$12$S/N7%'
-               OR password_hash LIKE '$2b$12$xw1Ob%'
-               OR password_hash LIKE '$2b$12$tskr%'
-               OR password_hash LIKE '$2b$12$2NTuw%';
-        """, (sdera_h,))
+        cur.execute("SELECT id, flat_no, password_hash FROM tbl_membership;")
+        for m in cur.fetchall():
+            m_id = m['id'] if isinstance(m, dict) or hasattr(m, 'keys') else m[0]
+            m_hash = m['password_hash'] if isinstance(m, dict) or hasattr(m, 'keys') else m[2]
+            if not m_hash or not verify_password('sdera@123', m_hash):
+                cur.execute("UPDATE tbl_membership SET password_hash = ? WHERE id = ?;", (sdera_h, m_id))
         
         committee_admins = [
             ('admin', hash_password('passwd'), 'billing_admin'),
@@ -920,18 +915,12 @@ def init_db(force=False):
                     print("[DB Init] Adding 'password_hash' column to tbl_membership...")
                     cur.execute("ALTER TABLE tbl_membership ADD COLUMN password_hash VARCHAR(255) DEFAULT NULL;")
                 
-                # Fast update of default hashes without dynamic bcrypt calculation
-                cur.execute("""
-                    UPDATE tbl_membership 
-                    SET password_hash = %s 
-                    WHERE password_hash IS NULL 
-                       OR password_hash = '' 
-                       OR password_hash LIKE '$2b$12$HxNkW%%'
-                       OR password_hash LIKE '$2b$12$S/N7%%'
-                       OR password_hash LIKE '$2b$12$xw1Ob%%'
-                       OR password_hash LIKE '$2b$12$tskr%%'
-                       OR password_hash LIKE '$2b$12$2NTuw%%';
-                """, (SDERA_HASH,))
+                cur.execute("SELECT id, flat_no, password_hash FROM tbl_membership;")
+                for m in cur.fetchall():
+                    m_id = m['id']
+                    m_hash = m.get('password_hash')
+                    if not m_hash or not verify_password('sdera@123', m_hash):
+                        cur.execute("UPDATE tbl_membership SET password_hash = %s WHERE id = %s;", (SDERA_HASH, m_id))
                 
                 # 2. Ensure committee admin accounts exist and have valid password hashes in tbl_admins
                 committee_admins = [

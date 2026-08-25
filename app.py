@@ -44,6 +44,8 @@ static_dir = os.path.join(BASE_DIR, 'static')
 if not os.path.exists(static_dir):
     static_dir = os.path.join(os.getcwd(), 'static')
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 app = Flask(
     __name__,
     template_folder=template_dir,
@@ -51,6 +53,15 @@ app = Flask(
     static_url_path='/static'
 )
 app.config.from_object(Config)
+
+# Enable ProxyFix to properly detect HTTPS scheme and client IP behind Vercel reverse proxies
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+
+# Ensure session cookies are robust across reverse proxies and modern browser security policies
+app.config['SESSION_COOKIE_NAME'] = 'sddra_session'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
 @app.after_request
 def set_response_headers(response):
@@ -357,6 +368,8 @@ def login():
                             admin_email = cnt_row.get('email_1') or cnt_row.get('email_2')
                         admin_phone = cnt_row.get('mobile_num_1') or cnt_row.get('mobile_num_2')
 
+                session.permanent = True
+                admin_pic = admin.get('profile_pic') or ''
                 session['user'] = {
                     'id': admin['admin_id'],
                     'username': admin['username'],
@@ -367,11 +380,14 @@ def login():
                     'flat_no': admin_fno,
                     'email': admin_email,
                     'phone': admin_phone,
-                    'profile_pic': admin.get('profile_pic') or ''
+                    'profile_pic': admin_pic if (len(admin_pic) < 500) else ''
                 }
+                session.modified = True
                 log_activity('LOGIN', f"Administrative sign in ({officer_titles.get(admin_u, admin['username'])})", actor=session['user'])
                 flash(f"Login successful! Welcome, {officer_titles.get(admin_u, admin['username'])}.", 'success')
-                next_p = request.args.get('next')
+                next_p = request.args.get('next') or request.form.get('next')
+                if next_p and ('/login' in next_p):
+                    next_p = None
                 return redirect(next_p or url_for('dashboard'))
 
             # 2. Check tbl_membership with flexible normalization
@@ -426,6 +442,8 @@ def login():
                 user_role = officer_info[1] if is_officer else 'MEMBER'
                 user_title = officer_info[2] if is_officer else member['member_name']
 
+                session.permanent = True
+                mbr_pic = member.get('profile_pic') or ''
                 session['user'] = {
                     'id': member['id'],
                     'username': member['flat_no'],
@@ -436,13 +454,16 @@ def login():
                     'is_admin': is_officer,
                     'email': mbr_email,
                     'phone': mbr_phone,
-                    'monthly_charge': member.get('monthly_charge', 0),
-                    'sq_feet': member.get('RvsdFlatSize'),
-                    'profile_pic': member.get('profile_pic') or ''
+                    'monthly_charge': float(member.get('monthly_charge') or 0),
+                    'sq_feet': float(member.get('RvsdFlatSize') or 0),
+                    'profile_pic': mbr_pic if (len(mbr_pic) < 500) else ''
                 }
+                session.modified = True
                 log_activity('LOGIN', f"Member signed in to resident portal from Flat {member['flat_no']}", actor=session['user'])
                 flash(f"Welcome, {member['member_name']} (Flat {member['flat_no']})!", 'success')
-                next_p = request.args.get('next')
+                next_p = request.args.get('next') or request.form.get('next')
+                if next_p and ('/login' in next_p):
+                    next_p = None
                 return redirect(next_p or url_for('dashboard'))
             else:
                 flash('Invalid credentials. Please verify your Flat Number (e.g. A/4-C) and password (default: sdera@123).', 'danger')
