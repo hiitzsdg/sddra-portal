@@ -222,6 +222,8 @@ def login_required(f):
         user = session.get('user')
         if not user or not isinstance(user, dict) or 'role' not in user:
             session.pop('user', None)
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+                return jsonify({'success': False, 'message': 'Session expired. Please log in again.', 'redirect': url_for('login')}), 401
             flash('Please log in to access this page.', 'warning')
             return redirect(url_for('login', next=request.url))
         return f(*args, **kwargs)
@@ -234,6 +236,8 @@ def roles_required(*allowed_roles):
             user = session.get('user')
             if not user or not isinstance(user, dict):
                 session.pop('user', None)
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+                    return jsonify({'success': False, 'message': 'Session expired. Please log in again.', 'redirect': url_for('login')}), 401
                 flash('Please log in to continue.', 'warning')
                 return redirect(url_for('login', next=request.url))
             user_role = str(user.get('role', 'MEMBER')).lower()
@@ -246,6 +250,8 @@ def roles_required(*allowed_roles):
                 (username == 'admin')
             )
             if not has_role:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+                    return jsonify({'success': False, 'message': 'Access Denied: You do not have permission to perform this action.'}), 403
                 flash('Access Denied: You do not have permission to view this resource.', 'danger')
                 return redirect(url_for('dashboard'))
             return f(*args, **kwargs)

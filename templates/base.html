@@ -489,7 +489,7 @@
                     <span class="badge badge-info" style="font-size: 0.72rem;">Member Access</span>
                 </div>
 
-                <form id="adminResetPwdForm" onsubmit="handleAdminResetPasswordSubmit(event)">
+                <form id="adminResetPwdForm" method="POST" action="{{ url_for('admin_reset_member_password') }}" onsubmit="handleAdminResetPasswordSubmit(event)">
                     <input type="hidden" id="adminResetPwdFlatInput" name="flat_no" required>
 
                     <div style="margin-bottom: 1.25rem;">

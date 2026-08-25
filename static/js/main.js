@@ -1336,7 +1336,24 @@ window.handleAdminResetPasswordSubmit = async function(e) {
             }
         });
 
-        const data = await res.json();
+        let data;
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            data = await res.json();
+        } else {
+            const textResp = await res.text();
+            if (res.status === 401 || textResp.includes('login')) {
+                window.location.href = '/login';
+                return;
+            }
+            throw new Error(textResp || `Server error (${res.status})`);
+        }
+
+        if (res.status === 401 || (data && data.redirect)) {
+            window.location.href = data.redirect || '/login';
+            return;
+        }
+
         if (data.success) {
             const resBox = document.getElementById('adminResetPwdResultBox');
             if (resBox) {
@@ -1366,7 +1383,7 @@ window.handleAdminResetPasswordSubmit = async function(e) {
             }
         }
     } catch (err) {
-        alert('Network error while resetting password: ' + err.message);
+        alert('Password reset note: ' + err.message);
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.innerHTML = '🔐 Confirm &amp; Reset Password';
