@@ -33,6 +33,8 @@ venv.bak/
 *.log
 *.sqlite3
 sdera.db
+*.db-shm
+*.db-wal
 
 # Vercel
 .vercel
