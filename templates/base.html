@@ -463,6 +463,99 @@
     </div>
     {% endif %}
 
+    {% if is_admin %}
+    <!-- Admin Portal Password Reset Modal -->
+    <div class="modal-overlay" id="adminResetPasswordModal" style="display: none;" onclick="if(event.target === this) closeAdminResetPasswordModal()">
+        <div class="modal-container" style="max-width: 480px;">
+            <div class="modal-header">
+                <div>
+                    <h3 class="card-title" id="adminResetPwdTitle" style="margin: 0; font-size: 1.2rem;">🔑 Reset Portal Password</h3>
+                    <p id="adminResetPwdSubtitle" class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.85rem;">Reset resident member login credentials</p>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="closeAdminResetPasswordModal()" style="font-size: 1.2rem; padding: 0.2rem 0.6rem; line-height: 1;">&times;</button>
+            </div>
+
+            <div class="modal-body" style="padding: 1.25rem;">
+                <!-- Target Resident Overview Card -->
+                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1.25rem;">
+                    <div>
+                        <div style="font-size: 0.76rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Target Account</div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 2px;">
+                            <strong class="text-highlight-blue" id="adminResetPwdFlatBadge" style="font-size: 1.05rem;">Flat -</strong>
+                            <span class="text-secondary" style="font-size: 0.85rem;">&bull;</span>
+                            <span class="text-main" id="adminResetPwdNameBadge" style="font-size: 0.9rem; font-weight: 600;">Resident</span>
+                        </div>
+                    </div>
+                    <span class="badge badge-info" style="font-size: 0.72rem;">Member Access</span>
+                </div>
+
+                <form id="adminResetPwdForm" onsubmit="handleAdminResetPasswordSubmit(event)">
+                    <input type="hidden" id="adminResetPwdFlatInput" name="flat_no" required>
+
+                    <div style="margin-bottom: 1.25rem;">
+                        <label class="form-label" style="font-size: 0.88rem; font-weight: 600; margin-bottom: 0.6rem; display: block;">Select Reset Option</label>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+                            <label style="display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.75rem 0.9rem; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: rgba(255,255,255,0.03); cursor: pointer; transition: all 0.2s;">
+                                <input type="radio" name="reset_mode" value="default" checked style="margin-top: 0.2rem; accent-color: var(--primary);" onchange="toggleCustomPwdInput(false)">
+                                <div>
+                                    <strong class="text-main" style="font-size: 0.88rem; display: block;">Reset to Default Password (<code>sdera@123</code>)</strong>
+                                    <span class="text-muted" style="font-size: 0.76rem;">Recommended standard default for all member accounts.</span>
+                                </div>
+                            </label>
+
+                            <label style="display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.75rem 0.9rem; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: rgba(255,255,255,0.03); cursor: pointer; transition: all 0.2s;">
+                                <input type="radio" name="reset_mode" value="custom" style="margin-top: 0.2rem; accent-color: var(--primary);" onchange="toggleCustomPwdInput(true)">
+                                <div>
+                                    <strong class="text-main" style="font-size: 0.88rem; display: block;">Set Custom Temporary Password</strong>
+                                    <span class="text-muted" style="font-size: 0.76rem;">Provide a custom temporary password chosen by you or the resident.</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="adminCustomPwdContainer" class="form-group" style="display: none; margin-bottom: 1.25rem;">
+                        <label class="form-label" for="adminCustomPwdInput">New Custom Password *</label>
+                        <div style="position: relative;">
+                            <input type="text" id="adminCustomPwdInput" name="custom_password" class="form-control" placeholder="Enter at least 4 characters (e.g. Welcome#2026)">
+                        </div>
+                    </div>
+
+                    <!-- Result Panel (Shown after reset) -->
+                    <div id="adminResetPwdResultBox" style="display: none; margin-bottom: 1.25rem; padding: 1rem; border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #10b981; font-weight: 700; margin-bottom: 0.5rem; font-size: 0.92rem;">
+                            <span>✅</span> Password Reset Successfully!
+                        </div>
+                        <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0 0 0.75rem;">
+                            The resident can now log in using the credentials below:
+                        </p>
+                        <div style="background: rgba(0,0,0,0.25); border: 1px dashed rgba(255,255,255,0.15); border-radius: var(--radius-sm); padding: 0.65rem 0.85rem; font-family: monospace; font-size: 0.88rem; line-height: 1.6; margin-bottom: 0.85rem;">
+                            <div><strong>Username:</strong> <span id="resBoxUsername" class="text-highlight-blue">-</span></div>
+                            <div><strong>Password:</strong> <span id="resBoxPassword" style="color: #34d399; font-weight: bold;">-</span></div>
+                        </div>
+
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button type="button" id="copyCredsBtn" class="btn btn-sm btn-secondary" onclick="copyResetCredentials()" style="font-size: 0.8rem;">
+                                📋 Copy Credentials
+                            </button>
+                            <a id="resBoxWhatsAppBtn" href="#" target="_blank" class="btn btn-sm btn-whatsapp" style="font-size: 0.8rem; background: #25d366; color: white; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                                💬 Share on WhatsApp
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer" style="padding: 0; margin-top: 1rem; border: none; display: flex; justify-content: flex-end; gap: 0.5rem;">
+                        <button type="button" class="btn btn-secondary" onclick="closeAdminResetPasswordModal()">Close</button>
+                        <button type="submit" id="adminResetPwdSubmitBtn" class="btn btn-primary">
+                            🔐 Confirm &amp; Reset Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Global Floating Toast Container -->
     <div class="global-toast-container" id="globalToastContainer"></div>
 

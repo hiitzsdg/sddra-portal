@@ -1001,6 +1001,12 @@ function initBuildingVisualizer() {
         if (rcptLink) rcptLink.href = `/admin/receipts?flat=${encodeURIComponent(flat)}`;
         if (newRcptLink) newRcptLink.href = `/admin/receipts?action=new&flat=${encodeURIComponent(flat)}`;
 
+        const resetPwdBtn = document.getElementById('visModalResetPwdBtn');
+        if (resetPwdBtn) {
+            resetPwdBtn.setAttribute('data-flat', flat);
+            resetPwdBtn.setAttribute('data-name', name);
+        }
+
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
     }
@@ -1240,7 +1246,148 @@ window.launchReceiptWhatsApp = function(receiptNo) {
     });
 };
 
+// ==========================================================================
+// 12. Admin Member Password Reset Modal & AJAX Handlers
+// ==========================================================================
+window.openAdminResetPasswordModal = function(flatNo, memberName, phone) {
+    if (!flatNo) return;
+    const modal = document.getElementById('adminResetPasswordModal');
+    if (!modal) return;
 
+    const flatInput = document.getElementById('adminResetPwdFlatInput');
+    const flatBadge = document.getElementById('adminResetPwdFlatBadge');
+    const nameBadge = document.getElementById('adminResetPwdNameBadge');
+    const titleEl = document.getElementById('adminResetPwdTitle');
 
+    if (flatInput) flatInput.value = flatNo;
+    if (flatBadge) flatBadge.textContent = `Flat ${flatNo}`;
+    if (nameBadge) nameBadge.textContent = memberName || 'Resident';
+    if (titleEl) titleEl.innerHTML = `🔑 Reset Password: <strong class="text-highlight-blue">Flat ${flatNo}</strong>`;
+    
+    // Reset radio selection to default
+    const radios = document.getElementsByName('reset_mode');
+    if (radios.length) radios[0].checked = true;
+    if (typeof window.toggleCustomPwdInput === 'function') {
+        window.toggleCustomPwdInput(false);
+    }
+    const customInput = document.getElementById('adminCustomPwdInput');
+    if (customInput) customInput.value = '';
+    
+    // Hide result box and restore submit button
+    const resBox = document.getElementById('adminResetPwdResultBox');
+    if (resBox) resBox.style.display = 'none';
+    const submitBtn = document.getElementById('adminResetPwdSubmitBtn');
+    if (submitBtn) {
+        submitBtn.style.display = 'inline-flex';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '🔐 Confirm &amp; Reset Password';
+    }
 
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+};
 
+window.closeAdminResetPasswordModal = function() {
+    const modal = document.getElementById('adminResetPasswordModal');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+};
+
+window.toggleCustomPwdInput = function(isCustom) {
+    const container = document.getElementById('adminCustomPwdContainer');
+    const input = document.getElementById('adminCustomPwdInput');
+    if (container) container.style.display = isCustom ? 'block' : 'none';
+    if (isCustom && input) {
+        setTimeout(() => { input.focus(); }, 50);
+    }
+};
+
+window.handleAdminResetPasswordSubmit = async function(e) {
+    if (e) e.preventDefault();
+    const flatNo = document.getElementById('adminResetPwdFlatInput')?.value;
+    const resetMode = document.querySelector('input[name="reset_mode"]:checked')?.value || 'default';
+    const customPassword = document.getElementById('adminCustomPwdInput')?.value || '';
+    const submitBtn = document.getElementById('adminResetPwdSubmitBtn');
+
+    if (!flatNo) return;
+
+    if (resetMode === 'custom' && (!customPassword || customPassword.length < 4)) {
+        alert('Please enter a custom password of at least 4 characters.');
+        document.getElementById('adminCustomPwdInput')?.focus();
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '⏳ Resetting Password...';
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('flat_no', flatNo);
+        formData.append('reset_mode', resetMode);
+        formData.append('custom_password', customPassword);
+
+        const res = await fetch('/admin/members/reset-password', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            const resBox = document.getElementById('adminResetPwdResultBox');
+            if (resBox) {
+                resBox.style.display = 'block';
+                const uEl = document.getElementById('resBoxUsername');
+                const pEl = document.getElementById('resBoxPassword');
+                if (uEl) uEl.textContent = `Flat ${data.flat_no}`;
+                if (pEl) pEl.textContent = data.new_password;
+                
+                const waBtn = document.getElementById('resBoxWhatsAppBtn');
+                if (waBtn && data.whatsapp_url) {
+                    waBtn.href = data.whatsapp_url;
+                    waBtn.style.display = 'inline-flex';
+                }
+            }
+            if (submitBtn) submitBtn.style.display = 'none';
+            if (typeof window.showGlobalToast === 'function') {
+                window.showGlobalToast(data.message, 'success');
+            } else if (typeof window.showToast === 'function') {
+                window.showToast(data.message, 'success');
+            }
+        } else {
+            alert(data.message || 'Failed to reset password.');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '🔐 Confirm &amp; Reset Password';
+            }
+        }
+    } catch (err) {
+        alert('Network error while resetting password: ' + err.message);
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '🔐 Confirm &amp; Reset Password';
+        }
+    }
+};
+
+window.copyResetCredentials = function() {
+    const u = document.getElementById('resBoxUsername')?.textContent || '';
+    const p = document.getElementById('resBoxPassword')?.textContent || '';
+    const text = `*SDERA Residential Portal Access*\nUsername: ${u}\nPassword: ${p}\nPortal Login URL: ${window.location.origin}/login`;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copyCredsBtn');
+        if (btn) {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '✓ Copied!';
+            btn.classList.replace('btn-secondary', 'btn-success');
+            setTimeout(() => {
+                btn.innerHTML = orig;
+                btn.classList.replace('btn-success', 'btn-secondary');
+            }, 2000);
+        }
+    });
+};

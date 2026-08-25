@@ -60,16 +60,26 @@
                                 {% endif %}
                                 <strong class="text-main">{{ m.member_name }}</strong>
                             </div>
-                            <button type="button" class="btn btn-sm btn-secondary btn-edit-member" 
-                                    data-flat="{{ m.flat_no }}" 
-                                    data-name="{{ m.member_name|e }}" 
-                                    data-email="{{ (m.email_1 or m.email_2 or '')|e }}" 
-                                    data-phone="{{ (m.mobile_num_1 or m.mobile_num_2 or '')|e }}" 
-                                    data-photo="{{ (m.profile_pic or '')|e }}"
-                                    style="padding: 0.15rem 0.4rem; font-size: 0.72rem; flex-shrink: 0;" 
-                                    title="Edit Resident Name &amp; Contact Info">
-                                ✏️
-                            </button>
+                            <div style="display: flex; gap: 0.25rem;">
+                                <button type="button" class="btn btn-sm btn-secondary btn-edit-member" 
+                                        data-flat="{{ m.flat_no }}" 
+                                        data-name="{{ m.member_name|e }}" 
+                                        data-email="{{ (m.email_1 or m.email_2 or '')|e }}" 
+                                        data-phone="{{ (m.mobile_num_1 or m.mobile_num_2 or '')|e }}" 
+                                        data-photo="{{ (m.profile_pic or '')|e }}"
+                                        style="padding: 0.15rem 0.4rem; font-size: 0.72rem; flex-shrink: 0;" 
+                                        title="Edit Resident Name &amp; Contact Info">
+                                    ✏️
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning btn-reset-pwd" 
+                                        data-flat="{{ m.flat_no }}" 
+                                        data-name="{{ m.member_name|e }}" 
+                                        data-phone="{{ (m.mobile_num_1 or m.mobile_num_2 or '')|e }}" 
+                                        style="padding: 0.15rem 0.4rem; font-size: 0.72rem; flex-shrink: 0;" 
+                                        title="Reset Portal Password for Flat {{ m.flat_no }}">
+                                    🔑
+                                </button>
+                            </div>
                         </div>
                     </td>
                     <td class="text-secondary">{{ m.RvsdFlatSize or '-' }} sq. ft.</td>
@@ -185,6 +195,17 @@
                     <input type="checkbox" name="sync_receipts" value="1" checked style="margin-top: 0.2rem; width: 1rem; height: 1rem; accent-color: var(--primary);">
                     <span>Also synchronize updated resident name on all past payment receipts for this flat</span>
                 </label>
+            </div>
+
+            <!-- Portal Access Password Reset Shortcut -->
+            <div style="margin-bottom: 1.35rem; padding: 0.75rem 0.9rem; background: rgba(255,255,255,0.03); border: 1px solid var(--surface-border); border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+                <div>
+                    <strong class="text-main" style="font-size: 0.85rem; display: block;">🔑 Member Portal Access</strong>
+                    <span class="text-muted" style="font-size: 0.75rem;">Reset resident's portal login password</span>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-warning" onclick="closeEditContactModal(); openAdminResetPasswordModal(document.getElementById('edit_contact_flat').value, document.getElementById('edit_contact_name').value, document.getElementById('edit_contact_phone').value)" style="font-size: 0.78rem; white-space: nowrap;">
+                    🔑 Reset Password
+                </button>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
@@ -374,6 +395,18 @@ document.addEventListener('click', function(e) {
         const email = btnEditContact.getAttribute('data-email') || '';
         const phone = btnEditContact.getAttribute('data-phone') || '';
         openEditContactModal(flatNo, memberName, email, phone, 'email');
+        return;
+    }
+
+    const btnResetPwd = e.target.closest('.btn-reset-pwd');
+    if (btnResetPwd) {
+        e.preventDefault();
+        const flatNo = btnResetPwd.getAttribute('data-flat') || '';
+        const memberName = btnResetPwd.getAttribute('data-name') || '';
+        const phone = btnResetPwd.getAttribute('data-phone') || '';
+        if (typeof window.openAdminResetPasswordModal === 'function') {
+            window.openAdminResetPasswordModal(flatNo, memberName, phone);
+        }
     }
 });
 </script>

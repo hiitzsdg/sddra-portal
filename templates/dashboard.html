@@ -277,9 +277,14 @@
                     </a>
                 </div>
                 {% if is_admin %}
-                <a id="visModalNewReceiptLink" href="#" class="btn btn-primary" style="justify-content: center; font-size: 0.88rem; padding: 0.65rem 1rem;">
-                    💳 Issue New Receipt for this Flat
-                </a>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem;">
+                    <a id="visModalNewReceiptLink" href="#" class="btn btn-primary" style="justify-content: center; font-size: 0.88rem; padding: 0.65rem 1rem;">
+                        💳 Issue Receipt
+                    </a>
+                    <button type="button" id="visModalResetPwdBtn" class="btn btn-outline-warning" style="justify-content: center; font-size: 0.85rem; padding: 0.65rem 1rem;" onclick="closeModal('flatVisualizerModal'); if(typeof openAdminResetPasswordModal==='function') openAdminResetPasswordModal(this.getAttribute('data-flat'), this.getAttribute('data-name'));">
+                        🔑 Reset Password
+                    </button>
+                </div>
                 {% endif %}
             </div>
         </div>

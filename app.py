@@ -1639,6 +1639,105 @@ def admin_update_member_contact():
         
     return redirect(url_for('admin_members'))
 
+@app.route('/admin/members/reset-password', methods=['POST'])
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def admin_reset_member_password():
+    flat_no = request.form.get('flat_no', '').strip()
+    reset_mode = request.form.get('reset_mode', 'default').strip()
+    custom_password = request.form.get('custom_password', '').strip()
+    
+    if not flat_no:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({'success': False, 'message': 'Flat number is required.'}), 400
+        flash('Flat number is required.', 'danger')
+        return redirect(url_for('admin_members'))
+        
+    if reset_mode == 'custom' and custom_password:
+        if len(custom_password) < 4:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+                return jsonify({'success': False, 'message': 'Password must be at least 4 characters.'}), 400
+            flash('Password must be at least 4 characters.', 'danger')
+            return redirect(url_for('admin_members'))
+        new_pwd = custom_password
+    else:
+        new_pwd = 'sdera@123'
+        
+    try:
+        new_hash = hash_password(new_pwd)
+        
+        # 1. Update tbl_membership
+        execute_db(
+            "UPDATE tbl_membership SET password_hash = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))",
+            (new_hash, flat_no)
+        )
+        
+        # 2. Synchronize local SQLite database fallback if exists
+        import os, sqlite3
+        if os.path.exists('sddra.db'):
+            try:
+                sq_conn = sqlite3.connect('sddra.db')
+                sq_cur = sq_conn.cursor()
+                sq_cur.execute("UPDATE tbl_membership SET password_hash = ? WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(?))", (new_hash, flat_no))
+                sq_conn.commit()
+                sq_conn.close()
+            except Exception as sq_err:
+                print(f"[SQLite Sync Warning] {sq_err}")
+                
+        # 3. Sync officer admin table if flat belongs to a committee bearer
+        officer_flats_map = {'A/4-C': 'treasurer', 'A/2-A': 'president', 'A/1-C': 'secretary', 'Estate Office': 'caretaker', 'Office': 'admin'}
+        u_name = officer_flats_map.get(flat_no)
+        if u_name:
+            try:
+                execute_db("UPDATE tbl_admins SET password_hash = %s WHERE LOWER(username) = LOWER(%s)", (new_hash, u_name))
+            except Exception:
+                pass
+                
+        # Fetch member details for notification / message
+        member = query_db("SELECT member_name FROM tbl_membership WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (flat_no,), one=True)
+        m_name = member['member_name'] if member else 'Resident'
+        
+        # Check contact phone for WhatsApp share
+        cnt = query_db("SELECT mobile_num_1, mobile_num_2 FROM tbl_mbr_cntct WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (flat_no,), one=True)
+        phone = (cnt.get('mobile_num_1') or cnt.get('mobile_num_2') or '') if cnt else ''
+        
+        login_url = f"{get_app_base_url()}/login"
+        wa_text = (
+            f"*{Config.ASSOCIATION_NAME}*\n"
+            f"*PORTAL ACCESS CREDENTIALS RESET*\n"
+            f"----------------------------------------\n"
+            f"*Resident:* {m_name}\n"
+            f"*Flat Number / Username:* Flat {flat_no}\n"
+            f"*New Password:* `{new_pwd}`\n"
+            f"----------------------------------------\n"
+            f"*Login URL:* {login_url}\n\n"
+            f"_Please log in and update your password from your Profile page if desired._\n"
+            f"*Office Support:* {Config.ASSOCIATION_PHONE}"
+        )
+        wa_url = build_whatsapp_url(phone, wa_text)
+        
+        log_activity('PASSWORD_RESET', f"Treasurer/Admin reset portal access password for Flat {flat_no} ({m_name}) to {'[CUSTOM]' if reset_mode == 'custom' else 'sdera@123'}")
+        
+        msg = f"✓ Password for Flat {flat_no} ({m_name}) was successfully reset to '{new_pwd}'."
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({
+                'success': True,
+                'message': msg,
+                'flat_no': flat_no,
+                'member_name': m_name,
+                'new_password': new_pwd,
+                'whatsapp_url': wa_url,
+                'phone': phone
+            })
+            
+        flash(msg, 'success')
+    except Exception as e:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({'success': False, 'message': f"Error resetting password: {e}"}), 500
+        flash(f"Error resetting password for Flat {flat_no}: {e}", 'danger')
+        
+    return redirect(url_for('admin_members'))
+
 # --- Administrative: Activity & Audit Trail Panel ---
 @app.route('/admin/audit-logs')
 @roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
