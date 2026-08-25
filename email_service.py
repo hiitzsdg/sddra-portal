@@ -475,9 +475,14 @@ def send_receipt_email(receipt_no, custom_recipient=None):
     recipient = (custom_recipient or '').strip()
     if not recipient and contact_info:
         recipient = (contact_info.get('email_1') or contact_info.get('email_2') or '').strip()
+    if not recipient and member_info:
+        recipient = (member_info.get('email_1') or member_info.get('email_2') or '').strip()
         
-    if not recipient:
-        recipient = f"{flat_no.replace('/', '_').lower()}@sddra.org"
+    if not recipient or '@' not in recipient:
+        return {
+            "success": False, 
+            "message": f"No registered email address found in database for Flat {flat_no}."
+        }
     
     clean_flat = str(flat_no).replace('/', '_').replace(' ', '')
     attachment_filename = f"Official_Receipt_{formatted_rcpt_no}_{clean_flat}.pdf"
@@ -708,12 +713,17 @@ def broadcast_notice_email(notice, author_name=None):
     </html>
     """
 
-    # Fetch recipient emails exclusively from official registry (tbl_membership + tbl_mbr_cntct)
+    # Fetch recipient emails strictly and exclusively from the official database registry (tbl_membership + tbl_mbr_cntct)
     recipient_info = get_notice_email_recipients()
-    recipients = recipient_info['unique_emails']
+    recipients = [e for e in (recipient_info.get('unique_emails') or []) if e and '@' in e]
 
     if not recipients:
-        recipients = ["members@southdumdum.org"]
+        return {
+            "success": False,
+            "message": "No registered member email addresses found in the database registry to broadcast.",
+            "recipients_count": 0,
+            "status": "NO_RECIPIENTS"
+        }
 
     subject = f"[{prio_label}] {title} - {Config.ASSOCIATION_NAME}"
     smtp_enabled = bool(Config.SMTP_USERNAME and Config.SMTP_PASSWORD)
@@ -741,14 +751,14 @@ def broadcast_notice_email(notice, author_name=None):
             server.quit()
             return {
                 "success": True,
-                "message": f"Notice broadcast successfully dispatched to {sent_count} member emails via live SMTP.",
+                "message": f"Notice broadcast successfully dispatched to {sent_count} registered database member emails via live SMTP.",
                 "recipients_count": sent_count,
                 "status": "SENT"
             }
         except Exception as e:
             return {
                 "success": True,
-                "message": f"Notice broadcast prepared for {len(recipients)} members (Simulated delivery: {str(e)}).",
+                "message": f"Notice broadcast prepared for {len(recipients)} registered database members (Simulated delivery: {str(e)}).",
                 "recipients_count": len(recipients),
                 "status": "SIMULATED",
                 "preview_html": html_email
@@ -756,7 +766,7 @@ def broadcast_notice_email(notice, author_name=None):
     else:
         return {
             "success": True,
-            "message": f"Notice broadcast simulated to {len(recipients)} registered member email addresses.",
+            "message": f"Notice broadcast simulated to {len(recipients)} registered database member email addresses.",
             "recipients_count": len(recipients),
             "status": "SIMULATED",
             "preview_html": html_email
