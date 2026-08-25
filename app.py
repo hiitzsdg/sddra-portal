@@ -357,21 +357,29 @@ def get_login_units_by_block():
             {'flat_no': 'C/4-A', 'member_name': 'Mr. Anirban Saha', 'profile_pic': ''},
             {'flat_no': 'C/4-B', 'member_name': 'Dr. Salil Sur Roy Chowdhury / Mrs. Aparna Sur Roy Chowdhury', 'profile_pic': ''},
             {'flat_no': 'C/4-C', 'member_name': 'Dr. Kamanio Chatterjee', 'profile_pic': ''},
+            {'flat_no': '-', 'member_name': 'Mr. Khokhon Routh', 'profile_pic': ''},
         ]
     }
     try:
-        rows = query_db("SELECT flat_no, member_name, profile_pic FROM tbl_membership WHERE flat_no IS NOT NULL AND flat_no != '-' ORDER BY flat_no")
+        rows = query_db("SELECT flat_no, member_name, profile_pic FROM tbl_membership WHERE flat_no IS NOT NULL ORDER BY flat_no")
         if not rows:
             return fallback_blocks
 
-        blocks = {}
+        blocks = {'A': [], 'B': [], 'C': []}
         for r in rows:
             f_no = (r['flat_no'] or '').strip()
             m_name = (r['member_name'] or '').strip()
             p_pic = (r.get('profile_pic') or '').strip()
-            if not f_no or f_no == '-':
+            if not f_no:
                 continue
-            blk = f_no.split('/')[0].strip().upper() if '/' in f_no else (f_no[0].upper() if f_no else 'A')
+
+            if f_no == '-' or 'khokhon' in m_name.lower():
+                blk = 'C'
+            elif '/' in f_no:
+                blk = f_no.split('/')[0].strip().upper()
+            else:
+                blk = f_no[0].upper()
+
             if blk not in blocks:
                 blocks[blk] = []
             blocks[blk].append({
@@ -382,6 +390,8 @@ def get_login_units_by_block():
 
         def sort_key(item):
             fn = item['flat_no']
+            if fn == '-':
+                return (100, fn)
             parts = fn.split('/')
             floor_part = parts[1] if len(parts) > 1 else fn
             if 'gr' in floor_part.lower():

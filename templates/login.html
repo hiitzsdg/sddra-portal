@@ -282,9 +282,10 @@ function onBlockChange(selectedBlock) {
     let optionsHtml = `<option value="">-- Choose Flat in Block ${selectedBlock} (${units.length} Units) --</option>`;
     units.forEach(u => {
         const hasPhoto = !!(u.profile_pic && u.profile_pic.trim());
-        const photoIcon = hasPhoto ? ' 📷' : '';
+        const photoIcon = hasPhoto ? ' 📸' : '';
         const memberDisplay = u.member_name ? ` — ${u.member_name}` : '';
-        optionsHtml += `<option value="${u.flat_no}" data-member="${u.member_name || ''}" data-pic="${u.profile_pic || ''}">${u.flat_no}${memberDisplay}${photoIcon}</option>`;
+        const flatLabel = (u.flat_no === '-' || !u.flat_no) ? 'Flat -' : u.flat_no;
+        optionsHtml += `<option value="${u.flat_no}" data-member="${u.member_name || ''}" data-pic="${u.profile_pic || ''}">${flatLabel}${memberDisplay}${photoIcon}</option>`;
     });
 
     flatSelect.innerHTML = optionsHtml;
@@ -323,7 +324,8 @@ function onFlatChange(selectedFlat) {
 
     if (infoCard) {
         if (cardName) cardName.textContent = memberName || 'Registered Resident';
-        if (cardBadge) cardBadge.textContent = `Flat ${selectedFlat}`;
+        const displayBadge = selectedFlat === '-' ? 'Unit - • Block C' : `Flat ${selectedFlat}`;
+        if (cardBadge) cardBadge.textContent = displayBadge;
         
         if (avatarSlot) {
             if (profilePic) {

@@ -53,11 +53,17 @@ class TestLoginDropdown(unittest.TestCase):
         self.assertIn('C/1-A', block_c_flats)
         self.assertIn('C/4-C', block_c_flats)
         self.assertIn('C/Gr', block_c_flats)
+        self.assertIn('-', block_c_flats) # Khokhon Routh under Block C
         
-        print("Login page dropdown rendering verified successfully.")
+        khokhon_entry = next((u for u in blocks_data['C'] if u['flat_no'] == '-'), None)
+        self.assertIsNotNone(khokhon_entry)
+        self.assertIn('Khokhon', khokhon_entry['member_name'])
+        
+        print("Login page dropdown rendering verified successfully with Khokhon Routh in Block C.")
 
     def test_login_authentications(self):
-        # Resident login for Block A
+        # 1. Resident login for Block A
+        self.client.get('/logout', follow_redirects=True)
         resp = self.client.post('/login', data={'username': 'A/4-C', 'password': 'sdera@123'}, follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         self.assertIn(b'Swapnadeep Ganguly', resp.data)
@@ -67,15 +73,26 @@ class TestLoginDropdown(unittest.TestCase):
         self.assertIn('user-nav-avatar-slot', html)
         self.assertIn('user-name', html)
 
-        # Resident login for Block B
+        # 2. Resident login for Block B
+        self.client.get('/logout', follow_redirects=True)
         resp2 = self.client.post('/login', data={'username': 'B/1-B', 'password': 'sdera@123'}, follow_redirects=True)
         self.assertEqual(resp2.status_code, 200)
+        self.assertIn(b'Rina Banerjee', resp2.data)
 
-        # Resident login for Block C
+        # 3. Resident login for Block C (standard flat)
+        self.client.get('/logout', follow_redirects=True)
         resp3 = self.client.post('/login', data={'username': 'C/1-A', 'password': 'sdera@123'}, follow_redirects=True)
         self.assertEqual(resp3.status_code, 200)
+        self.assertIn(b'Indrajit Kar', resp3.data)
 
-        # Admin login
+        # 4. Resident login for Block C (Khokhon Routh with flat_no: '-')
+        self.client.get('/logout', follow_redirects=True)
+        resp4 = self.client.post('/login', data={'username': '-', 'password': 'sdera@123'}, follow_redirects=True)
+        self.assertEqual(resp4.status_code, 200)
+        self.assertIn(b'Khokhon Routh', resp4.data)
+
+        # 5. Admin login
+        self.client.get('/logout', follow_redirects=True)
         resp_admin = self.client.post('/login', data={'username': 'treasurer', 'password': 'sdera@123'}, follow_redirects=True)
         self.assertEqual(resp_admin.status_code, 200)
 
