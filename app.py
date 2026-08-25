@@ -644,7 +644,7 @@ def dashboard():
                 rcpts_by_flat_map.setdefault(fn_k, []).append(r_p)
 
             try:
-                members_all = query_db("SELECT flat_no, monthly_charge, member_name FROM tbl_membership") or []
+                members_all = query_db("SELECT flat_no, monthly_charge, member_name, profile_pic, RvsdFlatSize FROM tbl_membership") or []
             except Exception:
                 members_all = []
                 
@@ -706,7 +706,8 @@ def dashboard():
                         'base_due': float(p_calc.get('base_due', 0.0) or 0.0),
                         'penalty_amount': float(p_calc.get('penalty_amount', 0.0) or 0.0),
                         'total_due': float(p_calc.get('total_due', 0.0) or 0.0),
-                        'coverage_display': p_calc.get('coverage_display', 'Up to date')
+                        'coverage_display': p_calc.get('coverage_display', 'Up to date'),
+                        'profile_pic': m_row.get('profile_pic') or ''
                     }
                     
                     building_blocks.setdefault(blk, {}).setdefault(flr, []).append(unit_obj)
@@ -1603,10 +1604,23 @@ def admin_update_member_contact():
                         sq_cur.execute("UPDATE tbl_mbr_cntct SET email_1 = ?, mobile_num_1 = ? WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(?))", (email, phone, flat_no))
                     else:
                         sq_cur.execute("INSERT INTO tbl_mbr_cntct (flat_no, email_1, mobile_num_1) VALUES (?, ?, ?)", (flat_no, email, phone))
+                if 'profile_pic' in request.form:
+                    pic_val = request.form.get('profile_pic', '').strip() or None
+                    sq_cur.execute("UPDATE tbl_membership SET profile_pic = ? WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(?))", (pic_val, flat_no))
                 sq_conn.commit()
                 sq_conn.close()
             except Exception as sq_err:
                 print(f"[SQLite Sync Warning] {sq_err}")
+
+        # Update profile pic if submitted in form
+        if 'profile_pic' in request.form:
+            pic_data = request.form.get('profile_pic', '').strip()
+            execute_db(
+                "UPDATE tbl_membership SET profile_pic = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))",
+                (pic_data or None, flat_no)
+            )
+            if pic_data:
+                updated_items.append("Profile Photo")
 
         # 4. Sync officer admin table if flat belongs to a committee bearer
         officer_flats_map = {'A/4-C': 'treasurer', 'A/2-A': 'president', 'A/1-C': 'secretary', 'Estate Office': 'caretaker', 'Office': 'admin'}

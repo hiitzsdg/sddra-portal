@@ -50,12 +50,22 @@
                     </td>
                     <td>
                         <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
-                            <strong class="text-main">{{ m.member_name }}</strong>
+                            <div style="display: flex; align-items: center; gap: 0.55rem;">
+                                {% if m.profile_pic %}
+                                <img src="{{ m.profile_pic }}" alt="{{ m.member_name }}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--primary-400); flex-shrink: 0;" loading="lazy">
+                                {% else %}
+                                <div style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid var(--surface-border); color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0;">
+                                    {{ m.member_name[:1] if m.member_name else 'R' }}
+                                </div>
+                                {% endif %}
+                                <strong class="text-main">{{ m.member_name }}</strong>
+                            </div>
                             <button type="button" class="btn btn-sm btn-secondary btn-edit-member" 
                                     data-flat="{{ m.flat_no }}" 
                                     data-name="{{ m.member_name|e }}" 
                                     data-email="{{ (m.email_1 or m.email_2 or '')|e }}" 
                                     data-phone="{{ (m.mobile_num_1 or m.mobile_num_2 or '')|e }}" 
+                                    data-photo="{{ (m.profile_pic or '')|e }}"
                                     style="padding: 0.15rem 0.4rem; font-size: 0.72rem; flex-shrink: 0;" 
                                     title="Edit Resident Name &amp; Contact Info">
                                 ✏️

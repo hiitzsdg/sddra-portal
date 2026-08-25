@@ -194,8 +194,16 @@
                              data-overdue="{{ u.overdue_months }}"
                              data-total-due="{{ u.total_due }}"
                              data-coverage="{{ u.coverage_display }}"
+                             data-photo="{{ u.profile_pic or '' }}"
                              title="Flat {{ u.flat_no }} ({{ u.member_name }})">
                             <span class="unit-status-dot"></span>
+                            <div class="unit-avatar-wrapper">
+                                {% if u.profile_pic %}
+                                <img src="{{ u.profile_pic }}" alt="{{ u.member_name }}" class="unit-avatar-thumb" loading="lazy">
+                                {% else %}
+                                <span class="unit-avatar-placeholder">{{ u.member_name[:1] if u.member_name else 'R' }}</span>
+                                {% endif %}
+                            </div>
                             <span class="unit-cell-flat">{{ u.unit }}</span>
                             <span class="unit-cell-sub">{{ u.member_name.split(' ')[0] }}</span>
                         </div>
@@ -216,10 +224,18 @@
 <div id="flatVisualizerModal" class="modal-backdrop">
     <div class="modal-card" style="max-width: 520px;">
         <div class="modal-header">
-            <div style="display: flex; align-items: center; gap: 0.6rem;">
-                <span style="font-size: 1.5rem;">🏢</span>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div class="vis-modal-avatar-wrapper" style="position: relative; width: 46px; height: 46px; flex-shrink: 0;">
+                    <img id="visModalAvatarImg" src="" alt="Resident Photo" class="vis-modal-avatar-img" style="width: 46px; height: 46px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-400); box-shadow: 0 4px 10px rgba(0,0,0,0.25); display: none;">
+                    <div id="visModalAvatarFallback" class="vis-modal-avatar-placeholder" style="width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-600), #6366f1); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; font-weight: 700; border: 1.5px solid rgba(255,255,255,0.2); box-shadow: 0 3px 8px rgba(0,0,0,0.2);">
+                        👤
+                    </div>
+                </div>
                 <div>
-                    <h3 class="card-title" id="visModalFlatTitle" style="margin: 0; font-size: 1.15rem;">Flat Details</h3>
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <h3 class="card-title" id="visModalFlatTitle" style="margin: 0; font-size: 1.15rem;">Flat Details</h3>
+                        <span id="visModalPhotoTag" class="badge badge-info" style="font-size: 0.68rem; display: none;">📷 Verified Photo</span>
+                    </div>
                     <span id="visModalMemberName" class="text-secondary" style="font-size: 0.84rem;">Resident Name</span>
                 </div>
             </div>

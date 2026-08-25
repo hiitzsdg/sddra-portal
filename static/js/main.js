@@ -938,6 +938,7 @@ function initBuildingVisualizer() {
         const sqft = btn.getAttribute('data-sqft') || '1200';
         const totalDue = btn.getAttribute('data-total-due') || '0';
         const coverage = btn.getAttribute('data-coverage') || 'Up to date';
+        const photo = btn.getAttribute('data-photo') || '';
 
         const modal = document.getElementById('flatVisualizerModal');
         if (!modal) return;
@@ -953,6 +954,9 @@ function initBuildingVisualizer() {
         const ledgerLink = document.getElementById('visModalLedgerLink');
         const rcptLink = document.getElementById('visModalReceiptsLink');
         const newRcptLink = document.getElementById('visModalNewReceiptLink');
+        const avatarImg = document.getElementById('visModalAvatarImg');
+        const avatarFallback = document.getElementById('visModalAvatarFallback');
+        const photoTag = document.getElementById('visModalPhotoTag');
 
         if (titleEl) titleEl.textContent = `Flat ${flat} (${block})`;
         if (memberEl) memberEl.textContent = name;
@@ -963,6 +967,26 @@ function initBuildingVisualizer() {
         if (dueEl) {
             dueEl.textContent = (Number(totalDue) > 0) ? `₹ ${Number(totalDue).toLocaleString('en-IN')}` : '₹ 0.00 (All Cleared)';
             dueEl.className = (Number(totalDue) > 0) ? 'text-amount-danger' : 'text-amount-success';
+        }
+
+        // Render member photo or initial avatar
+        if (photo && photo.trim() !== '') {
+            if (avatarImg) {
+                avatarImg.src = photo;
+                avatarImg.style.display = 'block';
+            }
+            if (avatarFallback) avatarFallback.style.display = 'none';
+            if (photoTag) photoTag.style.display = 'inline-block';
+        } else {
+            if (avatarImg) {
+                avatarImg.src = '';
+                avatarImg.style.display = 'none';
+            }
+            if (avatarFallback) {
+                avatarFallback.textContent = name ? name.charAt(0).toUpperCase() : '👤';
+                avatarFallback.style.display = 'flex';
+            }
+            if (photoTag) photoTag.style.display = 'none';
         }
 
         if (badgeEl) {
@@ -998,18 +1022,26 @@ function initBuildingVisualizer() {
             const sqft = btn.getAttribute('data-sqft') || '1200';
             const totalDue = btn.getAttribute('data-total-due') || '0';
             const coverage = btn.getAttribute('data-coverage') || 'Up to date';
+            const photo = btn.getAttribute('data-photo') || '';
 
             const statusBadge = (status === 'paid')
-                ? '<span class="badge badge-success" style="font-size: 0.72rem;">✓ Paid Up to Date</span>'
-                : `<span class="badge badge-danger" style="font-size: 0.72rem;">⚠️ ${overdue} Mo. Overdue (₹${Number(totalDue).toLocaleString('en-IN')})</span>`;
+                ? '<span class="badge badge-success" style="font-size: 0.72rem;">✓ Paid</span>'
+                : `<span class="badge badge-danger" style="font-size: 0.72rem;">⚠️ ${overdue} Mo. Due</span>`;
+
+            const avatarHtml = (photo && photo.trim() !== '')
+                ? `<img src="${photo}" alt="${name}" class="matrix-popover-avatar">`
+                : `<div class="matrix-popover-avatar matrix-popover-avatar-fallback">${name ? name.charAt(0).toUpperCase() : '👤'}</div>`;
 
             popover.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-                    <div>
-                        <strong style="font-size: 1.05rem; color: var(--text-main); font-family: var(--font-heading);">Flat ${flat}</strong>
-                        <div style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px;">${name}</div>
+                <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.6rem;">
+                    ${avatarHtml}
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <strong style="font-size: 1.05rem; color: var(--text-main); font-family: var(--font-heading);">Flat ${flat}</strong>
+                            ${statusBadge}
+                        </div>
+                        <div style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</div>
                     </div>
-                    ${statusBadge}
                 </div>
                 <div style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; border-top: 1px dashed var(--surface-border); padding-top: 0.45rem; margin-top: 0.45rem;">
                     <div>📏 Unit Size: <strong class="text-main">${sqft} sq.ft.</strong></div>
