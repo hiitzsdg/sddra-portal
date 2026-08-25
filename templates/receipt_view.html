@@ -39,8 +39,8 @@
     <div class="receipt-watermark">SDERA OFFICIAL</div>
 
     <div class="receipt-header">
-        <div style="display: inline-flex; width: 48px; height: 48px; border-radius: 10px; background: #1e3a8a; color: #ffffff; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 0.5rem;">
-            🏢
+        <div style="display: inline-flex; width: 64px; height: 64px; border-radius: 12px; overflow: hidden; background: #000000; align-items: center; justify-content: center; margin-bottom: 0.5rem; border: 1.5px solid #d4af37; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="SDDE Logo" style="width: 100%; height: 100%; object-fit: cover;">
         </div>
         <h2>{{ config.ASSOCIATION_NAME }}</h2>
         <p><strong>Registration No:</strong> {{ config.ASSOCIATION_REG_NO }}</p>

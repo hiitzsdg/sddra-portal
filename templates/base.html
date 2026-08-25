@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <title>{% block title %}South Dumdum Enclave Residents' Association{% endblock %}</title>
+    <!-- Brand Favicons -->
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='img/logo.jpg') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo.jpg') }}">
+    
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -125,7 +129,9 @@
     <header class="navbar">
         <div class="navbar-container">
             <a href="{{ url_for('dashboard') if current_user else url_for('login') }}" class="brand-wrapper">
-                <div class="brand-logo-badge">🏢</div>
+                <div class="brand-logo-badge">
+                    <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="SDDE Logo" class="brand-logo-img">
+                </div>
                 <div class="brand-info">
                     <h1>South Dumdum Enclave</h1>
                     <p>Residents' Association Portal</p>
