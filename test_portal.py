@@ -168,12 +168,12 @@ class TestSDDRABillingPortal(unittest.TestCase):
         # Ensure flat A/4-C has standard default password before test
         from database import hash_password
         default_h = hash_password('sdera@123')
-        execute_db("UPDATE tbl_membership SET password_hash = %s WHERE flat_no = 'A/4-C'", (default_h,))
+        execute_db("UPDATE tbl_membership SET password_hash = %s WHERE flat_no = 'A/1-B'", (default_h,))
 
         # 1. Login with current default password
-        resp_login = self.client.post('/login', data={'username': 'A/4-C', 'password': 'sdera@123'}, follow_redirects=True)
+        resp_login = self.client.post('/login', data={'username': 'A/1-B', 'password': 'sdera@123'}, follow_redirects=True)
         self.assertEqual(resp_login.status_code, 200)
-        self.assertIn(b'Swapnadeep Ganguly', resp_login.data)
+        self.assertIn(b'Kripa Ghosal', resp_login.data)
         
         # 2. Update password in profile
         new_pwd = "newpassword2026"
@@ -190,16 +190,17 @@ class TestSDDRABillingPortal(unittest.TestCase):
         self.client.get('/logout', follow_redirects=True)
         
         # 4. Attempt login with old password -> should fail
-        resp_fail = self.client.post('/login', data={'username': 'A/4-C', 'password': 'sdera@123'}, follow_redirects=True)
+        resp_fail = self.client.post('/login', data={'username': 'A/1-B', 'password': 'sdera@123'}, follow_redirects=True)
         self.assertIn(b'Invalid credentials', resp_fail.data)
         
         # 5. Attempt login with new password -> should succeed
-        resp_success = self.client.post('/login', data={'username': 'A/4-C', 'password': new_pwd}, follow_redirects=True)
+        resp_success = self.client.post('/login', data={'username': 'A/1-B', 'password': new_pwd}, follow_redirects=True)
         self.assertEqual(resp_success.status_code, 200)
         self.assertIn(b'Welcome', resp_success.data)
         
         # Cleanup: restore default password
-        execute_db("UPDATE tbl_membership SET password_hash = %s WHERE flat_no = 'A/4-C'", (default_h,))
+        execute_db("UPDATE tbl_membership SET password_hash = %s WHERE flat_no = 'A/1-B'", (default_h,))
+        execute_db("UPDATE tbl_admins SET password_hash = %s WHERE username = 'treasurer'", (default_h,))
 
     def test_12_tariff_dashboard_rbac_restrictions(self):
         """Verify that /admin/billing-rates is strictly restricted to super_admin and billing_admin."""

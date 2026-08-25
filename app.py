@@ -416,13 +416,24 @@ def login():
                 mbr_email = (cnt_row.get('email_1') or cnt_row.get('email_2')) if cnt_row else member.get('email_1')
                 mbr_phone = (cnt_row.get('mobile_num_1') or cnt_row.get('mobile_num_2')) if cnt_row else member.get('mobile_num_1')
                 
+                officer_flats_map = {
+                    'A/4-C': ('treasurer', 'super_admin', 'Treasurer Mr. Swapnadeep Ganguly'),
+                    'A/2-A': ('president', 'president', 'President Dr. Asit Kumar Bera'),
+                    'A/1-C': ('secretary', 'secretary', 'General Secretary Mr. Somenath Halder'),
+                }
+                officer_info = officer_flats_map.get(member['flat_no'])
+                is_officer = bool(officer_info)
+                user_role = officer_info[1] if is_officer else 'MEMBER'
+                user_title = officer_info[2] if is_officer else member['member_name']
+
                 session['user'] = {
                     'id': member['id'],
                     'username': member['flat_no'],
                     'name': member['member_name'],
+                    'title': user_title,
                     'flat_no': member['flat_no'],
-                    'role': 'MEMBER',
-                    'is_admin': False,
+                    'role': user_role,
+                    'is_admin': is_officer,
                     'email': mbr_email,
                     'phone': mbr_phone,
                     'monthly_charge': member.get('monthly_charge', 0),
@@ -566,12 +577,18 @@ def profile():
             else:
                 try:
                     new_h = hash_password(new_pwd)
-                    if is_admin:
-                        execute_db("UPDATE tbl_admins SET password_hash = %s WHERE username = %s", (new_h, user.get('username')))
-                    else:
+                    officer_flats_map = {'A/4-C': 'treasurer', 'A/2-A': 'president', 'A/1-C': 'secretary', 'Estate Office': 'caretaker', 'Office': 'admin'}
+                    officer_un = officer_flats_map.get(flat_no) or (user.get('username') if is_admin else None)
+
+                    if flat_no and flat_no not in ('Estate Office', 'Office'):
                         execute_db("UPDATE tbl_membership SET password_hash = %s WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (new_h, flat_no))
+                    
+                    if officer_un:
+                        execute_db("UPDATE tbl_admins SET password_hash = %s WHERE LOWER(username) = LOWER(%s)", (new_h, officer_un))
+                    elif is_admin:
+                        execute_db("UPDATE tbl_admins SET password_hash = %s WHERE username = %s", (new_h, user.get('username')))
                     session.modified = True
-                    log_activity('PASSWORD_CHANGE', f"Changed portal account security password for Flat {flat_no}")
+                    log_activity('PASSWORD_CHANGE', f"Changed portal account security password for Flat {flat_no or user.get('username')}")
                     flash('Your password has been updated successfully!', 'success')
                     return redirect(url_for('profile'))
                 except Exception as e:

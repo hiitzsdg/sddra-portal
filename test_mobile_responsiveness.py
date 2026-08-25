@@ -15,7 +15,7 @@ class TestMobileResponsiveness(unittest.TestCase):
         return self.client.post('/login', data={'username': 'admin', 'password': 'passwd'}, follow_redirects=True)
 
     def _login_as_resident(self):
-        return self.client.post('/login', data={'username': 'A/4-C', 'password': 'sdera@123'}, follow_redirects=True)
+        return self.client.post('/login', data={'username': 'A/1-B', 'password': 'sdera@123'}, follow_redirects=True)
 
     def test_viewport_meta_tag_present(self):
         """All pages must have a responsive viewport meta tag with width=device-width"""

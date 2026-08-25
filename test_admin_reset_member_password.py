@@ -14,7 +14,7 @@ class TestAdminResetMemberPassword(unittest.TestCase):
         self.assertIn(resp.status_code, [302, 401, 403])
 
         # 2. Resident login attempting to access reset password endpoint
-        self.client.post('/login', data={'username': 'A/4-C', 'password': 'sdera@123'}, follow_redirects=True)
+        self.client.post('/login', data={'username': 'A/1-B', 'password': 'sdera@123'}, follow_redirects=True)
         resp_res = self.client.post('/admin/members/reset-password', data={'flat_no': 'A/1-B'}, follow_redirects=True)
         self.assertIn(b'Access Denied', resp_res.data)
 

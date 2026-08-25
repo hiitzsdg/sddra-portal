@@ -950,11 +950,14 @@ def init_db(force=False):
                             "INSERT INTO tbl_admins (username, password_hash, role) VALUES (%s, %s, %s);",
                             (username, pwd_hash, role)
                         )
-                    elif existing.get('password_hash', '').startswith('$2b$12$HxNkW') or existing.get('password_hash', '').startswith('$2b$12$MA9Sw'):
-                        cur.execute(
-                            "UPDATE tbl_admins SET password_hash = %s, role = %s WHERE admin_id = %s;",
-                            (pwd_hash, role, existing['admin_id'])
-                        )
+                    else:
+                        existing_hash = existing.get('password_hash', '')
+                        expected_plain = 'passwd' if username == 'admin' else 'sdera@123'
+                        if not verify_password(expected_plain, existing_hash):
+                            cur.execute(
+                                "UPDATE tbl_admins SET password_hash = %s, role = %s WHERE admin_id = %s;",
+                                (pwd_hash, role, existing['admin_id'])
+                            )
                 
                 # 3. Ensure tbl_email_logs table exists
                 cur.execute("""

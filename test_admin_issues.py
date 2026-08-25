@@ -24,8 +24,8 @@ class TestAdminIssues(unittest.TestCase):
         self.assertIn(b'/admin/issues', resp_issues.data)
 
     def test_02_resident_blocked_from_admin_issues(self):
-        # Login as resident
-        resp = self.client.post('/login', data={'username': 'A/4-C', 'password': 'sdera@123'}, follow_redirects=True)
+        # Login as regular non-officer resident
+        resp = self.client.post('/login', data={'username': 'A/1-B', 'password': 'sdera@123'}, follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
 
         # Attempt to access /admin/issues
@@ -33,9 +33,19 @@ class TestAdminIssues(unittest.TestCase):
         self.assertEqual(resp_issues.status_code, 200)
         self.assertIn(b'Access Denied', resp_issues.data)
 
+    def test_02b_officer_flat_has_admin_access(self):
+        # Login as Treasurer flat A/4-C
+        resp = self.client.post('/login', data={'username': 'A/4-C', 'password': 'sdera@123'}, follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+
+        # Access /admin/issues should succeed for Treasurer flat
+        resp_issues = self.client.get('/admin/issues')
+        self.assertEqual(resp_issues.status_code, 200)
+        self.assertIn(b'Resident Grievances', resp_issues.data)
+
     def test_03_resident_can_create_ticket_api(self):
         # Login as resident
-        self.client.post('/login', data={'username': 'A/4-C', 'password': 'sdera@123'}, follow_redirects=True)
+        self.client.post('/login', data={'username': 'A/1-B', 'password': 'sdera@123'}, follow_redirects=True)
 
         resp = self.client.post('/api/helpdesk/create', json={
             'category': 'Plumbing',
@@ -50,7 +60,7 @@ class TestAdminIssues(unittest.TestCase):
         # Verify in database
         row = query_db("SELECT * FROM tbl_helpdesk_tickets WHERE ticket_number = %s", (tkt_no,), one=True)
         self.assertIsNotNone(row)
-        self.assertEqual(row['flat_no'], 'A/4-C')
+        self.assertEqual(row['flat_no'], 'A/1-B')
         self.assertEqual(row['category'], 'Plumbing')
         self.assertEqual(row['status'], 'OPEN')
 
