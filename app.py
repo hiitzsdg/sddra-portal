@@ -280,6 +280,99 @@ def internal_server_error(e):
 def page_not_found(e):
     return render_template('error.html', error=e, code=404), 404
 
+def get_login_units_by_block():
+    """Fetch and organize registered flats grouped by block with natural floor sorting."""
+    fallback_blocks = {
+        'A': [
+            {'flat_no': 'A/Gr-B', 'member_name': 'Mrs. Sunanda Paul'},
+            {'flat_no': 'A/Gr-C', 'member_name': 'Mrs. Debasree Das'},
+            {'flat_no': 'A/1-A', 'member_name': 'Mr. Biswajit Manna'},
+            {'flat_no': 'A/1-B', 'member_name': 'Mrs. Kripa Ghosal'},
+            {'flat_no': 'A/1-C', 'member_name': 'Mr. Somenath Halder'},
+            {'flat_no': 'A/1-D', 'member_name': 'Dr. Aniket Sanyal'},
+            {'flat_no': 'A/2-A', 'member_name': 'Dr. Asit Kumar Bera'},
+            {'flat_no': 'A/2-B', 'member_name': 'Mrs. Tripti Chatterjee / Dr. Rudranath Chatterjee'},
+            {'flat_no': 'A/2-C', 'member_name': 'Dr. Debashis Bhattacharya'},
+            {'flat_no': 'A/2-D', 'member_name': 'Mrs. Bharati Chatterjee / Mr. Samar Nath Chatterjee'},
+            {'flat_no': 'A/3-A', 'member_name': 'Dr. Amlan Kumar Patra'},
+            {'flat_no': 'A/3-B', 'member_name': 'Mr. Jayanta Dhar'},
+            {'flat_no': 'A/3-C', 'member_name': 'Mrs. Selina Yeasmin'},
+            {'flat_no': 'A/3-D', 'member_name': 'Mr. Soumajit Dhar'},
+            {'flat_no': 'A/4-A', 'member_name': 'Mr. Sudipta Datta / Mrs. Samapti Dutta'},
+            {'flat_no': 'A/4-B', 'member_name': 'Mr. Bhagyadhar Mandal/Mrs. Sharmishtha Sarkar'},
+            {'flat_no': 'A/4-C', 'member_name': 'Mr. Swapnadeep Ganguly'},
+            {'flat_no': 'A/4-D', 'member_name': 'Dr. Sanghamitra Mukherjee / Mr. Swapnadeep Ganguly'},
+        ],
+        'B': [
+            {'flat_no': 'B/Gr', 'member_name': 'Mr. T. Roy'},
+            {'flat_no': 'B/1-A', 'member_name': 'Dr. Guru Prasad Mandal'},
+            {'flat_no': 'B/1-B', 'member_name': 'Mrs. Rina Banerjee'},
+            {'flat_no': 'B/1-C', 'member_name': 'Mr. Soudipta Ghosh / Mrs. Debasree Ghosh'},
+            {'flat_no': 'B/2-A', 'member_name': 'Mr. Suman Chakraborty'},
+            {'flat_no': 'B/2-B', 'member_name': 'Mr. Krishnendu Chatterjee / Mr. N. Chatterjee'},
+            {'flat_no': 'B/2-C', 'member_name': 'Mr. Brahma Sakti Bhattacharya / Mrs. Tapati Bhattacharya'},
+            {'flat_no': 'B/3-A', 'member_name': 'Mr. Tridip Sarkar'},
+            {'flat_no': 'B/3-B', 'member_name': 'Mrs. Khusi Mitra'},
+            {'flat_no': 'B/3-C', 'member_name': 'Mr. Murari Mohan Das / Mrs. Debjani Das'},
+            {'flat_no': 'B/4-A', 'member_name': 'Mrs. Nipa Saha'},
+            {'flat_no': 'B/4-C', 'member_name': 'Dr. Guru Prasad Mandal / Mrs. Annesha Mandal'},
+        ],
+        'C': [
+            {'flat_no': 'C/Gr', 'member_name': 'Dr. Salil Sur Roy Chowdhury / Mr. Samik Sur Roy Chowdhury'},
+            {'flat_no': 'C/1-A', 'member_name': 'Dr. Indrajit Kar'},
+            {'flat_no': 'C/1-B', 'member_name': 'Mr. Dipankar Adhikari'},
+            {'flat_no': 'C/1-C', 'member_name': 'Mr. Ramendra Narayan Ray'},
+            {'flat_no': 'C/2-A', 'member_name': 'Dr. Anup Kumar Barui'},
+            {'flat_no': 'C/2-B', 'member_name': 'Mrs. Shampa Mondal (Ghosh)'},
+            {'flat_no': 'C/2-C', 'member_name': 'Mrs. Sangha Banerjee'},
+            {'flat_no': 'C/3-A', 'member_name': 'Mrs. Aparna Banerjee'},
+            {'flat_no': 'C/3-B', 'member_name': 'Mr. Avik Dasgupta'},
+            {'flat_no': 'C/3-C', 'member_name': 'Mr. Bibhas Chatterjee'},
+            {'flat_no': 'C/4-A', 'member_name': 'Mr. Anirban Saha'},
+            {'flat_no': 'C/4-B', 'member_name': 'Dr. Salil Sur Roy Chowdhury / Mrs. Aparna Sur Roy Chowdhury'},
+            {'flat_no': 'C/4-C', 'member_name': 'Dr. Kamanio Chatterjee'},
+        ]
+    }
+    try:
+        rows = query_db("SELECT flat_no, member_name FROM tbl_membership WHERE flat_no IS NOT NULL AND flat_no != '-' ORDER BY flat_no")
+        if not rows:
+            return fallback_blocks
+
+        blocks = {}
+        for r in rows:
+            f_no = (r['flat_no'] or '').strip()
+            m_name = (r['member_name'] or '').strip()
+            if not f_no or f_no == '-':
+                continue
+            blk = f_no.split('/')[0].strip().upper() if '/' in f_no else (f_no[0].upper() if f_no else 'A')
+            if blk not in blocks:
+                blocks[blk] = []
+            blocks[blk].append({
+                'flat_no': f_no,
+                'member_name': m_name
+            })
+
+        def sort_key(item):
+            fn = item['flat_no']
+            parts = fn.split('/')
+            floor_part = parts[1] if len(parts) > 1 else fn
+            if 'gr' in floor_part.lower():
+                flr = 0
+                sub = floor_part.lower()
+            else:
+                m = re.search(r'\d+', floor_part)
+                flr = int(m.group()) if m else 99
+                sub = floor_part
+            return (flr, sub)
+
+        for blk in blocks:
+            blocks[blk].sort(key=sort_key)
+
+        return blocks if blocks else fallback_blocks
+    except Exception as e:
+        app.logger.warning(f"Error loading login units: {e}")
+        return fallback_blocks
+
 # --- Authentication Routes ---
 @app.route('/')
 def index():
@@ -289,6 +382,8 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    blocks_data = get_login_units_by_block()
+
     # If already logged in and session is valid, redirect to dashboard
     if session.get('user') and isinstance(session.get('user'), dict) and 'role' in session['user']:
         return redirect(url_for('dashboard'))
@@ -301,7 +396,7 @@ def login():
             admin = query_db("SELECT * FROM tbl_admins WHERE LOWER(username) = LOWER(%s)", (demo_user,), one=True)
             if admin:
                 flash(f"🔒 Administrator account '{admin['username']}' requires password authentication. Please enter your password.", 'info')
-                return render_template('login.html', prefill_username=admin['username'], admin_auth_prompt=True)
+                return render_template('login.html', blocks_data=blocks_data, prefill_username=admin['username'], admin_auth_prompt=True)
                 
             # 2. Check if demo matches a flat_no in tbl_membership
             member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s OR id = %s", (demo_user, demo_user), one=True)
@@ -330,7 +425,7 @@ def login():
 
         if not raw_login or not password:
             flash('Please enter both your Flat Number or Username and Password.', 'danger')
-            return render_template('login.html')
+            return render_template('login.html', blocks_data=blocks_data)
 
         try:
             # 1. Check tbl_admins first (by username)
@@ -460,7 +555,7 @@ def login():
         except Exception as e:
             flash(f"Database login error: {e}", 'danger')
 
-    return render_template('login.html')
+    return render_template('login.html', blocks_data=blocks_data)
 
 @app.route('/logout')
 def logout():

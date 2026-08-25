@@ -3,11 +3,61 @@
 {% block title %}Resident & Committee Portal - SDDRA South Dumdum Enclave{% endblock %}
 
 {% block content %}
+<style>
+.login-tab-btn {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.85rem;
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+}
+.login-tab-btn:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.05);
+}
+.login-tab-btn.active {
+    background: var(--primary-600);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    border-color: rgba(96, 165, 250, 0.4);
+}
+.dropdown-select-styled {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    background-size: 1.15rem 1.15rem;
+    padding-right: 2.5rem !important;
+}
+.resident-preview-card {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 78, 59, 0.18) 100%);
+    border: 1px solid rgba(52, 211, 153, 0.35);
+    border-radius: var(--radius-md);
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.25rem;
+    animation: fadeInSlide 0.25s ease-out;
+}
+@keyframes fadeInSlide {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
 <div class="login-container">
     
     <!-- Left: Resident & Admin Login Card -->
     <div class="login-card">
-        <div style="text-align: center; margin-bottom: 2rem;">
+        <div style="text-align: center; margin-bottom: 1.75rem;">
             <div style="display: inline-flex; width: 84px; height: 84px; border-radius: 20px; overflow: hidden; background: #000000; align-items: center; justify-content: center; margin-bottom: 1.25rem; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 25px rgba(212, 175, 55, 0.35); border: 2px solid rgba(212, 175, 55, 0.5);">
                 <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="SDDE Logo" style="width: 100%; height: 100%; object-fit: cover; display: block;">
             </div>
@@ -21,7 +71,7 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ url_for('login') }}" id="loginForm">
+        <form method="POST" action="{{ url_for('login') }}" id="loginForm" onsubmit="return validateLoginForm()">
             <!-- Dynamic Admin Auth Banner -->
             <div id="adminPromptBanner" style="{% if not admin_auth_prompt %}display: none;{% endif %} background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: var(--radius-md); padding: 0.75rem 0.95rem; margin-bottom: 1.25rem; font-size: 0.84rem; color: var(--primary);">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
@@ -30,15 +80,81 @@
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label" for="username">Flat Number or Admin Username</label>
-                <input type="text" id="username" name="username" class="form-control" value="{{ prefill_username or '' }}" placeholder="e.g. A/4-C, A/1-A, B/1-B or admin" required {% if not prefill_username %}autofocus{% endif %}>
-                <small class="text-muted" style="font-size: 0.76rem; margin-top: 0.35rem; display: block;">
-                    Residents enter Flat No (e.g. <code>A/4-C</code>) &bull; Admins enter username
-                </small>
+            <!-- Login Mode Selector Tabs (Block & Flat Dropdown vs Direct Manual Input) -->
+            <div style="display: flex; background: rgba(15, 23, 42, 0.65); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 4px; margin-bottom: 1.25rem; gap: 4px;">
+                <button type="button" id="tabDropdownMode" onclick="setLoginMode('dropdown')" class="login-tab-btn active" style="flex: 1;">
+                    <span>🏢</span> Block & Flat Select
+                </button>
+                <button type="button" id="tabManualMode" onclick="setLoginMode('manual')" class="login-tab-btn" style="flex: 1;">
+                    <span>✍️</span> Direct / Admin Input
+                </button>
             </div>
 
-            <div class="form-group">
+            <!-- Hidden actual username input that always submits the chosen value -->
+            <input type="hidden" id="username" name="username" value="{{ prefill_username or '' }}">
+
+            <!-- DROPDOWN MODE SECTION (Default for residents) -->
+            <div id="dropdownModeSection">
+                <!-- 1. Block Dropdown -->
+                <div class="form-group" style="margin-bottom: 1.1rem;">
+                    <label class="form-label" for="blockSelect" style="display: flex; align-items: center; justify-content: space-between;">
+                        <span>🏢 1. Select Block / Building</span>
+                        <span id="blockBadge" class="text-muted" style="font-size: 0.75rem; font-weight: 500;">Step 1 of 2</span>
+                    </label>
+                    <select id="blockSelect" class="form-control dropdown-select-styled" onchange="onBlockChange(this.value)" style="cursor: pointer; font-size: 0.92rem; padding: 0.75rem 0.95rem; font-weight: 500;">
+                        <option value="">-- Choose Block (e.g. Block A, B, C) --</option>
+                        {% for blk, units in (blocks_data or {}).items() %}
+                            <option value="{{ blk }}">🏢 Block {{ blk }} &nbsp;({{ units|length }} Units)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 2. Flat Dropdown (Filtered by selected Block) -->
+                <div class="form-group" style="margin-bottom: 1.15rem;">
+                    <label class="form-label" for="flatSelect" style="display: flex; align-items: center; justify-content: space-between;">
+                        <span>🚪 2. Select Flat Number & Resident Details</span>
+                        <span id="flatCountBadge" class="text-muted" style="font-size: 0.75rem;">Select Block First</span>
+                    </label>
+                    <select id="flatSelect" class="form-control dropdown-select-styled" onchange="onFlatChange(this.value)" disabled style="cursor: pointer; font-size: 0.92rem; padding: 0.75rem 0.95rem; font-weight: 500;">
+                        <option value="">← Please choose a Block first</option>
+                    </select>
+                    <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.35rem; display: block;">
+                        Showing verified resident flat numbers and owners for the chosen block
+                    </small>
+                </div>
+
+                <!-- Selected Resident Visual Confirmation Card -->
+                <div id="residentInfoCard" class="resident-preview-card" style="display: none;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(16, 185, 129, 0.25); border: 1px solid rgba(52, 211, 153, 0.5); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #10b981; flex-shrink: 0;">
+                            👤
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.15rem;">
+                                <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #10b981; font-weight: 700;">Verified Member</span>
+                                <span id="residentCardBadge" style="background: rgba(16, 185, 129, 0.25); color: #34d399; font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 4px; font-weight: 600;">-</span>
+                            </div>
+                            <div id="residentCardName" style="font-weight: 600; font-size: 0.92rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                -
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MANUAL INPUT MODE SECTION (For Admins or direct typing) -->
+            <div id="manualModeSection" style="display: none;">
+                <div class="form-group" style="margin-bottom: 1.15rem;">
+                    <label class="form-label" for="manualUsernameInput">Flat Number or Admin Username</label>
+                    <input type="text" id="manualUsernameInput" class="form-control" value="{{ prefill_username or '' }}" placeholder="e.g. A/4-C, A/1-A, B/1-B or admin" oninput="onManualInput(this.value)">
+                    <small class="text-muted" style="font-size: 0.76rem; margin-top: 0.35rem; display: block;">
+                        Residents enter Flat No (e.g. <code>A/4-C</code>) &bull; Admins enter username (e.g. <code>treasurer</code>, <code>admin</code>)
+                    </small>
+                </div>
+            </div>
+
+            <!-- Password Input -->
+            <div class="form-group" style="margin-bottom: 1.25rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <label class="form-label" for="password">Password</label>
                 </div>
@@ -50,7 +166,7 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 1rem; margin-top: 0.5rem; letter-spacing: 0.02em;">
+            <button type="submit" id="submitLoginBtn" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 1rem; margin-top: 0.5rem; letter-spacing: 0.02em;">
                 🔐 Sign In to Portal
             </button>
         </form>
@@ -104,13 +220,131 @@
 
 {% block extra_scripts %}
 <script>
+// Society flats grouped by block from server
+const societyBlocks = {{ (blocks_data or {}) | tojson }};
+let currentMode = 'dropdown';
+
+function setLoginMode(mode) {
+    currentMode = mode;
+    const tabDropdown = document.getElementById('tabDropdownMode');
+    const tabManual = document.getElementById('tabManualMode');
+    const sectionDropdown = document.getElementById('dropdownModeSection');
+    const sectionManual = document.getElementById('manualModeSection');
+    const usernameField = document.getElementById('username');
+    const manualInput = document.getElementById('manualUsernameInput');
+    const flatSelect = document.getElementById('flatSelect');
+
+    if (mode === 'dropdown') {
+        if (tabDropdown) tabDropdown.classList.add('active');
+        if (tabManual) tabManual.classList.remove('active');
+        if (sectionDropdown) sectionDropdown.style.display = 'block';
+        if (sectionManual) sectionManual.style.display = 'none';
+        if (flatSelect && flatSelect.value) {
+            usernameField.value = flatSelect.value;
+        }
+    } else {
+        if (tabManual) tabManual.classList.add('active');
+        if (tabDropdown) tabDropdown.classList.remove('active');
+        if (sectionDropdown) sectionDropdown.style.display = 'none';
+        if (sectionManual) sectionManual.style.display = 'block';
+        if (manualInput) {
+            usernameField.value = manualInput.value.trim();
+            manualInput.focus();
+        }
+    }
+}
+
+function onBlockChange(selectedBlock) {
+    const flatSelect = document.getElementById('flatSelect');
+    const flatBadge = document.getElementById('flatCountBadge');
+    const blockBadge = document.getElementById('blockBadge');
+    const infoCard = document.getElementById('residentInfoCard');
+    const usernameField = document.getElementById('username');
+
+    if (!flatSelect) return;
+
+    if (!selectedBlock || !societyBlocks[selectedBlock]) {
+        flatSelect.innerHTML = '<option value="">← Please choose a Block first</option>';
+        flatSelect.disabled = true;
+        if (flatBadge) flatBadge.textContent = 'Select Block First';
+        if (blockBadge) blockBadge.textContent = 'Step 1 of 2';
+        if (infoCard) infoCard.style.display = 'none';
+        if (usernameField && currentMode === 'dropdown') usernameField.value = '';
+        return;
+    }
+
+    const units = societyBlocks[selectedBlock] || [];
+    if (blockBadge) blockBadge.textContent = `Block ${selectedBlock} (${units.length} Flats)`;
+    if (flatBadge) flatBadge.textContent = `${units.length} Flats Available`;
+
+    let optionsHtml = `<option value="">-- Choose Flat in Block ${selectedBlock} (${units.length} Units) --</option>`;
+    units.forEach(u => {
+        const memberDisplay = u.member_name ? ` — ${u.member_name}` : '';
+        optionsHtml += `<option value="${u.flat_no}" data-member="${u.member_name || ''}">${u.flat_no}${memberDisplay}</option>`;
+    });
+
+    flatSelect.innerHTML = optionsHtml;
+    flatSelect.disabled = false;
+    if (infoCard) infoCard.style.display = 'none';
+    if (usernameField && currentMode === 'dropdown') usernameField.value = '';
+
+    flatSelect.focus();
+}
+
+function onFlatChange(selectedFlat) {
+    const flatSelect = document.getElementById('flatSelect');
+    const usernameField = document.getElementById('username');
+    const infoCard = document.getElementById('residentInfoCard');
+    const cardName = document.getElementById('residentCardName');
+    const cardBadge = document.getElementById('residentCardBadge');
+    const pwdField = document.getElementById('password');
+
+    if (!selectedFlat) {
+        if (infoCard) infoCard.style.display = 'none';
+        if (usernameField && currentMode === 'dropdown') usernameField.value = '';
+        return;
+    }
+
+    if (usernameField) usernameField.value = selectedFlat;
+
+    let memberName = '';
+    if (flatSelect && flatSelect.selectedIndex >= 0) {
+        const opt = flatSelect.options[flatSelect.selectedIndex];
+        memberName = opt.getAttribute('data-member') || '';
+    }
+
+    if (infoCard) {
+        if (cardName) cardName.textContent = memberName || 'Registered Resident';
+        if (cardBadge) cardBadge.textContent = `Flat ${selectedFlat}`;
+        infoCard.style.display = 'block';
+    }
+
+    // Auto-focus password field for fast login
+    if (pwdField) {
+        pwdField.focus();
+        pwdField.classList.remove('card-highlight-pulse');
+        void pwdField.offsetWidth;
+        pwdField.classList.add('card-highlight-pulse');
+    }
+}
+
+function onManualInput(val) {
+    const usernameField = document.getElementById('username');
+    if (usernameField) {
+        usernameField.value = val.trim();
+    }
+}
+
 function selectAdminLogin(username, roleTitle) {
+    setLoginMode('manual');
+    const manualInput = document.getElementById('manualUsernameInput');
     const userField = document.getElementById('username');
     const pwdField = document.getElementById('password');
     const banner = document.getElementById('adminPromptBanner');
     const promptText = document.getElementById('adminPromptText');
     const promptUser = document.getElementById('adminPromptUser');
 
+    if (manualInput) manualInput.value = username;
     if (userField) userField.value = username;
     if (promptUser) promptUser.textContent = username;
     if (promptText) {
@@ -133,5 +367,85 @@ function clearAdminPrompt() {
     const banner = document.getElementById('adminPromptBanner');
     if (banner) banner.style.display = 'none';
 }
+
+function validateLoginForm() {
+    const usernameField = document.getElementById('username');
+    const blockSelect = document.getElementById('blockSelect');
+    const flatSelect = document.getElementById('flatSelect');
+    const manualInput = document.getElementById('manualUsernameInput');
+    const pwdField = document.getElementById('password');
+
+    let uVal = usernameField ? usernameField.value.trim() : '';
+
+    if (!uVal) {
+        if (currentMode === 'dropdown') {
+            if (!blockSelect.value) {
+                alert('Please select your Block first.');
+                blockSelect.focus();
+                return false;
+            }
+            if (!flatSelect.value) {
+                alert('Please select your Flat Number from the dropdown.');
+                flatSelect.focus();
+                return false;
+            }
+        } else {
+            alert('Please enter your Flat Number or Admin Username.');
+            if (manualInput) manualInput.focus();
+            return false;
+        }
+    }
+
+    if (!pwdField || !pwdField.value.trim()) {
+        alert('Please enter your password.');
+        if (pwdField) pwdField.focus();
+        return false;
+    }
+
+    return true;
+}
+
+// Auto-initialize prefilled user state if provided (e.g. from ?demo=... or prefill_username)
+document.addEventListener('DOMContentLoaded', function() {
+    const prefill = "{{ prefill_username or '' }}".trim();
+    if (!prefill) return;
+
+    // Check if prefill matches a resident flat
+    let foundBlock = null;
+    let foundFlat = null;
+
+    for (const [blk, units] of Object.entries(societyBlocks)) {
+        for (const u of units) {
+            if (u.flat_no.toLowerCase() === prefill.toLowerCase() || 
+                u.flat_no.replace('/', '-').toLowerCase() === prefill.toLowerCase()) {
+                foundBlock = blk;
+                foundFlat = u.flat_no;
+                break;
+            }
+        }
+        if (foundBlock) break;
+    }
+
+    if (foundBlock && foundFlat) {
+        setLoginMode('dropdown');
+        const blockSelect = document.getElementById('blockSelect');
+        const flatSelect = document.getElementById('flatSelect');
+        if (blockSelect) {
+            blockSelect.value = foundBlock;
+            onBlockChange(foundBlock);
+            if (flatSelect) {
+                flatSelect.value = foundFlat;
+                onFlatChange(foundFlat);
+            }
+        }
+    } else {
+        // Assume admin / direct username
+        setLoginMode('manual');
+        const manualInput = document.getElementById('manualUsernameInput');
+        if (manualInput) manualInput.value = prefill;
+        const userField = document.getElementById('username');
+        if (userField) userField.value = prefill;
+    }
+});
 </script>
 {% endblock %}
