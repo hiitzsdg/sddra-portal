@@ -7,6 +7,10 @@ class TestProfilePicture(unittest.TestCase):
         self.app = app
         self.app.config['TESTING'] = True
         self.client = self.app.test_client()
+        self.client.get('/logout', follow_redirects=True)
+        from database import SDERA_HASH
+        execute_db("UPDATE tbl_membership SET password_hash = %s WHERE flat_no = 'A/4-C'", (SDERA_HASH,))
+        execute_db("UPDATE tbl_admins SET password_hash = %s WHERE username = 'treasurer'", (SDERA_HASH,))
 
     def test_member_profile_pic_flow(self):
         # 1. Login as Flat A/4-C

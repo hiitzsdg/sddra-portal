@@ -7,6 +7,10 @@ class TestVisualizerMemberPhoto(unittest.TestCase):
         self.app = app
         self.app.config['TESTING'] = True
         self.client = self.app.test_client()
+        self.client.get('/logout', follow_redirects=True)
+        from database import SDERA_HASH
+        execute_db("UPDATE tbl_membership SET password_hash = %s WHERE flat_no = 'A/4-C'", (SDERA_HASH,))
+        execute_db("UPDATE tbl_admins SET password_hash = %s WHERE username = 'treasurer'", (SDERA_HASH,))
 
     def test_member_photo_reflected_in_admin_visualizer(self):
         """Verify that when a member updates their photo, it is displayed in the Society Wing & Floor Visualizer on the admin dashboard."""

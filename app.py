@@ -598,6 +598,24 @@ def profile():
                         execute_db("UPDATE tbl_admins SET password_hash = %s WHERE LOWER(username) = LOWER(%s)", (new_h, officer_un))
                     elif is_admin:
                         execute_db("UPDATE tbl_admins SET password_hash = %s WHERE username = %s", (new_h, user.get('username')))
+
+                    # Synchronize local SQLite database fallback if exists
+                    import os, sqlite3
+                    if os.path.exists('sddra.db'):
+                        try:
+                            sq_conn = sqlite3.connect('sddra.db')
+                            sq_cur = sq_conn.cursor()
+                            if flat_no and flat_no not in ('Estate Office', 'Office'):
+                                sq_cur.execute("UPDATE tbl_membership SET password_hash = ? WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(?))", (new_h, flat_no))
+                            if officer_un:
+                                sq_cur.execute("UPDATE tbl_admins SET password_hash = ? WHERE LOWER(username) = LOWER(?)", (new_h, officer_un))
+                            elif is_admin:
+                                sq_cur.execute("UPDATE tbl_admins SET password_hash = ? WHERE username = ?", (new_h, user.get('username')))
+                            sq_conn.commit()
+                            sq_conn.close()
+                        except Exception as sq_err:
+                            print(f"[SQLite Sync Warning] {sq_err}")
+
                     session.modified = True
                     log_activity('PASSWORD_CHANGE', f"Changed portal account security password for Flat {flat_no or user.get('username')}")
                     flash('Your password has been updated successfully!', 'success')
