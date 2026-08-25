@@ -69,7 +69,7 @@ class TestWhatsAppIntegration(unittest.TestCase):
         self.assertIn("Flat B/2-A", msg)
         self.assertIn("3 Months", msg)
         self.assertIn("6,900.00", msg)
-        self.assertIn("sddra.association@icici", msg)
+        self.assertIn("State Bank of India", msg)
         print("[PASS] Dues reminder template formatting tests passed.")
 
     def test_notice_template(self):

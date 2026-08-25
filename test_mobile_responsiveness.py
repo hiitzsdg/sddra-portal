@@ -64,7 +64,7 @@ class TestMobileResponsiveness(unittest.TestCase):
         resp2 = self.client.get('/dashboard')
         self.assertEqual(resp2.status_code, 200)
         html2 = resp2.data.decode('utf-8')
-        self.assertIn('upi-payment-card', html2)
+        self.assertIn('status-stepper-container', html2)
         self.assertIn('table-container', html2)
 
     def test_notices_page_responsiveness(self):

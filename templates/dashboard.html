@@ -41,8 +41,7 @@
         <button type="button" class="btn btn-secondary" onclick="window.openCommandPalette && window.openCommandPalette()" title="Omnisearch (⌘K)">
             🔍 Search <kbd style="font-size: 0.72rem; padding: 1px 4px; background: rgba(0,0,0,0.25); border-radius: 3px;">⌘K</kbd>
         </button>
-        <button type="button" class="btn btn-outline-primary" id="openHelpdeskBtn">🛠️ Report Issue</button>
-        <button type="button" class="btn btn-primary btn-open-upi-pay">📱 Pay via UPI QR</button>
+        <button type="button" class="btn btn-primary" id="openHelpdeskBtn">🛠️ Report Issue</button>
         {% endif %}
     </div>
 </div>
@@ -483,50 +482,6 @@
     </div>
 </div>
 
-<!-- Resident UPI Hero Quick Pay Card -->
-<div class="card upi-payment-card" style="margin-bottom: 2rem;">
-    <div class="upi-hero-grid">
-        <div class="upi-qr-wrapper">
-            <canvas id="upiQrCanvas" class="upi-qr-canvas" width="170" height="170"></canvas>
-            <div class="upi-qr-caption">Scan to Pay with UPI</div>
-        </div>
-
-        <div class="upi-details-col">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                <h3 style="margin: 0; font-size: 1.25rem; color: var(--text-main); font-weight: 700;">
-                    Instant Maintenance Payment (Flat {{ current_user.flat_no }})
-                </h3>
-                <span class="badge badge-success" style="font-size: 0.78rem;">⚡ Zero Convenience Fee</span>
-            </div>
-
-            <p style="font-size: 0.88rem; color: var(--text-secondary); margin: 0; line-height: 1.5;">
-                Scan with any UPI App (Google Pay, PhonePe, Paytm, BHIM) to settle your flat's maintenance dues. All transactions are logged instantly.
-            </p>
-
-            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-                <div class="upi-badge-container btn-copy-upi" data-copy="sdera.maintenance@icici" title="Click to copy official UPI ID">
-                    <span>🏦 UPI ID:</span>
-                    <span class="upi-badge-text">sdera.maintenance@icici</span>
-                    <span class="upi-copy-btn">📋 Copy</span>
-                </div>
-
-                <button type="button" class="btn btn-primary btn-open-upi-pay" style="padding: 0.55rem 1.2rem;">
-                    📱 Open Payment Gateway &rarr;
-                </button>
-            </div>
-
-            <div class="upi-apps-row">
-                <span style="font-size: 0.76rem; color: var(--text-muted); align-self: center;">Supported Apps:</span>
-                <span class="badge badge-secondary">Google Pay</span>
-                <span class="badge badge-secondary">PhonePe</span>
-                <span class="badge badge-secondary">Paytm</span>
-                <span class="badge badge-secondary">BHIM UPI</span>
-                <span class="badge badge-secondary">Cred</span>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Resident Helpdesk & Maintenance Ticketing Widget -->
 <div class="card" style="margin-bottom: 2rem;">
     <div class="card-header">
@@ -697,53 +652,6 @@
 {% endif %}
 
 <!-- ================= MODALS ================= -->
-
-<!-- UPI Payment Dialog Modal -->
-<div class="modal-backdrop" id="upiPaymentModal" role="dialog" aria-modal="true" aria-labelledby="upiModalTitle">
-    <div class="modal-dialog" style="max-width: 520px;">
-        <div class="modal-header">
-            <h3 class="modal-title" id="upiModalTitle">📱 Pay Society Maintenance via UPI</h3>
-            <button type="button" class="close-btn" onclick="document.getElementById('upiPaymentModal').classList.remove('active'); document.body.style.overflow = '';">&times;</button>
-        </div>
-        <div class="modal-body" style="text-align: center;">
-            <div style="background: #ffffff; padding: 1rem; border-radius: var(--radius-md); display: inline-block; box-shadow: 0 10px 30px rgba(0,0,0,0.3); margin-bottom: 1.25rem;">
-                <canvas id="upiQrCanvasModal" width="180" height="180" style="display: block;"></canvas>
-                <div style="color: #0f172a; font-size: 0.74rem; font-weight: 700; margin-top: 0.4rem; letter-spacing: 0.04em;">
-                    SCAN WITH ANY UPI APP
-                </div>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 0.6rem; text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--surface-border); margin-bottom: 1rem;">
-                <div style="display: flex; justify-content: space-between; font-size: 0.88rem;">
-                    <span class="text-muted">Flat Unit:</span>
-                    <strong class="text-main">Flat {{ current_user.flat_no }} ({{ current_user.name }})</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 0.88rem;">
-                    <span class="text-muted">Account Head:</span>
-                    <strong class="text-main">General Maintenance Subscription</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 0.88rem; border-top: 1px dashed var(--surface-border); padding-top: 0.4rem;">
-                    <span class="text-muted">Payee UPI VPA:</span>
-                    <strong class="text-highlight-blue btn-copy-upi" data-copy="sdera.maintenance@icici" style="cursor: pointer;" title="Click to copy">sdera.maintenance@icici 📋</strong>
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 0.5rem; justify-content: center;">
-                <a href="upi://pay?pa=sdera.maintenance@icici&pn=South+Dumdum+Enclave&cu=INR&tn=SDERA-{{ current_user.flat_no }}" class="btn btn-primary" style="flex: 1; padding: 0.6rem 1rem;">
-                    🚀 Open UPI App on Mobile
-                </a>
-                <button type="button" class="btn btn-secondary btn-copy-upi" data-copy="sdera.maintenance@icici" style="padding: 0.6rem 1rem;">
-                    📋 Copy VPA
-                </button>
-            </div>
-        </div>
-        <div class="modal-footer" style="justify-content: center;">
-            <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0; text-align: center;">
-                🔒 Receipts are logged into the ledger automatically upon transaction settlement.
-            </p>
-        </div>
-    </div>
-</div>
 
 <!-- Helpdesk Ticket Submission Modal -->
 <div class="modal-backdrop" id="helpdeskModal" role="dialog" aria-modal="true" aria-labelledby="helpdeskModalTitle">

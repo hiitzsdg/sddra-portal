@@ -849,10 +849,6 @@ def command_palette_data():
             {'id': 'act-notice', 'title': 'Post New Notice Broadcast', 'desc': 'Draft official circular', 'category': 'Actions', 'icon': '📢', 'url': url_for('notices_list') + '#new-notice'},
             {'id': 'act-receipt', 'title': 'Issue Maintenance Receipt', 'desc': 'Generate verified payment slip', 'category': 'Actions', 'icon': '💳', 'url': url_for('admin_receipts') + '#issue-receipt'}
         ])
-    else:
-        action_items.append({
-            'id': 'act-pay', 'title': 'Pay Maintenance via UPI QR', 'desc': 'Instant QR code payment', 'category': 'Actions', 'icon': '📱', 'action': 'open_upi_modal'
-        })
 
     # 3. Flats & Residents Directory
     flat_items = []

@@ -60,10 +60,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5. Initialize Live Instant Tables Search if present
     initGenericLiveSearch();
 
-    // 6. Modern Web App Elevations: Command Palette, Visualizer, UPI QR, Helpdesk & WhatsApp
+    // 6. Modern Web App Elevations: Command Palette, Visualizer, Helpdesk & WhatsApp
     initCommandPalette();
     initBuildingVisualizer();
-    initUpiPaymentModal();
     initHelpdesk();
     initWhatsAppHelpdeskWidget();
 });
@@ -865,12 +864,6 @@ function initCommandPalette() {
                     document.documentElement.setAttribute('data-theme', nextTheme);
                     localStorage.setItem('sddra_theme', nextTheme);
                     showToast(`Theme switched to ${nextTheme === 'dark' ? 'Dark Mode 🌙' : 'Light Mode ☀️'}`, 'info');
-                } else if (action === 'open_upi_modal') {
-                    const upiModal = document.getElementById('upiPaymentModal');
-                    if (upiModal) {
-                        upiModal.classList.add('active');
-                        document.body.style.overflow = 'hidden';
-                    }
                 } else if (url) {
                     window.location.href = url;
                 }
@@ -1064,110 +1057,7 @@ function initBuildingVisualizer() {
 }
 
 // ==========================================================================
-// 10. Dynamic UPI Instant QR Code Engine
-// ==========================================================================
-function initUpiPaymentModal() {
-    const modal = document.getElementById('upiPaymentModal');
-    const openBtns = document.querySelectorAll('.btn-open-upi-pay');
-    const copyBtns = document.querySelectorAll('.btn-copy-upi');
-
-    openBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (modal) {
-                modal.classList.add('active');
-                document.body.style.overflow = 'hidden';
-                generateUpiQrCode();
-            }
-        });
-    });
-
-    copyBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const textToCopy = btn.getAttribute('data-copy') || 'sdera.maintenance@icici';
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                showToast(`Copied UPI ID: "${textToCopy}" to clipboard!`, 'success');
-            }).catch(() => {
-                showToast(`UPI ID: ${textToCopy}`, 'info');
-            });
-        });
-    });
-
-    function generateUpiQrCode() {
-        const canvas = document.getElementById('upiQrCanvas');
-        if (!canvas) return;
-
-        const ctx = canvas.getContext('2d');
-        const width = canvas.width;
-        const height = canvas.height;
-
-        // Clear canvas
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, width, height);
-
-        // Generate high-contrast stylized QR matrix visualization
-        const size = 25;
-        const cellSize = width / size;
-        ctx.fillStyle = '#0f172a';
-
-        // Draw corner position markers
-        function drawFinder(startX, startY) {
-            for (let r = 0; r < 7; r++) {
-                for (let c = 0; c < 7; c++) {
-                    if (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4)) {
-                        ctx.fillRect((startX + c) * cellSize, (startY + r) * cellSize, cellSize, cellSize);
-                    }
-                }
-            }
-        }
-
-        drawFinder(1, 1);
-        drawFinder(size - 8, 1);
-        drawFinder(1, size - 8);
-
-        // Deterministic pseudo-random pattern for QR body
-        let seed = 42891;
-        function rnd() {
-            seed = (seed * 9301 + 49297) % 233280;
-            return seed / 233280;
-        }
-
-        for (let r = 0; r < size; r++) {
-            for (let c = 0; c < size; c++) {
-                const inFinder1 = (r <= 8 && c <= 8);
-                const inFinder2 = (r <= 8 && c >= size - 9);
-                const inFinder3 = (r >= size - 9 && c <= 8);
-                if (!inFinder1 && !inFinder2 && !inFinder3) {
-                    if (rnd() > 0.52) {
-                        ctx.fillRect(c * cellSize, r * cellSize, cellSize - 0.5, cellSize - 0.5);
-                    }
-                }
-            }
-        }
-
-        // Draw center SDERA mini-badge
-        const center = width / 2;
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(center, center, 18, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#2563eb';
-        ctx.beginPath();
-        ctx.arc(center, center, 15, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 10px Outfit, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('SDERA', center, center);
-    }
-}
-
-// ==========================================================================
-// 11. Resident Helpdesk & Maintenance Ticketing Module
+// 10. Resident Helpdesk & Maintenance Ticketing Module
 // ==========================================================================
 function initHelpdesk() {
     const helpdeskModal = document.getElementById('helpdeskModal');

@@ -74,7 +74,7 @@ def format_receipt_whatsapp_message(receipt, member_info=None, contact_info=None
     amount = float(receipt.get('amount', 0.0) or 0.0)
     payment_date = str(receipt.get('payment_date') or receipt.get('receipt_date') or datetime.now().strftime('%Y-%m-%d'))
     receipt_date = str(receipt.get('receipt_date') or receipt.get('payment_date') or datetime.now().strftime('%Y-%m-%d'))
-    mode = str(receipt.get('pymnt_mode', 'Online UPI'))
+    mode = str(receipt.get('pymnt_mode', 'Online'))
     period = receipt.get('remarks') or f"{receipt.get('coverage_start', '')} to {receipt.get('coverage_end', '')}" or 'Monthly Maintenance'
     sub_type = receipt.get('subscription_type', 'Monthly Subscription')
     
@@ -153,7 +153,6 @@ def format_dues_reminder_whatsapp_message(calc, contact_info=None, base_url=""):
         f"*TOTAL OUTSTANDING PAYABLE:* *INR {total_due:,.2f}*\n"
         f"{divider}\n"
         f"*Quick Payment Options:*\n"
-        f"- UPI ID: `sddra.association@icici`\n"
         f"- Bank: State Bank of India | *A/C:* `38290192831` | *IFSC:* `SBIN0001234`\n"
         f"- Portal: {portal_url}\n\n"
         f"_Kindly clear the outstanding dues to avoid further progressive late penalties._\n\n"

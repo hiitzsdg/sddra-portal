@@ -26,9 +26,10 @@ class TestModernWebElevations(unittest.TestCase):
         self.assertTrue(len(data['navigation']) >= 4)
         self.assertTrue(len(data['residents']) >= 40)
         
-        # Verify UPI quick pay action present for resident
+        # Verify quick actions present for resident
         actions_ids = [a['id'] for a in data['actions']]
-        self.assertIn('act-pay', actions_ids)
+        self.assertIn('act-theme', actions_ids)
+        self.assertNotIn('act-pay', actions_ids)
 
         # 2. Admin perspective
         self.client.get('/logout', follow_redirects=True)
@@ -56,18 +57,16 @@ class TestModernWebElevations(unittest.TestCase):
         self.assertIn(b'visModalLedgerLink', resp.data)
         self.assertIn(b'visModalReceiptsLink', resp.data)
 
-    def test_03_resident_upi_and_helpdesk_dashboard(self):
-        """Verify resident dashboard renders UPI hero card and helpdesk ticketing stepper."""
+    def test_03_resident_helpdesk_dashboard(self):
+        """Verify resident dashboard renders helpdesk ticketing stepper and does not render UPI system."""
         self.client.get('/login?demo=A/4-C', follow_redirects=True)
         resp = self.client.get('/dashboard')
         self.assertEqual(resp.status_code, 200)
-        self.assertIn(b'Instant Maintenance Payment', resp.data)
-        self.assertIn(b'sdera.maintenance@icici', resp.data)
-        self.assertIn(b'upiQrCanvas', resp.data)
         self.assertIn(b'Society Helpdesk &amp; Maintenance Requests', resp.data)
         self.assertIn(b'status-stepper-container', resp.data)
         self.assertIn(b'helpdeskModal', resp.data)
-        self.assertIn(b'upiPaymentModal', resp.data)
+        self.assertNotIn(b'upiQrCanvas', resp.data)
+        self.assertNotIn(b'upiPaymentModal', resp.data)
 
     def test_04_command_palette_markup_in_base(self):
         """Verify command palette trigger and modal markup are embedded in base.html."""

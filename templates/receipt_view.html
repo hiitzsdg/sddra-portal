@@ -257,7 +257,7 @@
                     <div class="form-group">
                         <label class="form-label" for="view_edit_mode">Payment Mode *</label>
                         <select id="view_edit_mode" name="pymnt_mode" class="form-select">
-                            <option value="Online" {% if receipt.pymnt_mode == 'Online' or 'UPI' in receipt.pymnt_mode or 'NEFT' in receipt.pymnt_mode %}selected{% endif %}>Online (UPI / NEFT / Net Banking)</option>
+                            <option value="Online" {% if receipt.pymnt_mode == 'Online' or 'NEFT' in receipt.pymnt_mode or 'Net Banking' in receipt.pymnt_mode %}selected{% endif %}>Online (NEFT / Net Banking / Bank Transfer)</option>
                             <option value="Cash" {% if receipt.pymnt_mode == 'Cash' %}selected{% endif %}>Cash</option>
                             <option value="Cheque" {% if receipt.pymnt_mode == 'Cheque' %}selected{% endif %}>Cheque</option>
                         </select>

@@ -15,7 +15,7 @@ A web portal for the **South Dumdum Enclave Residents' Association** built with 
    - 1-click **WhatsApp Receipt Share**: Instantly send formatted receipt vouchers to resident WhatsApp chats.
 3. **WhatsApp Integration & Society Helpdesk**:
    - **Receipts**: 1-click WhatsApp voucher dispatch with download links and payment confirmations.
-   - **Maintenance Dues & Late Penalties**: 1-click WhatsApp payment reminders with monthly arrears breakdown, late fee penalty calculations, and instant UPI payment instructions.
+   - **Maintenance Dues & Late Penalties**: 1-click WhatsApp payment reminders with monthly arrears breakdown, late fee penalty calculations, and bank payment instructions.
    - **Notice Board Broadcasts**: 1-click formatted circular broadcasts ready for Society WhatsApp Groups.
    - **Resident Directory**: One-click WhatsApp direct chat next to any resident's mobile number.
    - **Floating WhatsApp Helpdesk Widget**: 24/7 one-touch access to Caretaker, Secretary, Treasurer, and President.
