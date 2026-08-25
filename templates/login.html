@@ -123,18 +123,19 @@
                     </small>
                 </div>
 
-                <!-- Selected Resident Visual Confirmation Card -->
+                <!-- Selected Resident Visual Confirmation Card with Photo -->
                 <div id="residentInfoCard" class="resident-preview-card" style="display: none;">
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(16, 185, 129, 0.25); border: 1px solid rgba(52, 211, 153, 0.5); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #10b981; flex-shrink: 0;">
-                            👤
+                    <div style="display: flex; align-items: center; gap: 0.85rem;">
+                        <div id="residentAvatarSlot" style="width: 44px; height: 44px; border-radius: 12px; background: rgba(16, 185, 129, 0.25); border: 1.5px solid rgba(52, 211, 153, 0.5); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: #10b981; flex-shrink: 0; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);">
+                            <span id="residentDefaultIcon">👤</span>
                         </div>
                         <div style="flex: 1; min-width: 0;">
-                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.15rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.2rem; flex-wrap: wrap;">
                                 <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: #10b981; font-weight: 700;">Verified Member</span>
                                 <span id="residentCardBadge" style="background: rgba(16, 185, 129, 0.25); color: #34d399; font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 4px; font-weight: 600;">-</span>
+                                <span id="residentPhotoBadge" style="display: none; background: rgba(59, 130, 246, 0.22); border: 1px solid rgba(96, 165, 250, 0.4); color: #93c5fd; font-size: 0.7rem; padding: 0.1rem 0.45rem; border-radius: 4px; font-weight: 600;">📸 Photo on File</span>
                             </div>
-                            <div id="residentCardName" style="font-weight: 600; font-size: 0.92rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <div id="residentCardName" style="font-weight: 600; font-size: 0.95rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                 -
                             </div>
                         </div>
@@ -220,8 +221,9 @@
 
 {% block extra_scripts %}
 <script>
-// Society flats grouped by block from server
+// Society flats grouped by block and admin avatars from server
 const societyBlocks = {{ (blocks_data or {}) | tojson }};
+const adminPics = {{ (admin_pics or {}) | tojson }};
 let currentMode = 'dropdown';
 
 function setLoginMode(mode) {
@@ -279,8 +281,10 @@ function onBlockChange(selectedBlock) {
 
     let optionsHtml = `<option value="">-- Choose Flat in Block ${selectedBlock} (${units.length} Units) --</option>`;
     units.forEach(u => {
+        const hasPhoto = !!(u.profile_pic && u.profile_pic.trim());
+        const photoIcon = hasPhoto ? ' 📷' : '';
         const memberDisplay = u.member_name ? ` — ${u.member_name}` : '';
-        optionsHtml += `<option value="${u.flat_no}" data-member="${u.member_name || ''}">${u.flat_no}${memberDisplay}</option>`;
+        optionsHtml += `<option value="${u.flat_no}" data-member="${u.member_name || ''}" data-pic="${u.profile_pic || ''}">${u.flat_no}${memberDisplay}${photoIcon}</option>`;
     });
 
     flatSelect.innerHTML = optionsHtml;
@@ -297,6 +301,8 @@ function onFlatChange(selectedFlat) {
     const infoCard = document.getElementById('residentInfoCard');
     const cardName = document.getElementById('residentCardName');
     const cardBadge = document.getElementById('residentCardBadge');
+    const photoBadge = document.getElementById('residentPhotoBadge');
+    const avatarSlot = document.getElementById('residentAvatarSlot');
     const pwdField = document.getElementById('password');
 
     if (!selectedFlat) {
@@ -308,14 +314,31 @@ function onFlatChange(selectedFlat) {
     if (usernameField) usernameField.value = selectedFlat;
 
     let memberName = '';
+    let profilePic = '';
     if (flatSelect && flatSelect.selectedIndex >= 0) {
         const opt = flatSelect.options[flatSelect.selectedIndex];
         memberName = opt.getAttribute('data-member') || '';
+        profilePic = (opt.getAttribute('data-pic') || '').trim();
     }
 
     if (infoCard) {
         if (cardName) cardName.textContent = memberName || 'Registered Resident';
         if (cardBadge) cardBadge.textContent = `Flat ${selectedFlat}`;
+        
+        if (avatarSlot) {
+            if (profilePic) {
+                avatarSlot.innerHTML = `<img src="${profilePic}" alt="${memberName}" style="width: 100%; height: 100%; object-fit: cover; display: block;">`;
+                avatarSlot.style.border = '2px solid rgba(52, 211, 153, 0.8)';
+                avatarSlot.style.background = '#000000';
+                if (photoBadge) photoBadge.style.display = 'inline-block';
+            } else {
+                avatarSlot.innerHTML = `<span style="font-size: 1.3rem;">👤</span>`;
+                avatarSlot.style.border = '1.5px solid rgba(52, 211, 153, 0.5)';
+                avatarSlot.style.background = 'rgba(16, 185, 129, 0.25)';
+                if (photoBadge) photoBadge.style.display = 'none';
+            }
+        }
+        
         infoCard.style.display = 'block';
     }
 
@@ -342,13 +365,14 @@ function selectAdminLogin(username, roleTitle) {
     const pwdField = document.getElementById('password');
     const banner = document.getElementById('adminPromptBanner');
     const promptText = document.getElementById('adminPromptText');
-    const promptUser = document.getElementById('adminPromptUser');
 
     if (manualInput) manualInput.value = username;
     if (userField) userField.value = username;
-    if (promptUser) promptUser.textContent = username;
+    
+    const adminPic = adminPics[username.toLowerCase()] || '';
     if (promptText) {
-        promptText.innerHTML = `🔒 <strong>Admin Authentication:</strong> Enter password for <code class="text-highlight-blue">${username}</code> (${roleTitle})`;
+        const picHtml = adminPic ? `<img src="${adminPic}" alt="${username}" style="width: 28px; height: 28px; border-radius: 8px; object-fit: cover; border: 1.5px solid var(--primary); vertical-align: middle; margin-right: 0.4rem; display: inline-block;">` : '🔒 ';
+        promptText.innerHTML = `${picHtml}<strong>Admin Authentication:</strong> Enter password for <code class="text-highlight-blue">${username}</code> (${roleTitle})`;
     }
     if (banner) {
         banner.style.display = 'block';

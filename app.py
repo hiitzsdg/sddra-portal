@@ -171,6 +171,24 @@ def inject_globals():
     user = session.get('user')
     if not isinstance(user, dict):
         user = None
+    else:
+        user = dict(user)
+        try:
+            p_pic = None
+            u_name = str(user.get('username', '')).lower()
+            u_flat = str(user.get('flat_no', '')).strip()
+            if user.get('is_admin') or user.get('role') in ADMIN_ROLES or u_name in ADMIN_ROLES:
+                a_row = query_db("SELECT profile_pic FROM tbl_admins WHERE LOWER(username) = LOWER(%s)", (u_name,), one=True)
+                if a_row and a_row.get('profile_pic'):
+                    p_pic = a_row['profile_pic']
+            if not p_pic and u_flat and u_flat != '-':
+                m_row = query_db("SELECT profile_pic FROM tbl_membership WHERE LOWER(TRIM(flat_no)) = LOWER(TRIM(%s))", (u_flat,), one=True)
+                if m_row and m_row.get('profile_pic'):
+                    p_pic = m_row['profile_pic']
+            user['profile_pic'] = p_pic or user.get('profile_pic') or ''
+        except Exception:
+            pass
+
     is_admin = bool(user and (user.get('role') in ADMIN_ROLES or user.get('is_admin', False)))
     is_exec = bool(user and (user.get('role') in EXECUTIVE_ROLES or user.get('is_admin', False)))
     is_billing_admin = bool(user and (user.get('role') in {'super_admin', 'billing_admin'} or user.get('username') == 'admin'))
@@ -280,61 +298,69 @@ def internal_server_error(e):
 def page_not_found(e):
     return render_template('error.html', error=e, code=404), 404
 
+def get_admin_profiles():
+    """Fetch admin profile pictures for quick-select previews."""
+    try:
+        rows = query_db("SELECT username, role, profile_pic FROM tbl_admins")
+        return {r['username'].lower(): (r.get('profile_pic') or '').strip() for r in (rows or [])}
+    except Exception:
+        return {}
+
 def get_login_units_by_block():
-    """Fetch and organize registered flats grouped by block with natural floor sorting."""
+    """Fetch and organize registered flats grouped by block with natural floor sorting and profile pictures."""
     fallback_blocks = {
         'A': [
-            {'flat_no': 'A/Gr-B', 'member_name': 'Mrs. Sunanda Paul'},
-            {'flat_no': 'A/Gr-C', 'member_name': 'Mrs. Debasree Das'},
-            {'flat_no': 'A/1-A', 'member_name': 'Mr. Biswajit Manna'},
-            {'flat_no': 'A/1-B', 'member_name': 'Mrs. Kripa Ghosal'},
-            {'flat_no': 'A/1-C', 'member_name': 'Mr. Somenath Halder'},
-            {'flat_no': 'A/1-D', 'member_name': 'Dr. Aniket Sanyal'},
-            {'flat_no': 'A/2-A', 'member_name': 'Dr. Asit Kumar Bera'},
-            {'flat_no': 'A/2-B', 'member_name': 'Mrs. Tripti Chatterjee / Dr. Rudranath Chatterjee'},
-            {'flat_no': 'A/2-C', 'member_name': 'Dr. Debashis Bhattacharya'},
-            {'flat_no': 'A/2-D', 'member_name': 'Mrs. Bharati Chatterjee / Mr. Samar Nath Chatterjee'},
-            {'flat_no': 'A/3-A', 'member_name': 'Dr. Amlan Kumar Patra'},
-            {'flat_no': 'A/3-B', 'member_name': 'Mr. Jayanta Dhar'},
-            {'flat_no': 'A/3-C', 'member_name': 'Mrs. Selina Yeasmin'},
-            {'flat_no': 'A/3-D', 'member_name': 'Mr. Soumajit Dhar'},
-            {'flat_no': 'A/4-A', 'member_name': 'Mr. Sudipta Datta / Mrs. Samapti Dutta'},
-            {'flat_no': 'A/4-B', 'member_name': 'Mr. Bhagyadhar Mandal/Mrs. Sharmishtha Sarkar'},
-            {'flat_no': 'A/4-C', 'member_name': 'Mr. Swapnadeep Ganguly'},
-            {'flat_no': 'A/4-D', 'member_name': 'Dr. Sanghamitra Mukherjee / Mr. Swapnadeep Ganguly'},
+            {'flat_no': 'A/Gr-B', 'member_name': 'Mrs. Sunanda Paul', 'profile_pic': ''},
+            {'flat_no': 'A/Gr-C', 'member_name': 'Mrs. Debasree Das', 'profile_pic': ''},
+            {'flat_no': 'A/1-A', 'member_name': 'Mr. Biswajit Manna', 'profile_pic': ''},
+            {'flat_no': 'A/1-B', 'member_name': 'Mrs. Kripa Ghosal', 'profile_pic': ''},
+            {'flat_no': 'A/1-C', 'member_name': 'Mr. Somenath Halder', 'profile_pic': ''},
+            {'flat_no': 'A/1-D', 'member_name': 'Dr. Aniket Sanyal', 'profile_pic': ''},
+            {'flat_no': 'A/2-A', 'member_name': 'Dr. Asit Kumar Bera', 'profile_pic': ''},
+            {'flat_no': 'A/2-B', 'member_name': 'Mrs. Tripti Chatterjee / Dr. Rudranath Chatterjee', 'profile_pic': ''},
+            {'flat_no': 'A/2-C', 'member_name': 'Dr. Debashis Bhattacharya', 'profile_pic': ''},
+            {'flat_no': 'A/2-D', 'member_name': 'Mrs. Bharati Chatterjee / Mr. Samar Nath Chatterjee', 'profile_pic': ''},
+            {'flat_no': 'A/3-A', 'member_name': 'Dr. Amlan Kumar Patra', 'profile_pic': ''},
+            {'flat_no': 'A/3-B', 'member_name': 'Mr. Jayanta Dhar', 'profile_pic': ''},
+            {'flat_no': 'A/3-C', 'member_name': 'Mrs. Selina Yeasmin', 'profile_pic': ''},
+            {'flat_no': 'A/3-D', 'member_name': 'Mr. Soumajit Dhar', 'profile_pic': ''},
+            {'flat_no': 'A/4-A', 'member_name': 'Mr. Sudipta Datta / Mrs. Samapti Dutta', 'profile_pic': ''},
+            {'flat_no': 'A/4-B', 'member_name': 'Mr. Bhagyadhar Mandal/Mrs. Sharmishtha Sarkar', 'profile_pic': ''},
+            {'flat_no': 'A/4-C', 'member_name': 'Mr. Swapnadeep Ganguly', 'profile_pic': ''},
+            {'flat_no': 'A/4-D', 'member_name': 'Dr. Sanghamitra Mukherjee / Mr. Swapnadeep Ganguly', 'profile_pic': ''},
         ],
         'B': [
-            {'flat_no': 'B/Gr', 'member_name': 'Mr. T. Roy'},
-            {'flat_no': 'B/1-A', 'member_name': 'Dr. Guru Prasad Mandal'},
-            {'flat_no': 'B/1-B', 'member_name': 'Mrs. Rina Banerjee'},
-            {'flat_no': 'B/1-C', 'member_name': 'Mr. Soudipta Ghosh / Mrs. Debasree Ghosh'},
-            {'flat_no': 'B/2-A', 'member_name': 'Mr. Suman Chakraborty'},
-            {'flat_no': 'B/2-B', 'member_name': 'Mr. Krishnendu Chatterjee / Mr. N. Chatterjee'},
-            {'flat_no': 'B/2-C', 'member_name': 'Mr. Brahma Sakti Bhattacharya / Mrs. Tapati Bhattacharya'},
-            {'flat_no': 'B/3-A', 'member_name': 'Mr. Tridip Sarkar'},
-            {'flat_no': 'B/3-B', 'member_name': 'Mrs. Khusi Mitra'},
-            {'flat_no': 'B/3-C', 'member_name': 'Mr. Murari Mohan Das / Mrs. Debjani Das'},
-            {'flat_no': 'B/4-A', 'member_name': 'Mrs. Nipa Saha'},
-            {'flat_no': 'B/4-C', 'member_name': 'Dr. Guru Prasad Mandal / Mrs. Annesha Mandal'},
+            {'flat_no': 'B/Gr', 'member_name': 'Mr. T. Roy', 'profile_pic': ''},
+            {'flat_no': 'B/1-A', 'member_name': 'Dr. Guru Prasad Mandal', 'profile_pic': ''},
+            {'flat_no': 'B/1-B', 'member_name': 'Mrs. Rina Banerjee', 'profile_pic': ''},
+            {'flat_no': 'B/1-C', 'member_name': 'Mr. Soudipta Ghosh / Mrs. Debasree Ghosh', 'profile_pic': ''},
+            {'flat_no': 'B/2-A', 'member_name': 'Mr. Suman Chakraborty', 'profile_pic': ''},
+            {'flat_no': 'B/2-B', 'member_name': 'Mr. Krishnendu Chatterjee / Mr. N. Chatterjee', 'profile_pic': ''},
+            {'flat_no': 'B/2-C', 'member_name': 'Mr. Brahma Sakti Bhattacharya / Mrs. Tapati Bhattacharya', 'profile_pic': ''},
+            {'flat_no': 'B/3-A', 'member_name': 'Mr. Tridip Sarkar', 'profile_pic': ''},
+            {'flat_no': 'B/3-B', 'member_name': 'Mrs. Khusi Mitra', 'profile_pic': ''},
+            {'flat_no': 'B/3-C', 'member_name': 'Mr. Murari Mohan Das / Mrs. Debjani Das', 'profile_pic': ''},
+            {'flat_no': 'B/4-A', 'member_name': 'Mrs. Nipa Saha', 'profile_pic': ''},
+            {'flat_no': 'B/4-C', 'member_name': 'Dr. Guru Prasad Mandal / Mrs. Annesha Mandal', 'profile_pic': ''},
         ],
         'C': [
-            {'flat_no': 'C/Gr', 'member_name': 'Dr. Salil Sur Roy Chowdhury / Mr. Samik Sur Roy Chowdhury'},
-            {'flat_no': 'C/1-A', 'member_name': 'Dr. Indrajit Kar'},
-            {'flat_no': 'C/1-B', 'member_name': 'Mr. Dipankar Adhikari'},
-            {'flat_no': 'C/1-C', 'member_name': 'Mr. Ramendra Narayan Ray'},
-            {'flat_no': 'C/2-A', 'member_name': 'Dr. Anup Kumar Barui'},
-            {'flat_no': 'C/2-B', 'member_name': 'Mrs. Shampa Mondal (Ghosh)'},
-            {'flat_no': 'C/2-C', 'member_name': 'Mrs. Sangha Banerjee'},
-            {'flat_no': 'C/3-A', 'member_name': 'Mrs. Aparna Banerjee'},
-            {'flat_no': 'C/3-B', 'member_name': 'Mr. Avik Dasgupta'},
-            {'flat_no': 'C/3-C', 'member_name': 'Mr. Bibhas Chatterjee'},
-            {'flat_no': 'C/4-A', 'member_name': 'Mr. Anirban Saha'},
-            {'flat_no': 'C/4-B', 'member_name': 'Dr. Salil Sur Roy Chowdhury / Mrs. Aparna Sur Roy Chowdhury'},
-            {'flat_no': 'C/4-C', 'member_name': 'Dr. Kamanio Chatterjee'},
+            {'flat_no': 'C/Gr', 'member_name': 'Dr. Salil Sur Roy Chowdhury / Mr. Samik Sur Roy Chowdhury', 'profile_pic': ''},
+            {'flat_no': 'C/1-A', 'member_name': 'Dr. Indrajit Kar', 'profile_pic': ''},
+            {'flat_no': 'C/1-B', 'member_name': 'Mr. Dipankar Adhikari', 'profile_pic': ''},
+            {'flat_no': 'C/1-C', 'member_name': 'Mr. Ramendra Narayan Ray', 'profile_pic': ''},
+            {'flat_no': 'C/2-A', 'member_name': 'Dr. Anup Kumar Barui', 'profile_pic': ''},
+            {'flat_no': 'C/2-B', 'member_name': 'Mrs. Shampa Mondal (Ghosh)', 'profile_pic': ''},
+            {'flat_no': 'C/2-C', 'member_name': 'Mrs. Sangha Banerjee', 'profile_pic': ''},
+            {'flat_no': 'C/3-A', 'member_name': 'Mrs. Aparna Banerjee', 'profile_pic': ''},
+            {'flat_no': 'C/3-B', 'member_name': 'Mr. Avik Dasgupta', 'profile_pic': ''},
+            {'flat_no': 'C/3-C', 'member_name': 'Mr. Bibhas Chatterjee', 'profile_pic': ''},
+            {'flat_no': 'C/4-A', 'member_name': 'Mr. Anirban Saha', 'profile_pic': ''},
+            {'flat_no': 'C/4-B', 'member_name': 'Dr. Salil Sur Roy Chowdhury / Mrs. Aparna Sur Roy Chowdhury', 'profile_pic': ''},
+            {'flat_no': 'C/4-C', 'member_name': 'Dr. Kamanio Chatterjee', 'profile_pic': ''},
         ]
     }
     try:
-        rows = query_db("SELECT flat_no, member_name FROM tbl_membership WHERE flat_no IS NOT NULL AND flat_no != '-' ORDER BY flat_no")
+        rows = query_db("SELECT flat_no, member_name, profile_pic FROM tbl_membership WHERE flat_no IS NOT NULL AND flat_no != '-' ORDER BY flat_no")
         if not rows:
             return fallback_blocks
 
@@ -342,6 +368,7 @@ def get_login_units_by_block():
         for r in rows:
             f_no = (r['flat_no'] or '').strip()
             m_name = (r['member_name'] or '').strip()
+            p_pic = (r.get('profile_pic') or '').strip()
             if not f_no or f_no == '-':
                 continue
             blk = f_no.split('/')[0].strip().upper() if '/' in f_no else (f_no[0].upper() if f_no else 'A')
@@ -349,7 +376,8 @@ def get_login_units_by_block():
                 blocks[blk] = []
             blocks[blk].append({
                 'flat_no': f_no,
-                'member_name': m_name
+                'member_name': m_name,
+                'profile_pic': p_pic
             })
 
         def sort_key(item):
@@ -383,6 +411,7 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     blocks_data = get_login_units_by_block()
+    admin_pics = get_admin_profiles()
 
     # If already logged in and session is valid, redirect to dashboard
     if session.get('user') and isinstance(session.get('user'), dict) and 'role' in session['user']:
@@ -396,7 +425,7 @@ def login():
             admin = query_db("SELECT * FROM tbl_admins WHERE LOWER(username) = LOWER(%s)", (demo_user,), one=True)
             if admin:
                 flash(f"🔒 Administrator account '{admin['username']}' requires password authentication. Please enter your password.", 'info')
-                return render_template('login.html', blocks_data=blocks_data, prefill_username=admin['username'], admin_auth_prompt=True)
+                return render_template('login.html', blocks_data=blocks_data, admin_pics=admin_pics, prefill_username=admin['username'], admin_auth_prompt=True)
                 
             # 2. Check if demo matches a flat_no in tbl_membership
             member = query_db("SELECT * FROM tbl_membership WHERE flat_no = %s OR id = %s", (demo_user, demo_user), one=True)
@@ -425,7 +454,7 @@ def login():
 
         if not raw_login or not password:
             flash('Please enter both your Flat Number or Username and Password.', 'danger')
-            return render_template('login.html', blocks_data=blocks_data)
+            return render_template('login.html', blocks_data=blocks_data, admin_pics=admin_pics)
 
         try:
             # 1. Check tbl_admins first (by username)
@@ -555,7 +584,7 @@ def login():
         except Exception as e:
             flash(f"Database login error: {e}", 'danger')
 
-    return render_template('login.html', blocks_data=blocks_data)
+    return render_template('login.html', blocks_data=blocks_data, admin_pics=admin_pics)
 
 @app.route('/logout')
 def logout():

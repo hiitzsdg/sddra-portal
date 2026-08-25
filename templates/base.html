@@ -267,7 +267,9 @@
                         {% if current_user.profile_pic %}
                         <img src="{{ current_user.profile_pic }}" alt="{{ current_user.name }}" class="user-nav-avatar-img">
                         {% else %}
-                        <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Avatar" class="user-nav-avatar-img">
+                        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(37, 99, 235, 0.45) 0%, rgba(124, 58, 237, 0.45) 100%); color: #ffffff; font-weight: 700; font-size: 0.82rem; border-radius: inherit; letter-spacing: -0.02em;">
+                            {{ current_user.name[:2]|upper if current_user.name else '👤' }}
+                        </div>
                         {% endif %}
                     </a>
                     <div class="user-nav-details">
@@ -326,7 +328,9 @@
                         {% if current_user.profile_pic %}
                         <img src="{{ current_user.profile_pic }}" alt="{{ current_user.name }}" class="user-nav-avatar-img">
                         {% else %}
-                        <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Avatar" class="user-nav-avatar-img">
+                        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(37, 99, 235, 0.45) 0%, rgba(124, 58, 237, 0.45) 100%); color: #ffffff; font-weight: 700; font-size: 0.92rem; border-radius: inherit; letter-spacing: -0.02em;">
+                            {{ current_user.name[:2]|upper if current_user.name else '👤' }}
+                        </div>
                         {% endif %}
                     </a>
                     <div class="user-nav-details" style="text-align: left;">

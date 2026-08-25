@@ -61,6 +61,11 @@ class TestLoginDropdown(unittest.TestCase):
         resp = self.client.post('/login', data={'username': 'A/4-C', 'password': 'sdera@123'}, follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         self.assertIn(b'Swapnadeep Ganguly', resp.data)
+        
+        # Verify navbar top right corner contains user avatar
+        html = resp.data.decode('utf-8')
+        self.assertIn('user-nav-avatar-slot', html)
+        self.assertIn('user-name', html)
 
         # Resident login for Block B
         resp2 = self.client.post('/login', data={'username': 'B/1-B', 'password': 'sdera@123'}, follow_redirects=True)
@@ -75,6 +80,31 @@ class TestLoginDropdown(unittest.TestCase):
         self.assertEqual(resp_admin.status_code, 200)
 
         print("All dropdown and admin authentication tests passed.")
+
+    def test_profile_pic_top_right_and_login_dropdown(self):
+        sample_img = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+        
+        # 1. Update Flat A/4-C with sample profile pic
+        from database import execute_db
+        execute_db("UPDATE tbl_membership SET profile_pic = %s WHERE flat_no = 'A/4-C'", (sample_img,))
+        
+        # 2. Check /login dropdown JSON payload includes this profile_pic
+        resp_login = self.client.get('/login')
+        self.assertEqual(resp_login.status_code, 200)
+        html_login = resp_login.data.decode('utf-8')
+        self.assertIn(sample_img, html_login)
+        self.assertIn('residentAvatarSlot', html_login)
+        
+        # 3. Log in as Flat A/4-C and check top right corner has profile_pic img
+        resp_dash = self.client.post('/login', data={'username': 'A/4-C', 'password': 'sdera@123'}, follow_redirects=True)
+        self.assertEqual(resp_dash.status_code, 200)
+        html_dash = resp_dash.data.decode('utf-8')
+        self.assertIn(sample_img, html_dash)
+        self.assertIn('user-nav-avatar-img', html_dash)
+        
+        # 4. Clean up photo
+        execute_db("UPDATE tbl_membership SET profile_pic = NULL WHERE flat_no = 'A/4-C'")
+        print("Profile pic top right navbar and login dropdown test verified successfully.")
 
 if __name__ == '__main__':
     unittest.main()
