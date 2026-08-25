@@ -1081,12 +1081,12 @@ def command_palette_data():
         {'id': 'nav-dash', 'title': 'Dashboard', 'desc': 'Overview, financials & announcements', 'category': 'Navigation', 'icon': '📊', 'url': url_for('dashboard')},
         {'id': 'nav-notices', 'title': 'Notice Board', 'desc': 'Official circulars & broadcasts', 'category': 'Navigation', 'icon': '📢', 'url': url_for('notices_list')},
         {'id': 'nav-expenses', 'title': 'Society Expenses', 'desc': 'Audited outlays & monthly charts', 'category': 'Navigation', 'icon': '🧾', 'url': url_for('expenses_list')},
+        {'id': 'nav-members', 'title': 'Resident Directory', 'desc': '44 Flat roster & contacts', 'category': 'Navigation', 'icon': '👥', 'url': url_for('admin_members')},
         {'id': 'nav-profile', 'title': 'My Profile', 'desc': 'Account settings & contact info', 'category': 'Navigation', 'icon': '⚙️', 'url': url_for('profile')}
     ]
     
     if is_admin:
         nav_items.extend([
-            {'id': 'nav-members', 'title': 'Resident Directory', 'desc': '44 Flat roster & contacts', 'category': 'Admin Console', 'icon': '👥', 'url': url_for('admin_members')},
             {'id': 'nav-issues', 'title': 'Raised Issues & Helpdesk', 'desc': 'Track resident grievances & repairs', 'category': 'Admin Console', 'icon': '🛠️', 'url': url_for('admin_issues')},
             {'id': 'nav-receipts', 'title': 'Receipts Ledger', 'desc': 'Issue & print official slips', 'category': 'Admin Console', 'icon': '💳', 'url': url_for('admin_receipts')},
             {'id': 'nav-penalties', 'title': 'Penalties & Defaulters', 'desc': 'Track overdue accounts', 'category': 'Admin Console', 'icon': '⚖️', 'url': url_for('admin_penalties')},
@@ -1118,7 +1118,7 @@ def command_palette_data():
                 'desc': 'Resident directory record',
                 'category': 'Residents',
                 'icon': '🏠',
-                'url': url_for('admin_members') if is_admin else url_for('dashboard')
+                'url': url_for('admin_members')
             })
     except Exception:
         pass
@@ -1692,9 +1692,10 @@ def delete_receipt(receipt_no):
         
     return redirect(url_for('admin_receipts'))
 
-# --- Administrative: Resident Directory ---
+# --- Administrative & Member: Resident Directory ---
 @app.route('/admin/members')
-@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+@app.route('/members')
+@login_required
 def admin_members():
     search_q = request.args.get('q', '').strip()
     

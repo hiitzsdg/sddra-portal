@@ -26,14 +26,22 @@ class TestSDDRABillingPortal(unittest.TestCase):
         self.assertIn(b'My Flat Maintenance Receipts', resp.data)
 
     def test_03_resident_rbac_restrictions(self):
-        """Regular resident cannot access admin directory or master receipts ledger"""
+        """Regular resident can view directory in read-only mode, but cannot edit members or access admin receipts ledger"""
         self.client.get('/login?demo=A/4-C', follow_redirects=True)
         
+        # Resident has read-only view access to directory
         resp = self.client.get('/admin/members', follow_redirects=True)
-        self.assertIn(b'Access Denied', resp.data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b'Resident Directory', resp.data)
+        self.assertNotIn(b'<th>Total Paid</th>', resp.data)
         
+        # Resident cannot access master receipts ledger
         resp2 = self.client.get('/admin/receipts', follow_redirects=True)
         self.assertIn(b'Access Denied', resp2.data)
+
+        # Resident cannot post member updates
+        resp3 = self.client.post('/admin/members/update', data={'flat_no': 'A/1-A', 'member_name': 'Hacker'}, follow_redirects=True)
+        self.assertIn(b'Access Denied', resp3.data)
 
     def test_04_resident_cannot_view_others_receipt(self):
         """Regular resident cannot view another resident's receipt"""
@@ -53,9 +61,10 @@ class TestSDDRABillingPortal(unittest.TestCase):
         
         resp_members = self.client.get('/admin/members')
         self.assertEqual(resp_members.status_code, 200)
-        self.assertIn(b'Resident Roster', resp_members.data)
+        self.assertIn(b'Resident Directory', resp_members.data)
         self.assertIn(b'Flat A/1-A', resp_members.data)
         self.assertIn(b'Flat A/4-C', resp_members.data)
+        self.assertIn(b'<th>Total Paid</th>', resp_members.data)
 
         resp_rcpt = self.client.get('/admin/receipts')
         self.assertEqual(resp_rcpt.status_code, 200)
