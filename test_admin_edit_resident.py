@@ -52,11 +52,28 @@ class AdminEditResidentTest(unittest.TestCase):
             self.assertTrue(len(receipts) > 0)
             for r in receipts:
                 self.assertEqual(r['member_name'], test_new_name)
-
         finally:
             # Restore original
             execute_db("UPDATE tbl_membership SET member_name = %s WHERE flat_no = 'A/1-A'", (orig_name,))
             execute_db("UPDATE tbl_receipts SET member_name = %s WHERE flat_no = 'A/1-A'", (orig_name,))
+
+    def test_03_edit_resident_modal_mobile_scrollable_and_save_button_present(self):
+        """Verify that edit resident modal has scrollable modal-body, modal-footer, and visible save button."""
+        self._login_as_admin()
+        resp = self.client.get('/admin/members')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.data.decode('utf-8')
+
+        # Modal container structure
+        self.assertIn('id="editContactModal"', html)
+        self.assertIn('modal-body', html)
+        self.assertIn('modal-footer', html)
+        self.assertIn('overflow-y: auto', html)
+        self.assertIn('-webkit-overflow-scrolling: touch', html)
+        
+        # Save button in modal footer
+        self.assertIn('💾 Save Resident Details', html)
+        self.assertIn('type="submit"', html)
 
 if __name__ == '__main__':
     unittest.main()
