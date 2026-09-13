@@ -19,8 +19,8 @@ def run_verification():
 
     resp_charts = client.get('/static/js/charts.js')
     assert resp_charts.status_code == 200
-    assert b'expenseCategoryChart' in resp_charts.data
-    print(f"[OK] Master Charts JS verified: {len(resp_charts.data)} bytes, Dual-theme visualizer active")
+    assert b'expenseCategoryChart' in resp_charts.data and b'collectionModeChart' in resp_charts.data
+    print(f"[OK] Master Charts JS verified: {len(resp_charts.data)} bytes, Dual-theme visualizer (Expenses & Collections) active")
 
     # 2. Verify Unauthenticated Login Page
     resp_login = client.get('/login')
@@ -34,16 +34,25 @@ def run_verification():
     assert resp_dash.status_code == 200
     assert b'Executive Management Console' in resp_dash.data
     assert b'Total Maintenance Collected' in resp_dash.data
+    assert b'Maintenance Inflow &amp; Collection Analytics' in resp_dash.data
+    assert b'collectionMonthlyChart' in resp_dash.data
     assert b'Overdue Defaulters' in resp_dash.data
     assert b'data-live-search' in resp_dash.data
-    print(f"[OK] Admin Dashboard verified: {len(resp_dash.data)} bytes, glowing stat cards, penalty KPIs & live table search active")
+    print(f"[OK] Admin Dashboard verified: {len(resp_dash.data)} bytes, glowing stat cards, dual financial visualizers & live table search active")
 
-    # 4. Verify Chart Data API
+    # 4. Verify Chart Data APIs (Expenses & Collections)
     resp_chart_api = client.get('/api/expenses/chart-data')
     assert resp_chart_api.status_code == 200
     chart_data = resp_chart_api.get_json()
     assert 'categories' in chart_data and 'monthly' in chart_data
-    print(f"[OK] Chart Data API verified: {len(chart_data['categories'])} categories, {len(chart_data['monthly'])} monthly trends")
+    print(f"[OK] Expense Chart Data API verified: {len(chart_data['categories'])} categories, {len(chart_data['monthly'])} monthly trends")
+
+    resp_col_chart_api = client.get('/api/collections/chart-data')
+    assert resp_col_chart_api.status_code == 200
+    col_chart_data = resp_col_chart_api.get_json()
+    assert col_chart_data.get('success') is True
+    assert 'payment_modes' in col_chart_data and 'monthly' in col_chart_data
+    print(f"[OK] Collection Chart Data API verified: {len(col_chart_data['payment_modes'])} payment modes, {len(col_chart_data['monthly'])} monthly trends, Total INR: {col_chart_data['summary']['total_collected']:,.2f}")
 
     # 5. Verify Society Expenses Page & Alphabetical Special Heads
     resp_exp = client.get('/expenses')
@@ -56,16 +65,18 @@ def run_verification():
     # 6. Verify Resident Directory & Interactive Receipts Modal
     resp_members = client.get('/admin/members')
     assert resp_members.status_code == 200
-    assert b'Resident Roster & Flat Directory' in resp_members.data
+    assert b'Resident Directory &amp; Flat Roster' in resp_members.data
     assert b'btn-view-member-receipts' in resp_members.data
     assert b'Flat A/4-C' in resp_members.data
     print(f"[OK] Resident Directory verified: {len(resp_members.data)} bytes, interactive modal trigger connected")
 
-    # 7. Verify Receipts Ledger
+    # 7. Verify Receipts Ledger & Collection Analytics Dashboard
     resp_rcpts = client.get('/admin/receipts')
     assert resp_rcpts.status_code == 200
-    assert b'Maintenance Receipts Ledger' in resp_rcpts.data
-    print(f"[OK] Receipts Ledger verified: {len(resp_rcpts.data)} bytes")
+    assert b'Maintenance Collection &amp; Transparency Ledger' in resp_rcpts.data
+    assert b'collectionMonthlyChart' in resp_rcpts.data
+    assert b'data-live-search="#adminReceiptsTable"' in resp_rcpts.data
+    print(f"[OK] Receipts Ledger & Collection Dashboard verified: {len(resp_rcpts.data)} bytes")
 
     # 8. Verify AJAX Email Dispatch API
     resp_email_ajax = client.post(

@@ -1546,17 +1546,29 @@ def admin_receipts():
         query += " AND flat_no = %s"
         params.append(flat_filter)
     if month_filter:
-        query += " AND remarks LIKE %s"
-        params.append(f"%{month_filter}%")
+        query += " AND (remarks LIKE %s OR DATE_FORMAT(payment_date, '%%b %%Y') = %s)"
+        params.extend([f"%{month_filter}%", month_filter])
     if search_q:
-        query += " AND (flat_no LIKE %s OR member_name LIKE %s OR remarks LIKE %s OR receipt_no = %s)"
-        params.extend([f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", search_q if search_q.isdigit() else 0])
+        query += " AND (flat_no LIKE %s OR member_name LIKE %s OR remarks LIKE %s OR pymnt_mode LIKE %s OR receipt_no = %s)"
+        params.extend([f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", search_q if search_q.isdigit() else 0])
         
     query += " ORDER BY receipt_no DESC"
     
     receipts = query_db(query, params)
     all_flats = query_db("SELECT flat_no, member_name, monthly_charge FROM tbl_membership ORDER BY flat_no")
     
+    total_collected_row = query_db("SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM tbl_receipts", one=True)
+    total_collected_sum = float(total_collected_row['total']) if total_collected_row else 0.0
+    total_receipts_count = int(total_collected_row['count']) if total_collected_row else 0
+
+    payment_modes_list = query_db("""
+        SELECT DISTINCT pymnt_mode, COUNT(*) as cnt, SUM(amount) as total 
+        FROM tbl_receipts 
+        WHERE pymnt_mode IS NOT NULL AND TRIM(pymnt_mode) != '' 
+        GROUP BY pymnt_mode 
+        ORDER BY total DESC
+    """) or []
+
     max_rcpt_row = query_db("SELECT COALESCE(MAX(receipt_no), 2390) + 1 as next_r FROM tbl_receipts", one=True)
     next_receipt_no = int(max_rcpt_row['next_r']) if max_rcpt_row else 2391
     
@@ -1564,6 +1576,9 @@ def admin_receipts():
         'admin_receipts.html',
         receipts=receipts,
         all_flats=all_flats,
+        payment_modes_list=payment_modes_list,
+        total_collected_sum=total_collected_sum,
+        total_receipts_count=total_receipts_count,
         flat_filter=flat_filter,
         month_filter=month_filter,
         search_q=search_q,
@@ -2662,7 +2677,7 @@ def api_helpdesk_create():
     except Exception as e:
         return jsonify({'success': False, 'message': f"Error registering ticket: {e}"}), 500
 
-# --- Chart Data API ---
+# --- Chart Data APIs ---
 @app.route('/api/expenses/chart-data')
 @login_required
 def chart_data():
@@ -2685,6 +2700,79 @@ def chart_data():
         'categories': [{'category': r['particulars'], 'total': float(r['total'])} for r in particulars_rows],
         'monthly': [{'month': r['ym'], 'total': float(r['total'])} for r in monthly_rows]
     })
+
+@app.route('/api/collections/chart-data')
+@login_required
+def collections_chart_data():
+    try:
+        payment_mode_rows = query_db("""
+            SELECT pymnt_mode, SUM(amount) as total, COUNT(*) as count 
+            FROM tbl_receipts 
+            WHERE pymnt_mode IS NOT NULL AND TRIM(pymnt_mode) != '' 
+            GROUP BY pymnt_mode 
+            ORDER BY total DESC
+        """) or []
+        
+        monthly_rows = query_db("""
+            SELECT DATE_FORMAT(payment_date, '%b %Y') as ym, SUM(amount) as total, COUNT(*) as count 
+            FROM tbl_receipts 
+            WHERE payment_date IS NOT NULL 
+            GROUP BY DATE_FORMAT(payment_date, '%b %Y'), DATE_FORMAT(payment_date, '%Y-%m') 
+            ORDER BY DATE_FORMAT(payment_date, '%Y-%m')
+        """) or []
+
+        # Block-wise collection breakdown (Block A, Block B, Block C)
+        all_rcpts = query_db("SELECT flat_no, amount FROM tbl_receipts") or []
+        block_totals = {'Block A': 0.0, 'Block B': 0.0, 'Block C': 0.0}
+        block_counts = {'Block A': 0, 'Block B': 0, 'Block C': 0}
+        total_sum = 0.0
+        for r in all_rcpts:
+            fn = str(r.get('flat_no', '')).strip().upper()
+            amt = float(r.get('amount') or 0.0)
+            total_sum += amt
+            if fn.startswith('A/') or fn.startswith('A-') or fn == 'A':
+                block_totals['Block A'] += amt
+                block_counts['Block A'] += 1
+            elif fn.startswith('B/') or fn.startswith('B-') or fn == 'B':
+                block_totals['Block B'] += amt
+                block_counts['Block B'] += 1
+            elif fn.startswith('C/') or fn.startswith('C-') or fn == 'C' or fn == '-' or 'ROUTH' in fn:
+                block_totals['Block C'] += amt
+                block_counts['Block C'] += 1
+            else:
+                block_totals['Block A'] += amt
+                block_counts['Block A'] += 1
+
+        blocks_list = [
+            {'block': b_name, 'total': block_totals[b_name], 'count': block_counts[b_name]}
+            for b_name in ['Block A', 'Block B', 'Block C']
+        ]
+
+        total_months = len(monthly_rows) or 1
+        avg_monthly = total_sum / total_months
+
+        return jsonify({
+            'success': True,
+            'payment_modes': [{'mode': r['pymnt_mode'], 'category': r['pymnt_mode'], 'total': float(r['total']), 'count': int(r.get('count') or 0)} for r in payment_mode_rows],
+            'categories': [{'category': r['pymnt_mode'], 'total': float(r['total']), 'count': int(r.get('count') or 0)} for r in payment_mode_rows],
+            'monthly': [{'month': r['ym'], 'total': float(r['total']), 'count': int(r.get('count') or 0)} for r in monthly_rows],
+            'blocks': blocks_list,
+            'summary': {
+                'total_collected': total_sum,
+                'total_receipts': len(all_rcpts),
+                'average_monthly': round(avg_monthly, 2)
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'payment_modes': [],
+            'categories': [],
+            'monthly': [],
+            'blocks': [],
+            'summary': {'total_collected': 0.0, 'total_receipts': 0, 'average_monthly': 0.0}
+        }), 500
 
 # ================= Maintenance Tariff & Billing Rate Scale Console =================
 def compute_flat_monthly_charge(sq_feet, flat_charges, capital_fund, common_expenses, cps_charges, tws_charges):

@@ -151,6 +151,18 @@ function initGenericLiveSearch() {
                 return;
             }
 
+            if (typeof window.applyCollectionFilters === 'function' && 
+                (targetTableSelector === '#adminRecentReceiptsTable' || 
+                 targetTableSelector === '#adminReceiptsTable' || 
+                 targetTableSelector === '#memberReceiptsTable')) {
+                const rawQuery = input.value.trim();
+                if (clearBtn) {
+                    clearBtn.style.display = rawQuery.length > 0 ? 'block' : 'none';
+                }
+                window.applyCollectionFilters(false);
+                return;
+            }
+
             const rawQuery = input.value.trim().toLowerCase();
             const cleanQuery = rawQuery.replace(/[\/\-\s_,\.]/g, '');
             const tokens = rawQuery.split(/\s+/).filter(t => t.length > 0);
