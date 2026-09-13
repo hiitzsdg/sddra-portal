@@ -1313,6 +1313,14 @@ def expenses_list():
     spl_head_filter = request.args.get('spl_head', '').strip()
     search_q = request.args.get('q', '').strip()
     
+    raw_months = request.args.getlist('month')
+    selected_months = []
+    for rm in raw_months:
+        for part in str(rm).split(','):
+            p_clean = part.strip()
+            if p_clean and p_clean not in selected_months:
+                selected_months.append(p_clean)
+    
     query = "SELECT * FROM tbl_expenses WHERE 1=1"
     params = []
     
@@ -1322,6 +1330,12 @@ def expenses_list():
     if spl_head_filter:
         query += " AND spl_head = %s"
         params.append(spl_head_filter)
+    if selected_months:
+        m_clauses = []
+        for m in selected_months:
+            m_clauses.append("(DATE_FORMAT(voucher_date, '%%b %%Y') = %s OR voucher_date LIKE %s)")
+            params.extend([m, f"%{m}%"])
+        query += " AND (" + " OR ".join(m_clauses) + ")"
     if search_q:
         query += " AND (expense_description LIKE %s OR particulars LIKE %s OR spl_head LIKE %s OR voucher_no = %s)"
         params.extend([f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", search_q if search_q.isdigit() else 0])
@@ -1359,6 +1373,8 @@ def expenses_list():
         total_incurred=total_incurred,
         current_particulars=particulars_filter,
         current_spl_head=spl_head_filter,
+        selected_months=selected_months,
+        month_filter=",".join(selected_months),
         search_q=search_q,
         next_voucher_no=next_voucher_no
     )
@@ -1536,8 +1552,15 @@ def api_expenses_list_json():
 @roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
 def admin_receipts():
     flat_filter = request.args.get('flat', '').strip()
-    month_filter = request.args.get('month', '').strip()
     search_q = request.args.get('q', '').strip()
+    
+    raw_months = request.args.getlist('month')
+    selected_months = []
+    for rm in raw_months:
+        for part in str(rm).split(','):
+            p_clean = part.strip()
+            if p_clean and p_clean not in selected_months:
+                selected_months.append(p_clean)
     
     query = "SELECT * FROM tbl_receipts WHERE 1=1"
     params = []
@@ -1545,9 +1568,12 @@ def admin_receipts():
     if flat_filter:
         query += " AND flat_no = %s"
         params.append(flat_filter)
-    if month_filter:
-        query += " AND (remarks LIKE %s OR DATE_FORMAT(payment_date, '%%b %%Y') = %s)"
-        params.extend([f"%{month_filter}%", month_filter])
+    if selected_months:
+        m_clauses = []
+        for m in selected_months:
+            m_clauses.append("(remarks LIKE %s OR DATE_FORMAT(payment_date, '%%b %%Y') = %s)")
+            params.extend([f"%{m}%", m])
+        query += " AND (" + " OR ".join(m_clauses) + ")"
     if search_q:
         query += " AND (flat_no LIKE %s OR member_name LIKE %s OR remarks LIKE %s OR pymnt_mode LIKE %s OR receipt_no = %s)"
         params.extend([f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", f"%{search_q}%", search_q if search_q.isdigit() else 0])
@@ -1580,7 +1606,8 @@ def admin_receipts():
         total_collected_sum=total_collected_sum,
         total_receipts_count=total_receipts_count,
         flat_filter=flat_filter,
-        month_filter=month_filter,
+        selected_months=selected_months,
+        month_filter=",".join(selected_months),
         search_q=search_q,
         next_receipt_no=next_receipt_no
     )

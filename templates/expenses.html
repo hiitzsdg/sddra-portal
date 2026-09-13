@@ -67,7 +67,7 @@
             </div>
         </div>
 
-        <div style="flex: 0 1 210px; min-width: 0;">
+        <div style="flex: 0 1 200px; min-width: 0;">
             <label class="form-label" for="particulars">Particulars (A-Z)</label>
             <select id="particulars" name="particulars" class="form-select">
                 <option value="">All Particulars</option>
@@ -79,7 +79,7 @@
             </select>
         </div>
 
-        <div style="flex: 0 1 210px; min-width: 0;">
+        <div style="flex: 0 1 200px; min-width: 0;">
             <label class="form-label" for="spl_head">Special Head (Sorted A-Z)</label>
             <select id="spl_head" name="spl_head" class="form-select">
                 <option value="">All Special Heads</option>
@@ -87,6 +87,16 @@
                 <option value="{{ s.spl_head }}" {% if current_spl_head == s.spl_head %}selected{% endif %}>
                     {{ s.spl_head }} ({{ s.cnt }})
                 </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="flex: 0 1 180px; min-width: 0;">
+            <label class="form-label" for="month">Filter Month (Multi-Select)</label>
+            <select id="month" name="month" class="form-select" multiple size="1" style="height: auto; min-height: 42px;" title="Select one or more months. Hold Ctrl / Cmd to select multiple.">
+                <option value="" {% if not selected_months %}selected{% endif %}>All Months</option>
+                {% for mon in ["Apr 2026", "May 2026", "Jun 2026", "Jul 2026", "Aug 2026", "Sep 2026", "Oct 2026", "Nov 2026", "Dec 2026"] %}
+                <option value="{{ mon }}" {% if selected_months and mon in selected_months %}selected{% elif month_filter == mon %}selected{% endif %}>{{ mon }}</option>
                 {% endfor %}
             </select>
         </div>

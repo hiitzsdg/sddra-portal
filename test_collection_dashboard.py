@@ -103,7 +103,27 @@ class TestCollectionDashboard(unittest.TestCase):
         self.assertIn('renderCollectionCharts', js_text)
         self.assertIn('getCollectionBarColors', js_text)
         self.assertIn('/api/collections/chart-data', js_text)
-        print("[OK] charts.js contains all collection analytics and cross-filtering functions.")
+        self.assertIn('isRowMatchingMultiMonth', js_text)
+        self.assertIn('selectedCollectionMonthFilters', js_text)
+        self.assertIn('selectedMonthFilters', js_text)
+        print("[OK] charts.js contains all collection analytics, multi-month filtering and cross-filtering functions.")
+
+    def test_multi_month_server_side_filtering(self):
+        self.client.post('/login', data={'username': 'treasurer', 'password': 'sdera@123'}, follow_redirects=True)
+        
+        # Test multiple months on admin receipts
+        resp_rcpt = self.client.get('/admin/receipts?month=Apr+2026&month=May+2026')
+        self.assertEqual(resp_rcpt.status_code, 200)
+        self.assertIn('SDERA_', resp_rcpt.data.decode('utf-8'))
+
+        # Test comma-separated multi-month on admin receipts
+        resp_rcpt_comma = self.client.get('/admin/receipts?month=Apr+2026,May+2026')
+        self.assertEqual(resp_rcpt_comma.status_code, 200)
+
+        # Test multiple months on expenses
+        resp_exp = self.client.get('/expenses?month=Apr+2026&month=May+2026')
+        self.assertEqual(resp_exp.status_code, 200)
+        print("[OK] Server-side multi-month filtering for receipts and expenses verified.")
 
 if __name__ == '__main__':
     unittest.main()

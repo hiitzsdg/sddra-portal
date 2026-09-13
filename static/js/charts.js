@@ -1,7 +1,7 @@
 // ==========================================================================
 // South Dumdum Enclave Residents' Association (SDERA)
 // Dual-Theme Interactive Visualizations & Analytics Engine (Chart.js)
-// Comprehensive Expense Reporting & Maintenance Collection Analytics
+// Multi-Month Filter & Cross-Analytics Engine (Expenses & Collections)
 // ==========================================================================
 
 // --- Expense Chart Instances & Cache ---
@@ -9,20 +9,51 @@ let categoryChartInstance = null;
 let monthlyChartInstance = null;
 let cachedChartData = null;
 
-// Global Expense filter states
-let selectedMonthFilter = null;
+// Global Expense filter states (Support Multi-Month Selection)
+let selectedMonthFilters = [];
 let selectedCategoryFilter = null;
+
+// Backward-compatibility getter for single-value inspections
+Object.defineProperty(window, 'selectedMonthFilter', {
+    get: () => selectedMonthFilters.length > 0 ? selectedMonthFilters[0] : null,
+    set: (v) => {
+        if (!v) selectedMonthFilters = [];
+        else selectedMonthFilters = Array.isArray(v) ? v : [v];
+    },
+    configurable: true
+});
 
 // --- Collection Chart Instances & Cache ---
 let collectionModeChartInstance = null;
 let collectionMonthlyChartInstance = null;
 let cachedCollectionChartData = null;
 
-// Global Collection filter states
-let selectedCollectionMonthFilter = null;
+// Global Collection filter states (Support Multi-Month Selection)
+let selectedCollectionMonthFilters = [];
 let selectedCollectionModeFilter = null;
 
+// Backward-compatibility getter for single-value inspections
+Object.defineProperty(window, 'selectedCollectionMonthFilter', {
+    get: () => selectedCollectionMonthFilters.length > 0 ? selectedCollectionMonthFilters[0] : null,
+    set: (v) => {
+        if (!v) selectedCollectionMonthFilters = [];
+        else selectedCollectionMonthFilters = Array.isArray(v) ? v : [v];
+    },
+    configurable: true
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
+    // Check URL parameters for pre-selected months if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const monthParam = urlParams.get('month');
+    if (monthParam) {
+        const parts = monthParam.split(',').map(s => s.trim()).filter(Boolean);
+        if (parts.length > 0) {
+            selectedMonthFilters = [...parts];
+            selectedCollectionMonthFilters = [...parts];
+        }
+    }
+
     await renderAllCharts();
 
     window.addEventListener('themeChanged', (e) => {
@@ -104,18 +135,41 @@ function parseVoucherMonthYear(dateStr) {
     return { short: '', full: '', ym: '' };
 }
 
+// Check if a row's date / ym matches any month in the active multi-month filter list
+function isRowMatchingMultiMonth(rowDate, rowYm, rowRemarks, rowText, filterMonths) {
+    if (!filterMonths || filterMonths.length === 0) return true;
+
+    return filterMonths.some(filterMonthStr => {
+        const filterInfo = parseVoucherMonthYear(filterMonthStr);
+        if (!filterInfo || !filterInfo.ym) {
+            return rowText.toLowerCase().includes(filterMonthStr.toLowerCase());
+        }
+
+        const myInfo = parseVoucherMonthYear(rowDate || rowRemarks);
+        return (
+            (rowYm && filterInfo.ym && rowYm === filterInfo.ym) ||
+            (myInfo.ym && filterInfo.ym && myInfo.ym === filterInfo.ym) ||
+            (myInfo.short && filterInfo.short && myInfo.short.toLowerCase() === filterInfo.short.toLowerCase()) ||
+            (filterInfo.ym && rowDate && rowDate.includes(filterInfo.ym)) ||
+            (filterInfo.short && rowDate && rowDate.toLowerCase().includes(filterInfo.short.toLowerCase())) ||
+            (filterInfo.short && rowRemarks && rowRemarks.toLowerCase().includes(filterInfo.short.toLowerCase())) ||
+            (filterInfo.short && rowText && rowText.toLowerCase().includes(filterInfo.short.toLowerCase()))
+        );
+    });
+}
+
 // ==========================================================================
-// 1. EXPENSE REPORTING ANALYTICS & FILTERING ENGINE
+// 1. EXPENSE REPORTING ANALYTICS & MULTI-MONTH FILTERING ENGINE
 // ==========================================================================
 
-// Generate expense bar dataset colors based on current active selection
+// Generate expense bar dataset colors based on active multi-month selection
 function getBarColors(labels, isLight) {
     const defaultColor = isLight ? 'rgba(37, 99, 235, 0.85)' : 'rgba(59, 130, 246, 0.85)';
     const dimmedColor = isLight ? 'rgba(37, 99, 235, 0.22)' : 'rgba(59, 130, 246, 0.20)';
     const activeColor = isLight ? '#1d4ed8' : '#38bdf8';
     const activeBorder = isLight ? '#1e3a8a' : '#ffffff';
 
-    if (!selectedMonthFilter) {
+    if (!selectedMonthFilters || selectedMonthFilters.length === 0) {
         return {
             bg: labels.map(() => defaultColor),
             border: labels.map(() => 'transparent'),
@@ -124,13 +178,13 @@ function getBarColors(labels, isLight) {
     }
 
     return {
-        bg: labels.map(label => label === selectedMonthFilter ? activeColor : dimmedColor),
-        border: labels.map(label => label === selectedMonthFilter ? activeBorder : 'transparent'),
-        borderWidth: labels.map(label => label === selectedMonthFilter ? 2.5 : 0)
+        bg: labels.map(label => selectedMonthFilters.includes(label) ? activeColor : dimmedColor),
+        border: labels.map(label => selectedMonthFilters.includes(label) ? activeBorder : 'transparent'),
+        borderWidth: labels.map(label => selectedMonthFilters.includes(label) ? 2.5 : 0)
     };
 }
 
-// Update expense chart visual styles when a filter is toggled
+// Update expense chart visual styles when multi-month filter is toggled
 function updateChartVisualSelection() {
     if (!monthlyChartInstance) return;
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
@@ -145,28 +199,29 @@ function updateChartVisualSelection() {
     updateMonthPillsVisual();
 }
 
-// Render or update interactive month filter pills below expense chart
+// Render or update interactive multi-month filter pills below expense chart
 function updateMonthPillsVisual() {
     const containers = document.querySelectorAll('#expenseMonthlyPills');
     if (!containers || containers.length === 0 || !cachedChartData || !cachedChartData.monthly) return;
 
     containers.forEach(container => {
         const months = cachedChartData.monthly;
+        const hasSelection = selectedMonthFilters && selectedMonthFilters.length > 0;
         
         let html = `
-            <button type="button" onclick="clearMonthlyChartFilter()" class="btn btn-sm ${!selectedMonthFilter ? 'btn-primary' : 'btn-secondary'}" style="padding: 0.2rem 0.65rem; font-size: 0.78rem; border-radius: 20px; margin: 2px;">
-                ✨ All Months
+            <button type="button" onclick="clearMonthlyChartFilter()" class="btn btn-sm ${!hasSelection ? 'btn-primary' : 'btn-secondary'}" style="padding: 0.2rem 0.65rem; font-size: 0.78rem; border-radius: 20px; margin: 2px;">
+                ✨ All Months (${months.length})
             </button>
         `;
 
         months.forEach(m => {
-            const isSelected = selectedMonthFilter === m.month;
+            const isSelected = selectedMonthFilters.includes(m.month);
             const activeStyle = isSelected 
-                ? 'background: #3b82f6; color: #ffffff; border-color: #60a5fa; font-weight: 700;' 
+                ? 'background: #3b82f6; color: #ffffff; border-color: #60a5fa; font-weight: 700; box-shadow: 0 0 8px rgba(59,130,246,0.4);' 
                 : '';
             html += `
-                <button type="button" onclick="toggleMonthExpenditureFilter('${m.month}')" class="btn btn-sm ${isSelected ? 'btn-primary' : 'btn-secondary'}" style="padding: 0.2rem 0.65rem; font-size: 0.78rem; border-radius: 20px; margin: 2px; ${activeStyle}">
-                    📅 ${m.month}
+                <button type="button" onclick="toggleMonthExpenditureFilter('${m.month}')" class="btn btn-sm ${isSelected ? 'btn-primary' : 'btn-secondary'}" style="padding: 0.2rem 0.65rem; font-size: 0.78rem; border-radius: 20px; margin: 2px; ${activeStyle}" title="${isSelected ? 'Click to deselect' : 'Click to add month to filter'}">
+                    ${isSelected ? '✓' : '📅'} ${m.month}
                 </button>
             `;
         });
@@ -175,20 +230,21 @@ function updateMonthPillsVisual() {
     });
 }
 
-// Toggle month filter when expense bar or pill is clicked
+// Toggle a month in/out of the multi-month expense filter
 function toggleMonthExpenditureFilter(clickedMonth) {
-    if (selectedMonthFilter === clickedMonth) {
-        selectedMonthFilter = null;
+    const idx = selectedMonthFilters.indexOf(clickedMonth);
+    if (idx > -1) {
+        selectedMonthFilters.splice(idx, 1);
     } else {
-        selectedMonthFilter = clickedMonth;
+        selectedMonthFilters.push(clickedMonth);
     }
     updateChartVisualSelection();
     applyExpenditureFilters(true);
 }
 
-// Clear active expense month filter
+// Clear all active expense month filters
 function clearMonthlyChartFilter() {
-    selectedMonthFilter = null;
+    selectedMonthFilters = [];
     updateChartVisualSelection();
     applyExpenditureFilters(false);
 }
@@ -203,7 +259,7 @@ function toggleCategoryExpenditureFilter(clickedCategory) {
     applyExpenditureFilters(true);
 }
 
-// Apply active filters across all expense tables
+// Apply active filters across all expense tables (Multi-Month Aware)
 function applyExpenditureFilters(shouldAnimateCard = false) {
     const tableConfigs = [
         {
@@ -241,20 +297,7 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
         }
     ];
 
-    const filterInfo = selectedMonthFilter ? parseVoucherMonthYear(selectedMonthFilter) : null;
-
-    // Pre-aggregated month total lookup from chart API
-    let chartMonthTotal = null;
-    if (selectedMonthFilter && cachedChartData && cachedChartData.monthly) {
-        const foundMonth = cachedChartData.monthly.find(m => {
-            const mInfo = parseVoucherMonthYear(m.month);
-            return (filterInfo && mInfo.ym && filterInfo.ym && mInfo.ym === filterInfo.ym) ||
-                   (m.month.toLowerCase() === selectedMonthFilter.toLowerCase());
-        });
-        if (foundMonth && typeof foundMonth.total === 'number') {
-            chartMonthTotal = foundMonth.total;
-        }
-    }
+    const hasMonthFilter = selectedMonthFilters && selectedMonthFilters.length > 0;
 
     let lastActiveTotalAmount = 0;
     let lastActiveMatchCount = 0;
@@ -279,34 +322,23 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
             }
             totalRows++;
 
-            // 1. Month match
-            let matchesMonth = true;
-            if (selectedMonthFilter && filterInfo) {
-                const rowYm = row.getAttribute('data-voucher-ym');
-                const dateVal = row.getAttribute('data-voucher-date') || '';
-                const myInfo = parseVoucherMonthYear(dateVal);
-
-                matchesMonth = (
-                    (rowYm && filterInfo.ym && rowYm === filterInfo.ym) ||
-                    (myInfo.ym && filterInfo.ym && myInfo.ym === filterInfo.ym) ||
-                    (myInfo.short && filterInfo.short && myInfo.short.toLowerCase() === filterInfo.short.toLowerCase()) ||
-                    (filterInfo.ym && dateVal.includes(filterInfo.ym)) ||
-                    (filterInfo.short && dateVal.toLowerCase().includes(filterInfo.short.toLowerCase())) ||
-                    (filterInfo.short && row.textContent.toLowerCase().includes(filterInfo.short.toLowerCase()))
-                );
-            }
+            // 1. Multi-Month match
+            const rowYm = row.getAttribute('data-voucher-ym');
+            const dateVal = row.getAttribute('data-voucher-date') || '';
+            const rowText = row.textContent;
+            const matchesMonth = !hasMonthFilter || isRowMatchingMultiMonth(dateVal, rowYm, '', rowText, selectedMonthFilters);
 
             // 2. Category match
             let matchesCategory = true;
             if (selectedCategoryFilter) {
-                const partVal = (row.getAttribute('data-particulars') || row.textContent).toLowerCase();
+                const partVal = (row.getAttribute('data-particulars') || rowText).toLowerCase();
                 matchesCategory = partVal.includes(selectedCategoryFilter.toLowerCase());
             }
 
             // 3. Search query match
             let matchesSearch = true;
             if (rawSearch) {
-                const rowRawText = row.textContent.toLowerCase();
+                const rowRawText = rowText.toLowerCase();
                 const rowCleanText = rowRawText.replace(/[\/\-\s_,\.]/g, '');
 
                 const rawSubstringMatch = rowRawText.includes(rawSearch);
@@ -350,11 +382,6 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
             }
         });
 
-        // Fail-safe: If totalAmount is 0 but we matched rows and have pre-calculated chartMonthTotal
-        if (totalAmount === 0 && matchCount > 0 && chartMonthTotal !== null && !rawSearch && !selectedCategoryFilter) {
-            totalAmount = chartMonthTotal;
-        }
-
         lastActiveTotalAmount = totalAmount;
         lastActiveMatchCount = matchCount;
 
@@ -365,7 +392,7 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
                 if (!totalBadge.getAttribute('data-original')) {
                     totalBadge.setAttribute('data-original', totalBadge.textContent.trim());
                 }
-                if (selectedMonthFilter || rawSearch || selectedCategoryFilter) {
+                if (hasMonthFilter || rawSearch || selectedCategoryFilter) {
                     totalBadge.textContent = `Total: ₹ ${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 } else {
                     totalBadge.textContent = totalBadge.getAttribute('data-original');
@@ -380,9 +407,12 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
             const stat = document.querySelector(cfg.statId);
 
             if (banner) {
-                if (selectedMonthFilter) {
+                if (hasMonthFilter) {
                     banner.style.display = 'block';
-                    if (label) label.textContent = selectedMonthFilter;
+                    const monthSummaryText = selectedMonthFilters.length === 1 
+                        ? selectedMonthFilters[0] 
+                        : `${selectedMonthFilters.length} Months (${selectedMonthFilters.join(', ')})`;
+                    if (label) label.textContent = monthSummaryText;
                     if (stat) stat.textContent = `${matchCount} Vouchers • ₹ ${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 } else {
                     banner.style.display = 'none';
@@ -394,7 +424,7 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
         if (cfg.counterId) {
             const counter = document.querySelector(cfg.counterId);
             if (counter) {
-                if (selectedMonthFilter || rawSearch) {
+                if (hasMonthFilter || rawSearch) {
                     counter.textContent = `${matchCount} of ${totalRows} Shown`;
                 } else {
                     counter.textContent = `${totalRows} ${cfg.defaultSuffix}`;
@@ -403,7 +433,7 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
         }
 
         // Pulse animation feedback on card
-        if (shouldAnimateCard && cfg.cardId && selectedMonthFilter) {
+        if (shouldAnimateCard && cfg.cardId && hasMonthFilter) {
             const card = document.querySelector(cfg.cardId);
             if (card) {
                 card.classList.remove('card-highlight-pulse');
@@ -424,10 +454,13 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
             dashOutlaySub.setAttribute('data-original', dashOutlaySub.textContent.trim());
         }
 
-        if (selectedMonthFilter || selectedCategoryFilter) {
+        if (hasMonthFilter || selectedCategoryFilter) {
             dashOutlayVal.textContent = `₹ ${lastActiveTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             if (dashOutlaySub) {
-                dashOutlaySub.textContent = `${lastActiveMatchCount} vouchers (${selectedMonthFilter || 'Filtered'})`;
+                const subMonthText = selectedMonthFilters.length === 1 
+                    ? selectedMonthFilters[0] 
+                    : `${selectedMonthFilters.length} Months Selected`;
+                dashOutlaySub.textContent = `${lastActiveMatchCount} vouchers (${subMonthText})`;
             }
         } else {
             dashOutlayVal.textContent = dashOutlayVal.getAttribute('data-original');
@@ -439,17 +472,17 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
 }
 
 // ==========================================================================
-// 2. MAINTENANCE COLLECTION ANALYTICS & FILTERING ENGINE
+// 2. MAINTENANCE COLLECTION ANALYTICS & MULTI-MONTH FILTERING ENGINE
 // ==========================================================================
 
-// Generate collection bar dataset colors based on current active selection (Emerald Green theme)
+// Generate collection bar dataset colors based on active multi-month selection (Emerald Green theme)
 function getCollectionBarColors(labels, isLight) {
     const defaultColor = isLight ? 'rgba(16, 185, 129, 0.85)' : 'rgba(52, 211, 153, 0.85)';
     const dimmedColor = isLight ? 'rgba(16, 185, 129, 0.22)' : 'rgba(52, 211, 153, 0.20)';
     const activeColor = isLight ? '#059669' : '#10b981';
     const activeBorder = isLight ? '#047857' : '#ffffff';
 
-    if (!selectedCollectionMonthFilter) {
+    if (!selectedCollectionMonthFilters || selectedCollectionMonthFilters.length === 0) {
         return {
             bg: labels.map(() => defaultColor),
             border: labels.map(() => 'transparent'),
@@ -458,13 +491,13 @@ function getCollectionBarColors(labels, isLight) {
     }
 
     return {
-        bg: labels.map(label => label === selectedCollectionMonthFilter ? activeColor : dimmedColor),
-        border: labels.map(label => label === selectedCollectionMonthFilter ? activeBorder : 'transparent'),
-        borderWidth: labels.map(label => label === selectedCollectionMonthFilter ? 2.5 : 0)
+        bg: labels.map(label => selectedCollectionMonthFilters.includes(label) ? activeColor : dimmedColor),
+        border: labels.map(label => selectedCollectionMonthFilters.includes(label) ? activeBorder : 'transparent'),
+        borderWidth: labels.map(label => selectedCollectionMonthFilters.includes(label) ? 2.5 : 0)
     };
 }
 
-// Update collection chart visual styles when a filter is toggled
+// Update collection chart visual styles when multi-month filter is toggled
 function updateCollectionChartVisualSelection() {
     if (!collectionMonthlyChartInstance) return;
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
@@ -479,28 +512,29 @@ function updateCollectionChartVisualSelection() {
     updateCollectionMonthPillsVisual();
 }
 
-// Render or update interactive month filter pills below collection chart
+// Render or update interactive multi-month filter pills below collection chart
 function updateCollectionMonthPillsVisual() {
     const containers = document.querySelectorAll('#collectionMonthlyPills');
     if (!containers || containers.length === 0 || !cachedCollectionChartData || !cachedCollectionChartData.monthly) return;
 
     containers.forEach(container => {
         const months = cachedCollectionChartData.monthly;
+        const hasSelection = selectedCollectionMonthFilters && selectedCollectionMonthFilters.length > 0;
         
         let html = `
-            <button type="button" onclick="clearMonthlyCollectionFilter()" class="btn btn-sm ${!selectedCollectionMonthFilter ? 'btn-success' : 'btn-secondary'}" style="padding: 0.2rem 0.65rem; font-size: 0.78rem; border-radius: 20px; margin: 2px;">
-                ✨ All Months
+            <button type="button" onclick="clearMonthlyCollectionFilter()" class="btn btn-sm ${!hasSelection ? 'btn-success' : 'btn-secondary'}" style="padding: 0.2rem 0.65rem; font-size: 0.78rem; border-radius: 20px; margin: 2px;">
+                ✨ All Months (${months.length})
             </button>
         `;
 
         months.forEach(m => {
-            const isSelected = selectedCollectionMonthFilter === m.month;
+            const isSelected = selectedCollectionMonthFilters.includes(m.month);
             const activeStyle = isSelected 
-                ? 'background: #10b981; color: #ffffff; border-color: #34d399; font-weight: 700;' 
+                ? 'background: #10b981; color: #ffffff; border-color: #34d399; font-weight: 700; box-shadow: 0 0 8px rgba(16,185,129,0.4);' 
                 : '';
             html += `
-                <button type="button" onclick="toggleMonthCollectionFilter('${m.month}')" class="btn btn-sm ${isSelected ? 'btn-success' : 'btn-secondary'}" style="padding: 0.2rem 0.65rem; font-size: 0.78rem; border-radius: 20px; margin: 2px; ${activeStyle}">
-                    📅 ${m.month}
+                <button type="button" onclick="toggleMonthCollectionFilter('${m.month}')" class="btn btn-sm ${isSelected ? 'btn-success' : 'btn-secondary'}" style="padding: 0.2rem 0.65rem; font-size: 0.78rem; border-radius: 20px; margin: 2px; ${activeStyle}" title="${isSelected ? 'Click to deselect' : 'Click to add month to filter'}">
+                    ${isSelected ? '✓' : '📅'} ${m.month}
                 </button>
             `;
         });
@@ -509,20 +543,21 @@ function updateCollectionMonthPillsVisual() {
     });
 }
 
-// Toggle month filter when collection bar or pill is clicked
+// Toggle a month in/out of the multi-month collection filter
 function toggleMonthCollectionFilter(clickedMonth) {
-    if (selectedCollectionMonthFilter === clickedMonth) {
-        selectedCollectionMonthFilter = null;
+    const idx = selectedCollectionMonthFilters.indexOf(clickedMonth);
+    if (idx > -1) {
+        selectedCollectionMonthFilters.splice(idx, 1);
     } else {
-        selectedCollectionMonthFilter = clickedMonth;
+        selectedCollectionMonthFilters.push(clickedMonth);
     }
     updateCollectionChartVisualSelection();
     applyCollectionFilters(true);
 }
 
-// Clear active collection month filter
+// Clear all active collection month filters
 function clearMonthlyCollectionFilter() {
-    selectedCollectionMonthFilter = null;
+    selectedCollectionMonthFilters = [];
     updateCollectionChartVisualSelection();
     applyCollectionFilters(false);
 }
@@ -537,7 +572,7 @@ function togglePaymentModeCollectionFilter(clickedMode) {
     applyCollectionFilters(true);
 }
 
-// Apply active filters across all collection tables
+// Apply active filters across all collection tables (Multi-Month Aware)
 function applyCollectionFilters(shouldAnimateCard = false) {
     const tableConfigs = [
         {
@@ -560,7 +595,7 @@ function applyCollectionFilters(shouldAnimateCard = false) {
             totalBadgeId: '#rcptTotalBadge',
             searchId: '#liveReceiptSearch',
             cardId: null,
-            defaultSuffix: 'Receipts'
+            defaultSuffix: 'Receipts Found'
         },
         {
             tableId: '#memberReceiptsTable',
@@ -575,20 +610,7 @@ function applyCollectionFilters(shouldAnimateCard = false) {
         }
     ];
 
-    const filterInfo = selectedCollectionMonthFilter ? parseVoucherMonthYear(selectedCollectionMonthFilter) : null;
-
-    // Pre-aggregated month total lookup from chart API
-    let chartMonthTotal = null;
-    if (selectedCollectionMonthFilter && cachedCollectionChartData && cachedCollectionChartData.monthly) {
-        const foundMonth = cachedCollectionChartData.monthly.find(m => {
-            const mInfo = parseVoucherMonthYear(m.month);
-            return (filterInfo && mInfo.ym && filterInfo.ym && mInfo.ym === filterInfo.ym) ||
-                   (m.month.toLowerCase() === selectedCollectionMonthFilter.toLowerCase());
-        });
-        if (foundMonth && typeof foundMonth.total === 'number') {
-            chartMonthTotal = foundMonth.total;
-        }
-    }
+    const hasMonthFilter = selectedCollectionMonthFilters && selectedCollectionMonthFilters.length > 0;
 
     let lastActiveTotalAmount = 0;
     let lastActiveMatchCount = 0;
@@ -613,36 +635,24 @@ function applyCollectionFilters(shouldAnimateCard = false) {
             }
             totalRows++;
 
-            // 1. Month match
-            let matchesMonth = true;
-            if (selectedCollectionMonthFilter && filterInfo) {
-                const rowYm = row.getAttribute('data-payment-ym') || row.getAttribute('data-voucher-ym');
-                const dateVal = row.getAttribute('data-payment-date') || row.getAttribute('data-voucher-date') || '';
-                const remarksVal = row.getAttribute('data-remarks') || '';
-                const myInfo = parseVoucherMonthYear(dateVal || remarksVal);
-
-                matchesMonth = (
-                    (rowYm && filterInfo.ym && rowYm === filterInfo.ym) ||
-                    (myInfo.ym && filterInfo.ym && myInfo.ym === filterInfo.ym) ||
-                    (myInfo.short && filterInfo.short && myInfo.short.toLowerCase() === filterInfo.short.toLowerCase()) ||
-                    (filterInfo.ym && dateVal.includes(filterInfo.ym)) ||
-                    (filterInfo.short && dateVal.toLowerCase().includes(filterInfo.short.toLowerCase())) ||
-                    (filterInfo.short && remarksVal.toLowerCase().includes(filterInfo.short.toLowerCase())) ||
-                    (filterInfo.short && row.textContent.toLowerCase().includes(filterInfo.short.toLowerCase()))
-                );
-            }
+            // 1. Multi-Month match
+            const rowYm = row.getAttribute('data-payment-ym') || row.getAttribute('data-voucher-ym');
+            const dateVal = row.getAttribute('data-payment-date') || row.getAttribute('data-voucher-date') || '';
+            const remarksVal = row.getAttribute('data-remarks') || '';
+            const rowText = row.textContent;
+            const matchesMonth = !hasMonthFilter || isRowMatchingMultiMonth(dateVal, rowYm, remarksVal, rowText, selectedCollectionMonthFilters);
 
             // 2. Payment Mode match
             let matchesMode = true;
             if (selectedCollectionModeFilter) {
-                const modeVal = (row.getAttribute('data-pymnt-mode') || row.textContent).toLowerCase();
+                const modeVal = (row.getAttribute('data-pymnt-mode') || rowText).toLowerCase();
                 matchesMode = modeVal.includes(selectedCollectionModeFilter.toLowerCase());
             }
 
             // 3. Search query match
             let matchesSearch = true;
             if (rawSearch) {
-                const rowRawText = row.textContent.toLowerCase();
+                const rowRawText = rowText.toLowerCase();
                 const rowCleanText = rowRawText.replace(/[\/\-\s_,\.]/g, '');
 
                 const rawSubstringMatch = rowRawText.includes(rawSearch);
@@ -686,11 +696,6 @@ function applyCollectionFilters(shouldAnimateCard = false) {
             }
         });
 
-        // Fail-safe: If totalAmount is 0 but we matched rows and have pre-calculated chartMonthTotal
-        if (totalAmount === 0 && matchCount > 0 && chartMonthTotal !== null && !rawSearch && !selectedCollectionModeFilter) {
-            totalAmount = chartMonthTotal;
-        }
-
         lastActiveTotalAmount = totalAmount;
         lastActiveMatchCount = matchCount;
 
@@ -701,7 +706,7 @@ function applyCollectionFilters(shouldAnimateCard = false) {
                 if (!totalBadge.getAttribute('data-original')) {
                     totalBadge.setAttribute('data-original', totalBadge.textContent.trim());
                 }
-                if (selectedCollectionMonthFilter || rawSearch || selectedCollectionModeFilter) {
+                if (hasMonthFilter || rawSearch || selectedCollectionModeFilter) {
                     totalBadge.textContent = `Total: ₹ ${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 } else {
                     totalBadge.textContent = totalBadge.getAttribute('data-original');
@@ -716,9 +721,12 @@ function applyCollectionFilters(shouldAnimateCard = false) {
             const stat = document.querySelector(cfg.statId);
 
             if (banner) {
-                if (selectedCollectionMonthFilter) {
+                if (hasMonthFilter) {
                     banner.style.display = 'block';
-                    if (label) label.textContent = selectedCollectionMonthFilter;
+                    const monthSummaryText = selectedCollectionMonthFilters.length === 1 
+                        ? selectedCollectionMonthFilters[0] 
+                        : `${selectedCollectionMonthFilters.length} Months (${selectedCollectionMonthFilters.join(', ')})`;
+                    if (label) label.textContent = monthSummaryText;
                     if (stat) stat.textContent = `${matchCount} Receipts • ₹ ${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 } else {
                     banner.style.display = 'none';
@@ -730,7 +738,7 @@ function applyCollectionFilters(shouldAnimateCard = false) {
         if (cfg.counterId) {
             const counter = document.querySelector(cfg.counterId);
             if (counter) {
-                if (selectedCollectionMonthFilter || rawSearch) {
+                if (hasMonthFilter || rawSearch) {
                     counter.textContent = `${matchCount} of ${totalRows} Shown`;
                 } else {
                     counter.textContent = `${totalRows} ${cfg.defaultSuffix}`;
@@ -739,7 +747,7 @@ function applyCollectionFilters(shouldAnimateCard = false) {
         }
 
         // Pulse animation feedback on card
-        if (shouldAnimateCard && cfg.cardId && selectedCollectionMonthFilter) {
+        if (shouldAnimateCard && cfg.cardId && hasMonthFilter) {
             const card = document.querySelector(cfg.cardId);
             if (card) {
                 card.classList.remove('card-highlight-pulse');
@@ -760,10 +768,13 @@ function applyCollectionFilters(shouldAnimateCard = false) {
             dashCollectedSub.setAttribute('data-original', dashCollectedSub.textContent.trim());
         }
 
-        if (selectedCollectionMonthFilter || selectedCollectionModeFilter) {
+        if (hasMonthFilter || selectedCollectionModeFilter) {
             dashCollectedVal.textContent = `₹ ${lastActiveTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             if (dashCollectedSub) {
-                dashCollectedSub.textContent = `${lastActiveMatchCount} receipts (${selectedCollectionMonthFilter || 'Filtered'})`;
+                const subMonthText = selectedCollectionMonthFilters.length === 1 
+                    ? selectedCollectionMonthFilters[0] 
+                    : `${selectedCollectionMonthFilters.length} Months Selected`;
+                dashCollectedSub.textContent = `${lastActiveMatchCount} receipts (${subMonthText})`;
             }
         } else {
             dashCollectedVal.textContent = dashCollectedVal.getAttribute('data-original');
@@ -965,8 +976,8 @@ async function renderExpenseCharts(existingData = null) {
                             callbacks: {
                                 label: function(context) {
                                     const val = context.raw || 0;
-                                    const isSelected = labels[context.dataIndex] === selectedMonthFilter;
-                                    return ` Incurred: ₹ ${val.toLocaleString('en-IN')}${isSelected ? ' (Active Filter)' : ' • Click to filter'}`;
+                                    const isSelected = selectedMonthFilters.includes(labels[context.dataIndex]);
+                                    return ` Incurred: ₹ ${val.toLocaleString('en-IN')}${isSelected ? ' (Selected)' : ' • Click to toggle'}`;
                                 }
                             }
                         }
@@ -1013,7 +1024,7 @@ async function renderExpenseCharts(existingData = null) {
 
         updateMonthPillsVisual();
 
-        if (selectedMonthFilter || selectedCategoryFilter) {
+        if ((selectedMonthFilters && selectedMonthFilters.length > 0) || selectedCategoryFilter) {
             applyExpenditureFilters(false);
         }
     } catch (e) {
@@ -1207,8 +1218,8 @@ async function renderCollectionCharts(existingData = null) {
                             callbacks: {
                                 label: function(context) {
                                     const val = context.raw || 0;
-                                    const isSelected = labels[context.dataIndex] === selectedCollectionMonthFilter;
-                                    return ` Collected: ₹ ${val.toLocaleString('en-IN')}${isSelected ? ' (Active Filter)' : ' • Click to filter'}`;
+                                    const isSelected = selectedCollectionMonthFilters.includes(labels[context.dataIndex]);
+                                    return ` Collected: ₹ ${val.toLocaleString('en-IN')}${isSelected ? ' (Selected)' : ' • Click to toggle'}`;
                                 }
                             }
                         }
@@ -1255,7 +1266,7 @@ async function renderCollectionCharts(existingData = null) {
 
         updateCollectionMonthPillsVisual();
 
-        if (selectedCollectionMonthFilter || selectedCollectionModeFilter) {
+        if ((selectedCollectionMonthFilters && selectedCollectionMonthFilters.length > 0) || selectedCollectionModeFilter) {
             applyCollectionFilters(false);
         }
     } catch (e) {
@@ -1270,10 +1281,14 @@ async function renderAllCharts(existingExpenseData = null, existingCollectionDat
     ]);
 }
 
-// Expose functions globally for HTML onclick handlers and cross-script integration
+// Expose functions and filter states globally
 window.parseVoucherMonthYear = parseVoucherMonthYear;
+window.isRowMatchingMultiMonth = isRowMatchingMultiMonth;
 window.getBarColors = getBarColors;
 window.getCollectionBarColors = getCollectionBarColors;
+
+window.selectedMonthFilters = selectedMonthFilters;
+window.selectedCollectionMonthFilters = selectedCollectionMonthFilters;
 
 window.toggleMonthExpenditureFilter = toggleMonthExpenditureFilter;
 window.clearMonthlyChartFilter = clearMonthlyChartFilter;
