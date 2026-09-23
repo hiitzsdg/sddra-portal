@@ -952,6 +952,27 @@ def dashboard():
             except Exception:
                 recent_tickets = []
                 
+            try:
+                all_particulars_rows = query_db("""
+                    SELECT particulars, SUM(amount) as total, COUNT(*) as count 
+                    FROM tbl_expenses 
+                    WHERE particulars IS NOT NULL AND TRIM(particulars) != ''
+                    GROUP BY particulars 
+                    ORDER BY total DESC
+                """) or []
+                total_exp_calc = sum(float(r['total']) for r in all_particulars_rows) if all_particulars_rows else 1.0
+                all_particulars_summary = [
+                    {
+                        'particulars': r['particulars'],
+                        'total': float(r['total']),
+                        'count': int(r.get('count', 0)),
+                        'percentage': round((float(r['total']) / total_exp_calc) * 100, 1)
+                    }
+                    for r in all_particulars_rows
+                ]
+            except Exception:
+                all_particulars_summary = []
+
             return render_template(
                 'dashboard.html',
                 is_admin=True,
@@ -967,6 +988,7 @@ def dashboard():
                 building_blocks=sorted_building_blocks,
                 recent_receipts=recent_receipts,
                 recent_expenses=recent_expenses,
+                all_particulars_summary=all_particulars_summary,
                 pinned_notices=pinned_notices,
                 recent_notices=recent_notices,
                 recent_tickets=recent_tickets,
@@ -1009,12 +1031,35 @@ def dashboard():
                 }
             
             try:
-                total_expenses_row = query_db("SELECT COALESCE(SUM(amount), 0) as total FROM tbl_expenses", one=True)
+                total_expenses_row = query_db("SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM tbl_expenses", one=True)
                 total_expenses = float(total_expenses_row.get('total') or 0.0) if total_expenses_row else 0.0
-                recent_expenses = query_db("SELECT * FROM tbl_expenses ORDER BY voucher_no DESC LIMIT 5") or []
+                total_vouchers_count = int(total_expenses_row.get('count') or 0) if total_expenses_row else 0
+                recent_expenses = query_db("SELECT * FROM tbl_expenses ORDER BY voucher_no DESC LIMIT 100") or []
             except Exception:
                 total_expenses = 0.0
+                total_vouchers_count = 0
                 recent_expenses = []
+            
+            try:
+                all_particulars_rows = query_db("""
+                    SELECT particulars, SUM(amount) as total, COUNT(*) as count 
+                    FROM tbl_expenses 
+                    WHERE particulars IS NOT NULL AND TRIM(particulars) != ''
+                    GROUP BY particulars 
+                    ORDER BY total DESC
+                """) or []
+                total_exp_calc = sum(float(r['total']) for r in all_particulars_rows) if all_particulars_rows else 1.0
+                all_particulars_summary = [
+                    {
+                        'particulars': r['particulars'],
+                        'total': float(r['total']),
+                        'count': int(r.get('count', 0)),
+                        'percentage': round((float(r['total']) / total_exp_calc) * 100, 1)
+                    }
+                    for r in all_particulars_rows
+                ]
+            except Exception:
+                all_particulars_summary = []
             
             try:
                 pinned_notices = query_db("SELECT * FROM tbl_notices WHERE is_pinned = 1 AND status = 'ACTIVE' ORDER BY priority = 'URGENT' DESC, id DESC LIMIT 3") or []
@@ -1037,7 +1082,9 @@ def dashboard():
                 outstanding=my_penalty.get('base_due', 0.0) if my_penalty else 0.0,
                 my_penalty=my_penalty,
                 total_expenses=total_expenses,
+                total_vouchers_count=total_vouchers_count,
                 recent_expenses=recent_expenses,
+                all_particulars_summary=all_particulars_summary,
                 pinned_notices=pinned_notices,
                 recent_notices=recent_notices,
                 my_tickets=my_tickets,
@@ -2723,23 +2770,41 @@ def api_helpdesk_create():
 @login_required
 def chart_data():
     particulars_rows = query_db("""
-        SELECT particulars, SUM(amount) as total 
+        SELECT particulars, SUM(amount) as total, COUNT(*) as count 
         FROM tbl_expenses 
+        WHERE particulars IS NOT NULL AND TRIM(particulars) != ''
         GROUP BY particulars 
-        ORDER BY total DESC 
-        LIMIT 7
-    """)
+        ORDER BY total DESC
+    """) or []
     
     monthly_rows = query_db("""
-        SELECT DATE_FORMAT(voucher_date, '%b %Y') as ym, SUM(amount) as total 
+        SELECT DATE_FORMAT(voucher_date, '%b %Y') as ym, SUM(amount) as total, COUNT(*) as count 
         FROM tbl_expenses 
+        WHERE voucher_date IS NOT NULL
         GROUP BY DATE_FORMAT(voucher_date, '%b %Y'), DATE_FORMAT(voucher_date, '%Y-%m') 
         ORDER BY DATE_FORMAT(voucher_date, '%Y-%m')
-    """)
+    """) or []
+    
+    total_spend = sum(float(r['total']) for r in particulars_rows) if particulars_rows else 1.0
     
     return jsonify({
-        'categories': [{'category': r['particulars'], 'total': float(r['total'])} for r in particulars_rows],
-        'monthly': [{'month': r['ym'], 'total': float(r['total'])} for r in monthly_rows]
+        'total_spend': total_spend,
+        'total_vouchers': sum(int(r.get('count', 0)) for r in particulars_rows),
+        'categories': [
+            {
+                'category': r['particulars'], 
+                'total': float(r['total']),
+                'count': int(r.get('count', 0)),
+                'percentage': round((float(r['total']) / total_spend) * 100, 1)
+            } for r in particulars_rows
+        ],
+        'monthly': [
+            {
+                'month': r['ym'], 
+                'total': float(r['total']),
+                'count': int(r.get('count', 0))
+            } for r in monthly_rows
+        ]
     })
 
 @app.route('/api/collections/chart-data')

@@ -249,13 +249,93 @@ function clearMonthlyChartFilter() {
     applyExpenditureFilters(false);
 }
 
-// Toggle category filter when expense doughnut slice is clicked
+// Curated Vibrant 20+ Color Palette for all Society Expense Heads
+const EXPENSE_PALETTE = [
+    '#2563eb', // Royal Blue (Service Charges)
+    '#059669', // Emerald Green (Repair & Maintenance)
+    '#d97706', // Amber Gold (Electricity Charges)
+    '#7c3aed', // Rich Violet (Accounting Charges)
+    '#e11d48', // Rose Crimson (AGM)
+    '#0891b2', // Teal Cyan (AMC Lift)
+    '#db2777', // Magenta Pink (Cultural Program & Milonotsav)
+    '#0d9488', // Dark Cyan (Stationary)
+    '#4f46e5', // Indigo (Misc & Other Expenses)
+    '#ea580c', // Bright Flame Orange (Two Wheeler Security Deposit Refund)
+    '#65a30d', // Lime (Capital Fund Refund)
+    '#dc2626', // Bright Red (Fire Extinguisher)
+    '#9333ea', // Purple Orchid (Painting)
+    '#0284c7', // Sky Blue
+    '#ca8a04', // Yellow Gold
+    '#475569', // Slate Grey
+    '#16a34a', // Forest Green
+    '#c026d3', // Fuchsia
+    '#b45309', // Rust
+    '#334155'  // Charcoal Slate
+];
+
+// Helper to get consistent color for a category index
+function getExpenseCategoryColor(index) {
+    return EXPENSE_PALETTE[index % EXPENSE_PALETTE.length];
+}
+
+// Render or update interactive category filter pills below expense chart
+function updateCategoryPillsVisual(categories = null, totalSpend = null) {
+    const containers = document.querySelectorAll('#expenseCategoryPills');
+    if (!containers || containers.length === 0) return;
+
+    const cats = categories || (cachedChartData ? cachedChartData.categories : []);
+    if (!cats || cats.length === 0) return;
+
+    const total = totalSpend || (cachedChartData ? cachedChartData.total_spend : null) || cats.reduce((acc, c) => acc + (c.total || 0), 0) || 1;
+
+    containers.forEach(container => {
+        const hasCatSelection = Boolean(selectedCategoryFilter);
+
+        let html = `
+            <div style="display: flex; gap: 0.35rem; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 0.65rem; padding-top: 0.5rem; border-top: 1px dashed rgba(255, 255, 255, 0.1);">
+                <button type="button" onclick="clearCategoryChartFilter()" class="btn btn-sm ${!hasCatSelection ? 'btn-primary' : 'btn-secondary'}" style="padding: 0.2rem 0.65rem; font-size: 0.78rem; border-radius: 20px; margin: 2px;">
+                    ✨ All Heads (${cats.length})
+                </button>
+        `;
+
+        cats.forEach((c, idx) => {
+            const isSelected = selectedCategoryFilter === c.category;
+            const color = getExpenseCategoryColor(idx);
+            const pct = c.percentage !== undefined ? c.percentage : Math.round(((c.total || 0) / total) * 1000) / 10;
+            const activeStyle = isSelected 
+                ? `background: ${color}; color: #ffffff; border-color: #ffffff; font-weight: 700; box-shadow: 0 0 10px ${color}88;` 
+                : '';
+            
+            html += `
+                <button type="button" onclick="toggleCategoryExpenditureFilter('${c.category.replace(/'/g, "\\'")}')" class="btn btn-sm ${isSelected ? 'btn-primary' : 'btn-secondary'}" style="padding: 0.2rem 0.65rem; font-size: 0.78rem; border-radius: 20px; margin: 2px; display: inline-flex; align-items: center; gap: 5px; ${activeStyle}" title="₹ ${(c.total || 0).toLocaleString('en-IN')} (${pct}% of total outlays) • Click to filter">
+                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${isSelected ? '#ffffff' : color};"></span>
+                    <span>${c.category}</span>
+                    <span style="font-size: 0.72rem; opacity: 0.85; margin-left: 2px;">₹ ${Math.round(c.total).toLocaleString('en-IN')}</span>
+                    <span class="badge" style="font-size: 0.68rem; padding: 1px 5px; background: rgba(0,0,0,0.18); border-radius: 10px;">${pct}%</span>
+                </button>
+            `;
+        });
+
+        html += `</div>`;
+        container.innerHTML = html;
+    });
+}
+
+// Clear active category filter
+function clearCategoryChartFilter() {
+    selectedCategoryFilter = null;
+    updateCategoryPillsVisual();
+    applyExpenditureFilters(false);
+}
+
+// Toggle category filter when expense doughnut slice or pill is clicked
 function toggleCategoryExpenditureFilter(clickedCategory) {
     if (selectedCategoryFilter === clickedCategory) {
         selectedCategoryFilter = null;
     } else {
         selectedCategoryFilter = clickedCategory;
     }
+    updateCategoryPillsVisual();
     applyExpenditureFilters(true);
 }
 
@@ -286,14 +366,14 @@ function applyExpenditureFilters(shouldAnimateCard = false) {
         },
         {
             tableId: '#memberExpensesTable',
-            bannerId: null,
-            labelId: null,
-            statId: null,
-            counterId: null,
-            totalBadgeId: null,
+            bannerId: '#memberExpFilterBanner',
+            labelId: '#memberExpFilterLabel',
+            statId: '#memberExpFilterStat',
+            counterId: '#memberExpCountBadge',
+            totalBadgeId: '#memberExpTotalBadge',
             searchId: '#memberExpSearch',
-            cardId: null,
-            defaultSuffix: 'Records'
+            cardId: '#memberExpenditureCard',
+            defaultSuffix: 'Vouchers'
         }
     ];
 
@@ -814,7 +894,7 @@ async function renderExpenseCharts(existingData = null) {
             cachedChartData = data;
         }
         
-        // 1. Doughnut Chart: Expense Category Outlays Breakdown
+        // 1. Doughnut Chart: Expense Category Outlays Breakdown (All Particulars Showcase)
         if (expenseChartCanvas && data.categories && data.categories.length > 0) {
             if (categoryChartInstance) {
                 categoryChartInstance.destroy();
@@ -822,17 +902,9 @@ async function renderExpenseCharts(existingData = null) {
 
             const labels = data.categories.map(c => c.category);
             const values = data.categories.map(c => c.total);
+            const totalOutlays = data.total_spend || values.reduce((a, b) => a + b, 0) || 1;
             
-            const vibrantPalette = [
-                '#3b82f6', // Electric Blue
-                '#10b981', // Emerald Green
-                '#f59e0b', // Amber Orange
-                '#f43f5e', // Rose / Red
-                '#8b5cf6', // Violet
-                '#06b6d4', // Cyan
-                '#ec4899', // Pink
-                '#64748b'  // Slate
-            ];
+            const sliceColors = labels.map((_, i) => getExpenseCategoryColor(i));
             
             categoryChartInstance = new Chart(expenseChartCanvas, {
                 type: 'doughnut',
@@ -840,10 +912,10 @@ async function renderExpenseCharts(existingData = null) {
                     labels: labels,
                     datasets: [{
                         data: values,
-                        backgroundColor: vibrantPalette.slice(0, labels.length),
-                        borderWidth: 3,
+                        backgroundColor: sliceColors,
+                        borderWidth: 2.5,
                         borderColor: chartCardBg,
-                        hoverOffset: 8
+                        hoverOffset: 10
                     }]
                 },
                 options: {
@@ -880,13 +952,13 @@ async function renderExpenseCharts(existingData = null) {
                                 boxHeight: 12,
                                 borderRadius: 3,
                                 useBorderRadius: true,
-                                padding: 14,
+                                padding: 12,
                                 color: textColor,
-                                font: { size: 12, weight: 600 }
+                                font: { size: 11.5, weight: 600 }
                             }
                         },
                         tooltip: {
-                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(15, 23, 42, 0.95)',
+                            backgroundColor: isLight ? 'rgba(255, 255, 255, 0.98)' : 'rgba(15, 23, 42, 0.96)',
                             titleColor: isLight ? '#0f172a' : '#ffffff',
                             bodyColor: isLight ? '#2563eb' : '#60a5fa',
                             borderColor: isLight ? '#cbd5e1' : 'rgba(59, 130, 246, 0.4)',
@@ -897,14 +969,19 @@ async function renderExpenseCharts(existingData = null) {
                             callbacks: {
                                 label: function(context) {
                                     const val = context.raw || 0;
-                                    return ` ₹ ${val.toLocaleString('en-IN')}`;
+                                    const pct = Math.round((val / totalOutlays) * 1000) / 10;
+                                    const isSel = selectedCategoryFilter === labels[context.dataIndex];
+                                    return ` ₹ ${val.toLocaleString('en-IN')} (${pct}% of budget)${isSel ? ' (Active Filter)' : ' • Click to filter'}`;
                                 }
                             }
                         }
                     },
-                    cutout: '68%'
+                    cutout: '62%'
                 }
             });
+
+            // Update interactive category pills visual
+            updateCategoryPillsVisual(data.categories, totalOutlays);
         }
         
         // 2. Bar Chart: Monthly Expenditure Trend
