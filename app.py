@@ -1420,8 +1420,9 @@ def expenses_list():
         ORDER BY spl_head ASC
     """)
     
-    total_incurred_row = query_db("SELECT COALESCE(SUM(amount), 0) as total FROM tbl_expenses", one=True)
+    total_incurred_row = query_db("SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM tbl_expenses", one=True)
     total_incurred = float(total_incurred_row['total']) if total_incurred_row else 0.0
+    total_vouchers_count = int(total_incurred_row.get('count') or 0) if total_incurred_row else len(expenses)
     
     next_voucher_row = query_db("SELECT COALESCE(MAX(voucher_no), 0) + 1 as next_v FROM tbl_expenses", one=True)
     next_voucher_no = int(next_voucher_row['next_v']) if next_voucher_row else 1
@@ -1429,6 +1430,7 @@ def expenses_list():
     return render_template(
         'expenses.html',
         expenses=expenses,
+        total_vouchers_count=total_vouchers_count,
         particulars_list=particulars_list,
         spl_heads_list=spl_heads_list,
         total_incurred=total_incurred,

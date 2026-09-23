@@ -6,7 +6,7 @@
 <div class="page-header">
     <div class="page-header-title">
         <h2>🧾 Association Expenditure & Transparency Portal</h2>
-        <p>Complete transparent record of 81 incurred expense vouchers, bills, service charges, and maintenance outlays.</p>
+        <p>Complete transparent record of {{ total_vouchers_count or (expenses|length) }} incurred expense vouchers, bills, service charges, and maintenance outlays.</p>
     </div>
 
     <div class="page-header-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
@@ -522,7 +522,7 @@ function openEditExpenseModal(btn) {
                             📦 Package 1: All Individual PDF Vouchers (ZIP)
                         </strong>
                         <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0.25rem 0 0 0; line-height: 1.4;">
-                            Contains all {{ expenses|length }} numbered PDFs (<code>SDERA_Expense_Voucher_001.pdf</code> to <code>081.pdf</code>). Ideal for uploading as an organized Google Drive folder.
+                            Contains all {{ total_vouchers_count or (expenses|length) }} numbered PDFs (<code>SDERA_Expense_Voucher_001.pdf</code> to <code>SDERA_Expense_Voucher_{{ "%03d"|format(total_vouchers_count or (expenses|length)) }}.pdf</code>). Ideal for uploading as an organized Google Drive folder.
                         </p>
                     </div>
                 </div>
@@ -544,7 +544,7 @@ function openEditExpenseModal(btn) {
                             📑 Package 2: Master Multi-Page PDF Ledger
                         </strong>
                         <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0.25rem 0 0 0; line-height: 1.4;">
-                            Single bound official PDF book compiling the cover summary, category breakdowns, and all 81+ vouchers into 1 document for Google Drive.
+                            Single bound official PDF book compiling the cover summary, category breakdowns, and all {{ total_vouchers_count or (expenses|length) }} vouchers into 1 document for Google Drive.
                         </p>
                     </div>
                 </div>
