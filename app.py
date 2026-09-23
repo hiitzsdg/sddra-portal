@@ -10,7 +10,7 @@ from decimal import Decimal
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort, Response
 from config import Config
 from database import init_db, query_db, execute_db, verify_password, hash_password, determine_engine
-from email_service import send_receipt_email, broadcast_notice_email, get_notice_email_recipients
+from email_service import send_receipt_email, broadcast_notice_email, get_notice_email_recipients, test_smtp_delivery
 from pdf_service import (
     generate_receipt_pdf_bytes,
     generate_expense_voucher_pdf_bytes,
@@ -1245,6 +1245,20 @@ def email_receipt(receipt_no):
     else:
         flash(result['message'], 'danger')
     return redirect(request.referrer or url_for('view_receipt', receipt_no=receipt_no))
+
+@app.route('/api/test-email', methods=['GET', 'POST'])
+def api_test_email():
+    """
+    Diagnostic API endpoint to test live SMTP connectivity, TLS handshake,
+    authentication, and test message delivery from Vercel / server.
+    """
+    recipient = request.args.get('to') or request.form.get('to')
+    if request.is_json:
+        recipient = (request.get_json(silent=True) or {}).get('to') or recipient
+    
+    result = test_smtp_delivery(recipient_email=recipient)
+    status_code = 200 if result.get('success') else (400 if not result.get('configured') else 500)
+    return jsonify(result), status_code
 
 @app.route('/receipts/<int:receipt_no>/whatsapp', methods=['GET', 'POST'])
 @login_required

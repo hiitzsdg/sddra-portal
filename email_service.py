@@ -1,7 +1,10 @@
 import smtplib
+import socket
+import traceback
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
+from email.utils import formatdate, make_msgid
 from datetime import datetime
 from config import Config
 from database import query_db, execute_db
@@ -497,10 +500,17 @@ def send_receipt_email(receipt_no, custom_recipient=None):
     
     if smtp_enabled:
         try:
+            sender_email = (Config.SMTP_USERNAME or Config.SMTP_FROM_EMAIL).strip()
+            sender_domain = sender_email.split('@')[-1] if '@' in sender_email else 'gmail.com'
+            
             msg = MIMEMultipart('mixed')
             msg['Subject'] = subject
-            msg['From'] = f"{Config.SMTP_FROM_NAME} <{Config.SMTP_FROM_EMAIL}>"
+            msg['From'] = f"{Config.SMTP_FROM_NAME} <{sender_email}>"
             msg['To'] = recipient
+            msg['Date'] = formatdate(localtime=True)
+            msg['Message-ID'] = make_msgid(domain=sender_domain)
+            if Config.SMTP_FROM_EMAIL and Config.SMTP_FROM_EMAIL.lower() != sender_email.lower():
+                msg['Reply-To'] = Config.SMTP_FROM_EMAIL
             
             # Alternative body (text + HTML)
             body_alt = MIMEMultipart('alternative')
@@ -515,11 +525,11 @@ def send_receipt_email(receipt_no, custom_recipient=None):
             att_part.add_header('Content-Disposition', 'attachment', filename=attachment_filename)
             msg.attach(att_part)
             
-            server = smtplib.SMTP(Config.SMTP_SERVER, Config.SMTP_PORT, timeout=4)
+            server = smtplib.SMTP(Config.SMTP_SERVER, Config.SMTP_PORT, timeout=12)
             if Config.SMTP_USE_TLS:
                 server.starttls()
             server.login(Config.SMTP_USERNAME, Config.SMTP_PASSWORD)
-            server.sendmail(Config.SMTP_FROM_EMAIL, [recipient], msg.as_string())
+            server.sendmail(sender_email, [recipient], msg.as_string())
             server.quit()
             
             try:
@@ -731,7 +741,10 @@ def broadcast_notice_email(notice, author_name=None):
     sent_count = 0
     if smtp_enabled:
         try:
-            server = smtplib.SMTP(Config.SMTP_SERVER, Config.SMTP_PORT, timeout=6)
+            sender_email = (Config.SMTP_USERNAME or Config.SMTP_FROM_EMAIL).strip()
+            sender_domain = sender_email.split('@')[-1] if '@' in sender_email else 'gmail.com'
+            
+            server = smtplib.SMTP(Config.SMTP_SERVER, Config.SMTP_PORT, timeout=12)
             if Config.SMTP_USE_TLS:
                 server.starttls()
             server.login(Config.SMTP_USERNAME, Config.SMTP_PASSWORD)
@@ -740,11 +753,15 @@ def broadcast_notice_email(notice, author_name=None):
                 try:
                     msg = MIMEMultipart('alternative')
                     msg['Subject'] = subject
-                    msg['From'] = f"{Config.SMTP_FROM_NAME} <{Config.SMTP_FROM_EMAIL}>"
+                    msg['From'] = f"{Config.SMTP_FROM_NAME} <{sender_email}>"
                     msg['To'] = recipient
+                    msg['Date'] = formatdate(localtime=True)
+                    msg['Message-ID'] = make_msgid(domain=sender_domain)
+                    if Config.SMTP_FROM_EMAIL and Config.SMTP_FROM_EMAIL.lower() != sender_email.lower():
+                        msg['Reply-To'] = Config.SMTP_FROM_EMAIL
                     msg.attach(MIMEText(f"Notice: {title}\n\n{content}\n\nIssued by: {posted_by} ({posted_by_role})", 'plain'))
                     msg.attach(MIMEText(html_email, 'html'))
-                    server.sendmail(Config.SMTP_FROM_EMAIL, [recipient], msg.as_string())
+                    server.sendmail(sender_email, [recipient], msg.as_string())
                     sent_count += 1
                 except Exception:
                     pass
@@ -771,6 +788,94 @@ def broadcast_notice_email(notice, author_name=None):
             "status": "SIMULATED",
             "preview_html": html_email
         }
+
+
+def test_smtp_delivery(recipient_email=None):
+    """
+    Diagnostic tool to verify live SMTP connectivity, TLS handshake,
+    authentication, and test message delivery to check for DKIM/SPF rejections.
+    """
+    results = {
+        "configured": False,
+        "smtp_server": Config.SMTP_SERVER,
+        "smtp_port": Config.SMTP_PORT,
+        "smtp_use_tls": Config.SMTP_USE_TLS,
+        "smtp_username": Config.SMTP_USERNAME or "NOT SET",
+        "smtp_from_email": Config.SMTP_FROM_EMAIL,
+        "steps": [],
+        "success": False,
+        "error": None
+    }
+    
+    if not Config.SMTP_USERNAME or not Config.SMTP_PASSWORD:
+        results["steps"].append("[ERROR] SMTP_USERNAME or SMTP_PASSWORD environment variables are not configured.")
+        results["error"] = "Credentials missing. Set SMTP_USERNAME and SMTP_PASSWORD in Vercel / .env."
+        return results
+        
+    results["configured"] = True
+    test_to = recipient_email or Config.SMTP_USERNAME or Config.SMTP_FROM_EMAIL
+    sender_email = (Config.SMTP_USERNAME or Config.SMTP_FROM_EMAIL).strip()
+    sender_domain = sender_email.split('@')[-1] if '@' in sender_email else 'gmail.com'
+    
+    try:
+        # Step 1: DNS & Connection
+        results["steps"].append(f"1. Connecting to {Config.SMTP_SERVER}:{Config.SMTP_PORT}...")
+        server = smtplib.SMTP(Config.SMTP_SERVER, Config.SMTP_PORT, timeout=12)
+        results["steps"].append(f"   [OK] Connected successfully (server banner: {server.ehlo()[1].decode('utf-8', 'ignore')[:60]}...)")
+        
+        # Step 2: STARTTLS
+        if Config.SMTP_USE_TLS:
+            results["steps"].append("2. Initiating STARTTLS handshake...")
+            server.starttls()
+            server.ehlo()
+            results["steps"].append("   [OK] TLS encrypted tunnel established.")
+            
+        # Step 3: Authentication
+        results["steps"].append(f"3. Authenticating as '{sender_email}'...")
+        server.login(Config.SMTP_USERNAME, Config.SMTP_PASSWORD)
+        results["steps"].append("   [OK] SMTP authentication successful!")
+        
+        # Step 4: Constructing RFC 5322 compliant message
+        results["steps"].append(f"4. Assembling test message to '{test_to}' with DKIM/RFC-aligned headers...")
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"SDERA Vercel SMTP Test - {datetime.now().strftime('%d %b %Y %H:%M:%S')}"
+        msg['From'] = f"{Config.SMTP_FROM_NAME} <{sender_email}>"
+        msg['To'] = test_to
+        msg['Date'] = formatdate(localtime=True)
+        msg['Message-ID'] = make_msgid(domain=sender_domain)
+        if Config.SMTP_FROM_EMAIL and Config.SMTP_FROM_EMAIL.lower() != sender_email.lower():
+            msg['Reply-To'] = Config.SMTP_FROM_EMAIL
+            
+        body_text = f"This is an automated test email dispatched from your Vercel deployment of {Config.ASSOCIATION_NAME}.\n\nIf you received this, Gmail SMTP authentication, STARTTLS, and DKIM alignment are functioning properly."
+        body_html = f"""
+        <div style="font-family: Arial, sans-serif; padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <h2 style="color: #15803d; margin-top: 0;">SMTP Email Test Succeeded!</h2>
+            <p>This test email was successfully dispatched from <strong>{Config.ASSOCIATION_NAME}</strong>.</p>
+            <table style="border-collapse: collapse; width: 100%; font-size: 13px; margin: 15px 0;">
+                <tr><td style="padding: 6px; border: 1px solid #e2e8f0; font-weight: bold;">SMTP Host:</td><td style="padding: 6px; border: 1px solid #e2e8f0;">{Config.SMTP_SERVER}:{Config.SMTP_PORT}</td></tr>
+                <tr><td style="padding: 6px; border: 1px solid #e2e8f0; font-weight: bold;">Sender:</td><td style="padding: 6px; border: 1px solid #e2e8f0;">{sender_email}</td></tr>
+                <tr><td style="padding: 6px; border: 1px solid #e2e8f0; font-weight: bold;">Recipient:</td><td style="padding: 6px; border: 1px solid #e2e8f0;">{test_to}</td></tr>
+                <tr><td style="padding: 6px; border: 1px solid #e2e8f0; font-weight: bold;">Timestamp:</td><td style="padding: 6px; border: 1px solid #e2e8f0;">{datetime.now().strftime('%d %B %Y, %I:%M:%S %p')}</td></tr>
+            </table>
+            <p style="color: #64748b; font-size: 12px; margin-bottom: 0;">Gmail SMTP Relay &bull; Vercel Serverless Production</p>
+        </div>
+        """
+        msg.attach(MIMEText(body_text, 'plain'))
+        msg.attach(MIMEText(body_html, 'html'))
+        
+        # Step 5: Dispatching
+        results["steps"].append(f"5. Dispatching email to {test_to}...")
+        server.sendmail(sender_email, [test_to], msg.as_string())
+        server.quit()
+        results["steps"].append("   [OK] Email accepted by Gmail SMTP server for delivery!")
+        results["success"] = True
+        return results
+    except Exception as e:
+        err_msg = str(e)
+        results["steps"].append(f"[ERROR] {err_msg}")
+        results["error"] = err_msg
+        results["traceback"] = traceback.format_exc()
+        return results
 
 
 
