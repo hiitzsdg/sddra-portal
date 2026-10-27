@@ -679,10 +679,22 @@
                         <input type="text" id="edit_rcpt_no_display" class="form-control" style="background: var(--surface-card); font-weight: 700; color: var(--highlight-blue);" readonly>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Flat Resident</label>
-                        <input type="text" id="edit_flat_member_display" class="form-control" style="background: var(--surface-card); font-weight: 600;" readonly>
+                        <label class="form-label" id="edit_flat_label">Flat / Reference Unit</label>
+                        <input type="text" id="edit_flat_display" class="form-control" style="background: var(--surface-card); font-weight: 700;" readonly>
                         <input type="hidden" id="edit_flat_no" name="flat_no">
                     </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <label class="form-label" for="edit_member_name" id="edit_member_label" style="margin-bottom: 0;">👤 Resident / Member Name *</label>
+                        <span id="editRegisteredOwnerWrap" style="font-size: 0.76rem; display: none;">
+                            <span class="text-muted">Registered: </span>
+                            <a href="javascript:void(0)" id="btnResetToOwner" style="color: var(--highlight-blue); font-weight: 600; text-decoration: underline;" onclick="resetEditMemberToRegisteredOwner()"></a>
+                        </span>
+                    </div>
+                    <input type="text" id="edit_member_name" name="member_name" class="form-control" placeholder="Enter Member or Other Person Name" style="font-weight: 600;" required>
+                    <small class="text-muted" style="font-size: 0.74rem; margin-top: 0.25rem; display: block;">Official name printed on receipt voucher &amp; PDF records</small>
                 </div>
 
                 <!-- Dual Date Provision for Edit -->
@@ -1355,6 +1367,17 @@ function appendPenaltyToRemarks(remarksFieldId, penAmt) {
     }
 }
 
+let _currentEditFlatNo = '';
+
+function resetEditMemberToRegisteredOwner() {
+    if (!_currentEditFlatNo || !window.MEMBERS_LOOKUP) return;
+    const m = window.MEMBERS_LOOKUP[_currentEditFlatNo];
+    if (m && m.member_name) {
+        const inp = document.getElementById('edit_member_name');
+        if (inp) inp.value = m.member_name;
+    }
+}
+
 // Edit Receipt Modal Handler
 function openEditReceiptModal(receiptNo) {
     fetch('/api/receipts/' + receiptNo)
@@ -1367,9 +1390,35 @@ function openEditReceiptModal(receiptNo) {
             const r = data.receipt;
             document.getElementById('editReceiptForm').action = '/admin/receipts/' + receiptNo + '/edit';
             document.getElementById('editReceiptNoBadge').textContent = 'SDERA_' + receiptNo;
+            document.getElementById('edit_rcpt_no_display').value = 'SDERA_' + receiptNo;
+            
+            _currentEditFlatNo = r.flat_no || '';
             const unitLabel = ['OTHER', '-', 'N/A', 'STAFF'].includes(r.flat_no) ? r.flat_no : 'Flat ' + r.flat_no;
-            document.getElementById('edit_flat_member_display').value = unitLabel + ' (' + r.member_name + ')';
-            document.getElementById('edit_flat_no').value = r.flat_no;
+            const flatDisp = document.getElementById('edit_flat_display');
+            if (flatDisp) flatDisp.value = unitLabel;
+            document.getElementById('edit_flat_no').value = r.flat_no || '';
+
+            const memberNameInput = document.getElementById('edit_member_name');
+            if (memberNameInput) memberNameInput.value = r.member_name || '';
+
+            const memberLabel = document.getElementById('edit_member_label');
+            const ownerWrap = document.getElementById('editRegisteredOwnerWrap');
+            const ownerLink = document.getElementById('btnResetToOwner');
+
+            if (r.subscription_type === 'Other Income' || ['OTHER', 'STAFF'].includes(r.flat_no)) {
+                if (memberLabel) memberLabel.textContent = '👤 Payer / Other Person Name *';
+                if (ownerWrap) ownerWrap.style.display = 'none';
+            } else {
+                if (memberLabel) memberLabel.textContent = '👤 Resident / Member Name *';
+                const regOwner = (window.MEMBERS_LOOKUP && window.MEMBERS_LOOKUP[r.flat_no]) ? window.MEMBERS_LOOKUP[r.flat_no].member_name : '';
+                if (ownerWrap && ownerLink && regOwner && regOwner !== r.member_name) {
+                    ownerWrap.style.display = 'inline-block';
+                    ownerLink.textContent = regOwner;
+                } else if (ownerWrap) {
+                    ownerWrap.style.display = 'none';
+                }
+            }
+
             document.getElementById('edit_payment_date').value = r.payment_date || '';
             document.getElementById('edit_receipt_date').value = r.receipt_date || r.payment_date || '';
             document.getElementById('edit_amount').value = parseFloat(r.amount || 0).toFixed(2);

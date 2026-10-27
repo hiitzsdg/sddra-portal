@@ -219,9 +219,24 @@
                         <input type="text" class="form-control" style="background: var(--surface-card); font-weight: 700; color: var(--highlight-blue);" value="SDERA_{{ receipt.receipt_no }}" readonly>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">{% if receipt.subscription_type == 'Other Income' %}Payer / Entity{% else %}Flat Resident{% endif %}</label>
-                        <input type="text" class="form-control" style="background: var(--surface-card); font-weight: 600;" value="{% if receipt.flat_no in ['OTHER', '-', 'N/A', 'STAFF'] %}{{ receipt.flat_no }}{% else %}Flat {{ receipt.flat_no }}{% endif %} ({{ receipt.member_name or (member.member_name if member else 'Other Person') }})" readonly>
+                        <label class="form-label">Flat / Reference Unit</label>
+                        <input type="text" class="form-control" style="background: var(--surface-card); font-weight: 700;" value="{% if receipt.flat_no in ['OTHER', '-', 'N/A', 'STAFF'] %}{{ receipt.flat_no }}{% else %}Flat {{ receipt.flat_no }}{% endif %}" readonly>
+                        <input type="hidden" name="flat_no" value="{{ receipt.flat_no }}">
                     </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <label class="form-label" for="view_edit_member_name" style="margin-bottom: 0;">👤 {% if receipt.subscription_type == 'Other Income' %}Payer / Other Person Name *{% else %}Resident / Member Name *{% endif %}</label>
+                        {% if member and member.member_name and member.member_name != receipt.member_name %}
+                        <span style="font-size: 0.76rem;">
+                            <span class="text-muted">Registered: </span>
+                            <a href="javascript:void(0)" style="color: var(--highlight-blue); font-weight: 600; text-decoration: underline;" onclick="document.getElementById('view_edit_member_name').value = '{{ member.member_name|replace("'", "\\'") }}'">{{ member.member_name }}</a>
+                        </span>
+                        {% endif %}
+                    </div>
+                    <input type="text" id="view_edit_member_name" name="member_name" class="form-control" value="{{ receipt.member_name or (member.member_name if member else '') }}" placeholder="Enter Member or Other Person Name" style="font-weight: 600;" required>
+                    <small class="text-muted" style="font-size: 0.74rem; margin-top: 0.25rem; display: block;">Official name printed on receipt voucher &amp; PDF records</small>
                 </div>
 
                 <!-- Dual Date Provision -->

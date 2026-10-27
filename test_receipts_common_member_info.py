@@ -210,5 +210,66 @@ class TestReceiptsCommonMemberInfo(unittest.TestCase):
         execute_db("DELETE FROM tbl_receipts WHERE receipt_no IN (9991, 9992)")
         print("[OK] Other Income receipts with Other Person details successfully issued, saved in DB, and rendered in receipt view.")
 
+    def test_07_edit_receipt_change_member_name(self):
+        """Verify editing receipt details allows changing member name and persists in DB, API, and view"""
+        from database import query_db, execute_db
+
+        # 1. Check template elements
+        resp_admin = self.client.get('/admin/receipts')
+        self.assertEqual(resp_admin.status_code, 200)
+        admin_html = resp_admin.data.decode('utf-8')
+        self.assertIn('id="edit_member_name"', admin_html)
+        self.assertIn('function resetEditMemberToRegisteredOwner(', admin_html)
+
+        # 2. Insert temporary receipt #9993
+        execute_db("DELETE FROM tbl_receipts WHERE receipt_no = 9993")
+        execute_db(
+            """INSERT INTO tbl_receipts (receipt_no, flat_no, member_name, amount, pymnt_mode, subscription_type, remarks, payment_date, receipt_date, coverage_start, coverage_end)
+               VALUES (9993, 'A/1-A', 'Original Payer Name', 2000.00, 'Online', 'Monthly Subscription', 'Aug 2026', '2026-08-10', '2026-08-10', '2026-08-01', '2026-08-31')"""
+        )
+
+        # 3. Check receipt view template contains editable member name
+        resp_view_initial = self.client.get('/receipts/9993')
+        self.assertEqual(resp_view_initial.status_code, 200)
+        view_html_initial = resp_view_initial.data.decode('utf-8')
+        self.assertIn('id="view_edit_member_name"', view_html_initial)
+        self.assertIn('Original Payer Name', view_html_initial)
+
+        # 4. Perform Edit POST with modified member_name
+        edit_data = {
+            'member_name': 'Dr. S. Mukherjee (Tenant Representative)',
+            'payment_date': '2026-08-12',
+            'receipt_date': '2026-08-12',
+            'amount': '2000.00',
+            'pymnt_mode': 'Online',
+            'subscription_type': 'Monthly Subscription',
+            'remarks': 'Aug 2026 Maintenance (Adjusted)'
+        }
+        edit_resp = self.client.post('/admin/receipts/9993/edit', data=edit_data, follow_redirects=True)
+        self.assertEqual(edit_resp.status_code, 200)
+
+        # 5. Verify database record
+        rcpt_updated = query_db("SELECT * FROM tbl_receipts WHERE receipt_no = 9993", one=True)
+        self.assertIsNotNone(rcpt_updated)
+        self.assertEqual(rcpt_updated['member_name'], 'Dr. S. Mukherjee (Tenant Representative)')
+        self.assertEqual(rcpt_updated['remarks'], 'Aug 2026 Maintenance (Adjusted)')
+
+        # 6. Verify receipt view reflects updated member name
+        resp_view_updated = self.client.get('/receipts/9993')
+        self.assertEqual(resp_view_updated.status_code, 200)
+        view_html_updated = resp_view_updated.data.decode('utf-8')
+        self.assertIn('Dr. S. Mukherjee (Tenant Representative)', view_html_updated)
+
+        # 7. Verify API returns updated member name
+        resp_api = self.client.get('/api/receipts/9993')
+        self.assertEqual(resp_api.status_code, 200)
+        api_data = resp_api.get_json()
+        self.assertTrue(api_data['success'])
+        self.assertEqual(api_data['receipt']['member_name'], 'Dr. S. Mukherjee (Tenant Representative)')
+
+        # Clean up
+        execute_db("DELETE FROM tbl_receipts WHERE receipt_no = 9993")
+        print("[OK] Editing receipt member name successfully verified across UI, DB, API, and View voucher.")
+
 if __name__ == '__main__':
     unittest.main()

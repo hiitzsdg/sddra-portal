@@ -1860,6 +1860,7 @@ def edit_receipt(receipt_no):
     remarks = request.form.get('remarks', '').strip()
     coverage_start = request.form.get('coverage_start', '').strip() or payment_date
     coverage_end = request.form.get('coverage_end', '').strip() or payment_date
+    member_name = request.form.get('member_name', '').strip() or rcpt.get('member_name', '')
     
     try:
         amount = float(amount_str)
@@ -1869,16 +1870,20 @@ def edit_receipt(receipt_no):
             
         execute_db(
             """UPDATE tbl_receipts 
-               SET payment_date = %s, receipt_date = %s, amount = %s, pymnt_mode = %s, 
+               SET member_name = %s, payment_date = %s, receipt_date = %s, amount = %s, pymnt_mode = %s, 
                    subscription_type = %s, remarks = %s, coverage_start = %s, coverage_end = %s 
                WHERE receipt_no = %s""",
-            (payment_date, receipt_date, amount, pymnt_mode, subscription_type, remarks, coverage_start, coverage_end, receipt_no)
+            (member_name, payment_date, receipt_date, amount, pymnt_mode, subscription_type, remarks, coverage_start, coverage_end, receipt_no)
         )
-        log_activity('RECEIPT_UPDATED', f"Updated Receipt #{receipt_no} (SDERA_{receipt_no}) for Flat {rcpt.get('flat_no')} - Payment Date: {payment_date}, Issue Date: {receipt_date}, Amount: INR {amount:,.2f}")
-        flash(f"✓ Receipt SDERA_{receipt_no} updated successfully (Payment Date: {payment_date}, Issue Date: {receipt_date}).", 'success')
+        unit_str = f"Flat {rcpt.get('flat_no')}" if rcpt.get('flat_no') not in ['OTHER', '-', 'N/A', 'STAFF'] else rcpt.get('flat_no')
+        log_activity('RECEIPT_UPDATED', f"Updated Receipt #{receipt_no} (SDERA_{receipt_no}) for {member_name} ({unit_str}) - Amount: INR {amount:,.2f}")
+        flash(f"✓ Receipt SDERA_{receipt_no} updated successfully for {member_name} ({unit_str})!", 'success')
     except Exception as e:
         flash(f"Error updating receipt #{receipt_no}: {e}", 'danger')
         
+    referrer = request.referrer or ''
+    if f"/receipts/{receipt_no}" in referrer:
+        return redirect(url_for('view_receipt', receipt_no=receipt_no))
     return redirect(url_for('admin_receipts'))
 
 @app.route('/admin/receipts/<int:receipt_no>/delete', methods=['POST'])
