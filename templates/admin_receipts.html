@@ -105,6 +105,185 @@
     </div>
 </div>
 
+<!-- ================= COMMON MEMBER INFO IN RECEIPTS TAB ================= -->
+<div id="commonMemberInfoSection" style="margin-bottom: 1.5rem;">
+    <!-- Active Member Card (Rendered if selected_member is present, or populated dynamically) -->
+    <div id="commonMemberInfoCard" class="card" style="{% if not selected_member %}display: none;{% endif %} border: 1px solid rgba(59, 130, 246, 0.35); background: linear-gradient(135deg, rgba(30, 58, 138, 0.22) 0%, var(--surface-card, rgba(15, 23, 42, 0.95)) 100%); position: relative; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);">
+        <!-- Top decorative ambient glow -->
+        <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #3b82f6 0%, #10b981 50%, #8b5cf6 100%);"></div>
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.15rem;">
+            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                <!-- Avatar Slot -->
+                <div id="cmiAvatar" style="width: 54px; height: 54px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.45rem; font-weight: 700; border: 2px solid rgba(59, 130, 246, 0.5); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); flex-shrink: 0;">
+                    {% if selected_member and selected_member.profile_pic %}
+                    <img src="{{ selected_member.profile_pic }}" alt="{{ selected_member.member_name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                    {% else %}
+                    <span>{{ (selected_member.member_name[:1] if selected_member and selected_member.member_name else 'R')|upper }}</span>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); font-size: 0.74rem; font-weight: 700; letter-spacing: 0.5px;">
+                            👤 COMMON MEMBER INFO
+                        </span>
+                        <span id="cmiFlatBadge" class="badge badge-info" style="font-size: 0.85rem; font-weight: 800;">
+                            Flat {{ selected_member.flat_no if selected_member else '-' }}
+                        </span>
+                        <span id="cmiStatusBadge">
+                            {% if selected_member_penalty %}
+                                {% if selected_member_penalty.is_overdue %}
+                                <span class="badge badge-danger" style="font-size: 0.74rem; font-weight: 700;">
+                                    ⚠️ {{ selected_member_penalty.overdue_months }} mo. Overdue
+                                </span>
+                                {% else %}
+                                <span class="badge badge-success" style="font-size: 0.74rem; font-weight: 700;">
+                                    ✓ Paid Up (Covered through {{ selected_member_penalty.coverage_display }})
+                                </span>
+                                {% endif %}
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <h3 id="cmiMemberName" style="margin: 0.35rem 0 0.15rem 0; font-size: 1.3rem; font-weight: 800; color: var(--text-main);">
+                        {{ selected_member.member_name if selected_member else '-' }}
+                    </h3>
+                    
+                    <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary);">
+                        Official Society Member Record • Associated with <strong id="cmiReceiptsCountText" class="text-highlight-blue">{{ selected_member_stats.receipts_count if selected_member_stats else 0 }}</strong> payment receipts in this ledger
+                    </p>
+                </div>
+            </div>
+
+            <!-- Header Actions -->
+            <div style="display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap;">
+                <button type="button" class="btn btn-sm btn-primary" id="cmiBtnIssue" onclick="issueReceiptForMember('{{ selected_member.flat_no if selected_member else '' }}', {{ selected_member.monthly_charge if selected_member and selected_member.monthly_charge else 2000 }})" title="Issue New Receipt for this Flat">
+                    ➕ Issue Receipt
+                </button>
+                <button type="button" class="btn btn-sm btn-whatsapp" id="cmiBtnWa" onclick="openMemberWhatsApp('{{ selected_member.flat_no if selected_member else '' }}')" title="WhatsApp Resident">
+                    💬 WhatsApp
+                </button>
+                <a id="cmiBtnDir" href="{{ url_for('admin_members') }}?q={{ selected_member.flat_no if selected_member else '' }}" class="btn btn-sm btn-secondary" title="View Resident Directory">
+                    👥 Directory
+                </a>
+                <a href="{{ url_for('admin_receipts') }}" class="btn btn-sm btn-secondary" title="Clear Member Filter &amp; View All Receipts">
+                    ✖ View All Flats
+                </a>
+            </div>
+        </div>
+
+        <!-- Member Detailed Metrics Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; padding: 0.9rem; background: rgba(0, 0, 0, 0.25); border-radius: var(--radius-md); border: 1px solid rgba(255, 255, 255, 0.06); margin-bottom: 0.85rem;">
+            <!-- Contact Phone -->
+            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                <span class="text-muted" style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">📞 Contact Phone</span>
+                <div id="cmiPhone" style="font-size: 0.9rem; font-weight: 600; color: var(--text-main);">
+                    {% set phone = (selected_member.mobile_num_1 or selected_member.mobile_num_2) if selected_member else '' %}
+                    {% if phone %}
+                    <a href="tel:{{ phone }}" style="color: var(--highlight-blue); text-decoration: none;">{{ phone }}</a>
+                    {% else %}
+                    <span class="text-muted">Not registered</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Contact Email -->
+            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                <span class="text-muted" style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">✉️ Registered Email</span>
+                <div id="cmiEmail" style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {% set email = (selected_member.email_1 or selected_member.email_2) if selected_member else '' %}
+                    {% if email %}
+                    <a href="mailto:{{ email }}" style="color: var(--highlight-blue); text-decoration: none;" title="{{ email }}">{{ email }}</a>
+                    {% else %}
+                    <span class="text-muted">Not registered</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Flat Area & Common Space -->
+            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                <span class="text-muted" style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">📐 Flat Size &amp; Spaces</span>
+                <div id="cmiFlatSize" style="font-size: 0.9rem; font-weight: 700; color: var(--text-main);">
+                    <span>{{ selected_member.RvsdFlatSize if selected_member and selected_member.RvsdFlatSize else '-' }} Sq. Ft.</span>
+                    {% if selected_member and selected_member.car_parking_space and selected_member.car_parking_space != '-' %}
+                    <span class="badge badge-info" style="font-size: 0.68rem; margin-left: 0.25rem;">CPS: {{ selected_member.car_parking_space }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Approved Monthly Rate -->
+            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                <span class="text-muted" style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">⚡ Monthly Maintenance</span>
+                <div id="cmiMonthlyRate" style="font-size: 0.98rem; font-weight: 800; color: #60a5fa;">
+                    ₹ {{ "{:,.2f}".format(selected_member.monthly_charge if selected_member and selected_member.monthly_charge else 2000.00) }}<span style="font-size: 0.72rem; font-weight: 500; color: var(--text-muted);">/mo</span>
+                </div>
+            </div>
+
+            <!-- Total Lifetime Paid -->
+            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                <span class="text-muted" style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">💰 Total Paid in Ledger</span>
+                <div id="cmiTotalPaid" style="font-size: 1.02rem; font-weight: 800; color: #34d399;">
+                    ₹ {{ "{:,.2f}".format(selected_member_stats.total_paid if selected_member_stats else 0.0) }}
+                </div>
+            </div>
+
+            <!-- Clearance / Due Status -->
+            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                <span class="text-muted" style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">⚖️ Maintenance Status</span>
+                <div id="cmiPenaltyStatus" style="font-size: 0.86rem; font-weight: 700;">
+                    {% if selected_member_penalty %}
+                        {% if selected_member_penalty.is_overdue %}
+                        <span class="text-amount-danger">₹ {{ "{:,.2f}".format(selected_member_penalty.total_due) }} Due</span>
+                        <span class="text-muted" style="font-size: 0.7rem; display: block;">Late Fee: ₹ {{ "{:,.2f}".format(selected_member_penalty.penalty_amount) }}</span>
+                        {% else %}
+                        <span class="text-amount-success">✓ Paid Up</span>
+                        <span class="text-muted" style="font-size: 0.7rem; display: block;">Through {{ selected_member_penalty.coverage_display }}</span>
+                        {% endif %}
+                    {% else %}
+                    <span class="text-muted">Verified</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Tariff Breakdown Sub-Bar (Flat charge, Common Exp, Parking, Capital Fund) -->
+        <div id="cmiTariffBreakdown" style="display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap; font-size: 0.78rem; color: var(--text-muted); padding-top: 0.4rem; border-top: 1px dashed rgba(255, 255, 255, 0.08);">
+            <span>🏢 Base Rate: <strong class="text-main" id="cmiBaseRate">₹ {{ selected_member.flat_charges if selected_member else '-' }}</strong></span>
+            <span>🏛️ Common Expenses: <strong class="text-main" id="cmiCommExp">₹ {{ selected_member.common_expenses if selected_member else '-' }}</strong></span>
+            <span>🅿️ Parking Charge: <strong class="text-main" id="cmiParkingChg">₹ {{ "{:,.2f}".format((selected_member.cps_charges or 0) + (selected_member.tws_charges or 0)) if selected_member else '0.00' }}</strong></span>
+            <span>🧱 Capital Fund: <strong class="text-main" id="cmiCapFund">₹ {{ selected_member.capital_fund if selected_member else '-' }}</strong></span>
+            <span style="margin-left: auto; font-style: italic; font-size: 0.74rem;">Formula: Round10((Area × Rates) + Common + Parking)</span>
+        </div>
+    </div>
+
+    <!-- Quick Member Info Selector Card (Shown when viewing all units or as quick picker) -->
+    <div id="commonMemberSelectorCard" class="card" style="{% if selected_member %}display: none;{% endif %} border: 1px dashed rgba(59, 130, 246, 0.35); background: rgba(30, 58, 138, 0.08); padding: 1rem 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(59, 130, 246, 0.18); border: 1px solid rgba(59, 130, 246, 0.35); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0;">
+                    👤
+                </div>
+                <div>
+                    <h4 style="margin: 0; font-size: 0.98rem; font-weight: 700; color: var(--text-main);">Common Member Information Hub</h4>
+                    <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">
+                        Select any unit below or click a resident in the ledger to view their contact, property specs, monthly tariff breakdown, and collection status.
+                    </p>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <select id="quickMemberSelect" class="form-select" style="min-width: 250px; font-size: 0.85rem;" onchange="if(this.value) showCommonMemberInfo(this.value)">
+                    <option value="">-- Choose Resident to View Member Info --</option>
+                    {% for f in all_flats %}
+                    <option value="{{ f.flat_no }}">Flat {{ f.flat_no }} - {{ f.member_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Receipts Table -->
 <div class="card">
     <div class="card-header">
@@ -138,10 +317,15 @@
                         <strong class="text-highlight-blue" style="font-size: 0.95rem;">SDERA_{{ r.receipt_no }}</strong>
                     </td>
                     <td>
-                        <span class="badge badge-info">Flat {{ r.flat_no }}</span>
+                        <button type="button" class="badge badge-info badge-interactive" onclick="showCommonMemberInfo('{{ r.flat_no }}')" title="Inspect Common Member Info for Flat {{ r.flat_no }}" style="cursor: pointer; border: none; font-size: 0.8rem; padding: 0.25rem 0.55rem;">
+                            Flat {{ r.flat_no }}
+                        </button>
                     </td>
                     <td>
-                        <strong class="text-main">{{ r.member_name }}</strong>
+                        <a href="javascript:void(0)" onclick="showCommonMemberInfo('{{ r.flat_no }}')" class="text-main" style="text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem;" title="Inspect Common Member Info for {{ r.member_name }}">
+                            <span>{{ r.member_name }}</span>
+                            <span style="font-size: 0.72rem; color: var(--highlight-blue); opacity: 0.85;">ℹ️</span>
+                        </a>
                     </td>
                     <td>
                         <span class="badge badge-warning">{{ r.remarks or 'Monthly' }}</span>
@@ -170,6 +354,9 @@
                     </td>
                     <td>
                         <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-sm btn-secondary" style="padding: 0.25rem 0.5rem; color: #60a5fa;" onclick="openCommonMemberInfoModal('{{ r.flat_no }}')" title="View Common Member Info Modal for Flat {{ r.flat_no }}">
+                                👤
+                            </button>
                             <a href="{{ url_for('view_receipt', receipt_no=r.receipt_no) }}" class="btn btn-sm btn-secondary" style="padding: 0.25rem 0.5rem;" title="View Voucher">
                                 👁️
                             </a>
@@ -221,6 +408,26 @@
         </div>
         <form method="POST" action="{{ url_for('create_receipt') }}">
             <div class="modal-body">
+                <!-- Receipt Category Toggle -->
+                <div style="background: rgba(15, 23, 42, 0.35); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 0.6rem; margin-bottom: 1.15rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.35rem;">
+                        <span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">
+                            📋 Receipt Category
+                        </span>
+                        <span id="rcptCategoryStatusBadge" class="badge badge-primary" style="font-size: 0.72rem;">
+                            Flat Maintenance
+                        </span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <button type="button" id="btnCategoryMonthly" class="btn btn-primary" onclick="setCreateReceiptType('Monthly Subscription')" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.85rem; font-size: 0.88rem; font-weight: 700; border-radius: var(--radius-sm);">
+                            <span>🏢</span> Flat Maintenance (Monthly)
+                        </button>
+                        <button type="button" id="btnCategoryOther" class="btn btn-outline-primary" onclick="setCreateReceiptType('Other Income')" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 0.85rem; font-size: 0.88rem; font-weight: 700; border-radius: var(--radius-sm);">
+                            <span>💵</span> Other Income (Other Person / Sundry)
+                        </button>
+                    </div>
+                </div>
+
                 <div class="grid-2">
                     <div class="form-group">
                         <label class="form-label" for="rcpt_no">Receipt Number *</label>
@@ -231,7 +438,8 @@
                         <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem; display: block;">Auto-assigned next official sequence</small>
                     </div>
 
-                    <div class="form-group">
+                    <!-- Flat Resident Selection (Shown for Monthly Subscription) -->
+                    <div class="form-group" id="rcptFlatResidentSection">
                         <label class="form-label" for="rcpt_flat">Select Flat Resident *</label>
                         <select id="rcpt_flat" name="flat_no" class="form-select" onchange="onReceiptFlatOrDateChange('create')" required>
                             <option value="">-- Choose Flat Resident --</option>
@@ -242,6 +450,133 @@
                             {% endfor %}
                         </select>
                         <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem; display: block;">Resident account to credit</small>
+                        <div id="modalCreateMemberInfo" style="display: none; margin-top: 0.4rem; padding: 0.45rem 0.75rem; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-sm); font-size: 0.76rem; color: var(--text-secondary);">
+                        </div>
+                    </div>
+
+                    <!-- Other Person Selection (Shown for Other Income) -->
+                    <div class="form-group" id="rcptOtherPersonSection" style="display: none;">
+                        <label class="form-label" for="other_person_select" style="display: flex; align-items: center; justify-content: space-between;">
+                            <span>👤 Select "Other Person" / Payer *</span>
+                            <span class="badge badge-info" style="font-size: 0.68rem; padding: 2px 6px;">Sundry / Non-maintenance</span>
+                        </label>
+                        <select id="other_person_select" name="other_person_select" class="form-select" onchange="onOtherPersonChange(this)">
+                            <option value="">-- Choose Other Person / Entity --</option>
+                            <optgroup label="🏢 Society Staff &amp; Caretakers">
+                                <option value="Khokhon Routh" data-role="Estate Caretaker / Maintenance Staff" data-flat="STAFF" data-phone="9831000001" data-purpose="Staff Maintenance Reimbursement">
+                                    Khokhon Routh (Estate Caretaker / Staff)
+                                </option>
+                                <option value="Sanjoy Chakraborty" data-role="Estate Caretaker / Night Guard" data-flat="STAFF" data-phone="9831000002" data-purpose="Security &amp; Caretaking Sundry">
+                                    Sanjoy Chakraborty (Estate Caretaker / Guard)
+                                </option>
+                            </optgroup>
+                            <optgroup label="🚚 Commercial &amp; External Payers">
+                                <option value="Commercial Vehicle Transporter" data-role="External Transporter / Delivery Fleet" data-flat="OTHER" data-phone="9830099881" data-purpose="4 Wheeler Parking Charge">
+                                    Commercial Vehicle Transporter (4-Wheeler Parking)
+                                </option>
+                                <option value="Community Hall Booker" data-role="Function / Event Organizer" data-flat="OTHER" data-phone="9830099882" data-purpose="Community Hall Booking Fee">
+                                    Community Hall Booker (Events &amp; Functions)
+                                </option>
+                                <option value="Table &amp; Chair Renter" data-role="Furniture / Inventory Renter" data-flat="OTHER" data-phone="9830099883" data-purpose="Hall Table &amp; Chair Rent">
+                                    Table &amp; Chair Renter (Society Inventory)
+                                </option>
+                                <option value="Broadband &amp; Cable Operator" data-role="Telecom / Network Agency" data-flat="OTHER" data-phone="9830099884" data-purpose="Cable / Broadband Access Fee">
+                                    Broadband &amp; Cable Operator (Utility Access Fee)
+                                </option>
+                                <option value="Mobile Tower Agency" data-role="Infrastructure / Tower Operator" data-flat="OTHER" data-phone="9830099885" data-purpose="Rooftop Tower Lease Share">
+                                    Mobile Tower Agency (Rooftop Lease / Power Share)
+                                </option>
+                                <option value="Building Contractor / Vendor" data-role="Civil &amp; Electrical Vendor" data-flat="OTHER" data-phone="9830099886" data-purpose="Site Utility &amp; Works Reimbursement">
+                                    Building Contractor / Vendor (Works &amp; Services)
+                                </option>
+                                <option value="Tenant / Sub-letter" data-role="Temporary Non-member Resident" data-flat="OTHER" data-phone="" data-purpose="Tenant Registration &amp; Move-in Fee">
+                                    Tenant / Sub-letter (Non-member Occupant)
+                                </option>
+                                <option value="Visitor Vehicle Day Parking" data-role="Visitor / Guest Driver" data-flat="OTHER" data-phone="" data-purpose="Visitor 4-Wheeler Parking Charge">
+                                    Visitor Vehicle Day Parking (Daily / Sundry)
+                                </option>
+                                <option value="Scrap &amp; Metal Recycler" data-role="Salvage &amp; Waste Merchant" data-flat="OTHER" data-phone="9830099887" data-purpose="Scrap Material Sale Proceeds">
+                                    Scrap &amp; Metal Recycler (Society Salvage)
+                                </option>
+                                <option value="General Sundry Payer" data-role="Miscellaneous Payer" data-flat="OTHER" data-phone="" data-purpose="Miscellaneous Income">
+                                    General Sundry Payer (Miscellaneous / Other)
+                                </option>
+                            </optgroup>
+                            <optgroup label="🏠 Society Flat Residents (Special Sundry Receipts)">
+                                {% for f in all_flats %}
+                                <option value="{{ f.member_name }}" data-role="Resident Member (Flat {{ f.flat_no }})" data-flat="{{ f.flat_no }}" data-phone="{{ f.phone or '' }}" data-purpose="4 Wheeler Parking Charge">
+                                    {{ f.member_name }} (Flat {{ f.flat_no }})
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                            <optgroup label="➕ Custom Person / Entity">
+                                <option value="__custom__" data-role="Custom Payer" data-flat="OTHER" data-phone="" data-purpose="Miscellaneous Income">
+                                    ➕ Enter Custom Other Person / Entity Details...
+                                </option>
+                            </optgroup>
+                        </select>
+                        <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem; display: block;">Select staff, external contractor, flat resident, or custom</small>
+                    </div>
+                </div>
+
+                <!-- Other Person Dynamic Card & Custom Input Fields (Visible in Other Income Mode) -->
+                <div id="otherPersonDynamicWrapper" style="display: none; background: rgba(14, 165, 233, 0.06); border: 1px solid rgba(14, 165, 233, 0.25); border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 1rem;">
+                    <!-- Preview Card -->
+                    <div id="otherPersonDynamicCard" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.65rem;">
+                        <div style="display: flex; align-items: center; gap: 0.65rem;">
+                            <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #0ea5e9, #2563eb); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem;" id="otherPersonAvatar">
+                                👤
+                            </div>
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.92rem; color: var(--text-main);" id="otherPersonCardName">
+                                    No Other Person Selected
+                                </div>
+                                <div style="font-size: 0.76rem; color: var(--text-muted); display: flex; gap: 0.4rem; align-items: center;" id="otherPersonCardMeta">
+                                    <span id="otherPersonRoleBadge" class="badge badge-info" style="font-size: 0.68rem;">Pending Selection</span>
+                                    <span id="otherPersonFlatBadge" style="font-size: 0.74rem;">Unit: OTHER</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="btnToggleOtherPersonEdit" onclick="toggleOtherPersonInputs()" style="padding: 0.25rem 0.6rem; font-size: 0.76rem;">
+                            ✏️ Edit Details
+                        </button>
+                    </div>
+
+                    <!-- Editable Fields (Auto shown for custom, or toggleable) -->
+                    <div id="otherPersonInputsGrid" style="display: none; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.65rem; padding-top: 0.6rem; border-top: 1px dashed rgba(14, 165, 233, 0.3);">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="other_person_name" style="font-size: 0.76rem;">Payer / Person Name *</label>
+                            <input type="text" id="other_person_name" name="other_person_name" class="form-control" placeholder="e.g. Khokhon Routh" style="font-size: 0.85rem;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="other_person_flat" style="font-size: 0.76rem;">Unit / Flat Reference *</label>
+                            <input type="text" id="other_person_flat" name="other_person_flat" class="form-control" value="OTHER" placeholder="e.g. OTHER or STAFF or A/1-A" style="font-size: 0.85rem;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="other_person_phone" style="font-size: 0.76rem;">Contact Phone (Optional)</label>
+                            <input type="text" id="other_person_phone" name="other_person_phone" class="form-control" placeholder="e.g. 9831000000" style="font-size: 0.85rem;">
+                        </div>
+                    </div>
+
+                    <!-- Purpose Suggestions -->
+                    <div style="margin-top: 0.65rem; padding-top: 0.55rem; border-top: 1px solid rgba(255, 255, 255, 0.06); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">💡 Common Purpose:</span>
+                        <select id="other_income_purpose_select" class="form-select" onchange="onOtherIncomePurposeChange(this.value)" style="flex: 1; min-width: 200px; padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                            <option value="">-- Choose Purpose to Auto-fill Remarks --</option>
+                            <option value="4 Wheeler Parking Charge">4 Wheeler Parking Charge</option>
+                            <option value="2 Wheeler Parking Charge">2 Wheeler Parking Charge</option>
+                            <option value="Community Hall Booking Fee">Community Hall Booking Fee</option>
+                            <option value="Hall Table &amp; Chair Rent">Hall Table &amp; Chair Rent</option>
+                            <option value="Lift Maintenance Contribution">Lift Maintenance Contribution</option>
+                            <option value="Rooftop Solar / Utility Reimbursement">Rooftop Solar / Utility Reimbursement</option>
+                            <option value="Cable / Broadband Access Fee">Cable / Broadband Access Fee</option>
+                            <option value="Mobile Tower Rooftop Lease Share">Mobile Tower Rooftop Lease Share</option>
+                            <option value="Scrap Material Sale Proceeds">Scrap Material Sale Proceeds</option>
+                            <option value="Staff Maintenance Reimbursement">Staff Maintenance Reimbursement</option>
+                            <option value="Sponsorship / Society Donation">Sponsorship / Society Donation</option>
+                            <option value="Penalty / Fine Collection">Penalty / Fine Collection</option>
+                            <option value="Miscellaneous Income">Miscellaneous Income</option>
+                        </select>
                     </div>
                 </div>
 
@@ -268,7 +603,7 @@
 
                 <!-- Live Penalty Assessment Box based on Payment Date -->
                 <div id="createPenaltyBox" style="display: none; background: rgba(30, 58, 138, 0.07); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.35rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: gap; margin-bottom: 0.35rem;">
                         <span style="font-weight: 700; font-size: 0.88rem; color: var(--text-main); display: flex; align-items: center; gap: 0.35rem;">
                             ⚖️ Late Fee &amp; Overdue Status (on Payment Date):
                         </span>
@@ -299,8 +634,11 @@
                         <input type="text" id="rcpt_remarks" name="remarks" class="form-control" value="Aug'2026" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="rcpt_sub_type">Subscription Type</label>
-                        <input type="text" id="rcpt_sub_type" name="subscription_type" class="form-control" value="Monthly Subscription">
+                        <label class="form-label" for="rcpt_sub_type">Subscription Type *</label>
+                        <select id="rcpt_sub_type" name="subscription_type" class="form-select" onchange="setCreateReceiptType(this.value)">
+                            <option value="Monthly Subscription" selected>Monthly Subscription</option>
+                            <option value="Other Income">Other Income</option>
+                        </select>
                     </div>
                 </div>
 
@@ -452,17 +790,458 @@
     </div>
 </div>
 
+<!-- ================= MODAL: COMMON MEMBER INFO POPUP ================= -->
+<div id="commonMemberInfoModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 650px;">
+        <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <h3 class="card-title" style="font-size: 1.2rem; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>👤</span> Common Member Information
+                </h3>
+                <span id="modalCmiFlatBadge" class="badge badge-info" style="font-size: 0.88rem; font-weight: 800;">Flat -</span>
+            </div>
+            <button type="button" class="close-btn" onclick="closeModal('commonMemberInfoModal')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 1.35rem;">
+            <!-- Profile Header -->
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+                <div id="modalCmiAvatar" style="width: 54px; height: 54px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #7c3aed); display: flex; align-items: center; justify-content: center; font-size: 1.45rem; font-weight: 700; color: white; border: 2px solid rgba(59, 130, 246, 0.5); flex-shrink: 0; overflow: hidden;">
+                    R
+                </div>
+                <div>
+                    <h3 id="modalCmiName" style="margin: 0; font-size: 1.25rem; color: var(--text-main); font-weight: 800;">-</h3>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.25rem; flex-wrap: wrap;">
+                        <span id="modalCmiRoleBadge" class="badge badge-primary">Society Member</span>
+                        <span id="modalCmiOverdueBadge" class="badge badge-success">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Details Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+                <div style="background: rgba(0,0,0,0.22); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.06);">
+                    <div class="text-muted" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; margin-bottom: 0.35rem;">📞 Contact Details</div>
+                    <div style="font-size: 0.88rem; margin-bottom: 0.35rem;">
+                        <strong>Phone:</strong> <span id="modalCmiPhone" class="text-main">-</span>
+                    </div>
+                    <div style="font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <strong>Email:</strong> <span id="modalCmiEmail" class="text-main">-</span>
+                    </div>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.22); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.06);">
+                    <div class="text-muted" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; margin-bottom: 0.35rem;">📐 Unit Specifications</div>
+                    <div style="font-size: 0.88rem; margin-bottom: 0.35rem;">
+                        <strong>Flat Area:</strong> <span id="modalCmiSize" class="text-main">-</span> Sq. Ft.
+                    </div>
+                    <div style="font-size: 0.88rem;">
+                        <strong>Parking:</strong> <span id="modalCmiParking" class="text-main">-</span>
+                    </div>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.22); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.06);">
+                    <div class="text-muted" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; margin-bottom: 0.35rem;">⚡ Maintenance Tariff</div>
+                    <div style="font-size: 0.88rem; margin-bottom: 0.35rem;">
+                        <strong>Approved Rate:</strong> <span id="modalCmiMonthly" class="text-highlight-blue" style="font-weight: 800;">₹ -</span>
+                    </div>
+                    <div style="font-size: 0.78rem; color: var(--text-muted);" id="modalCmiTariffSummary">
+                        Base: ₹ - • Common: ₹ -
+                    </div>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.22); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.06);">
+                    <div class="text-muted" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; margin-bottom: 0.35rem;">📜 Collection History</div>
+                    <div style="font-size: 0.88rem; margin-bottom: 0.35rem;">
+                        <strong>Total Paid:</strong> <span id="modalCmiPaid" class="text-amount-success" style="font-weight: 800;">₹ -</span>
+                    </div>
+                    <div style="font-size: 0.78rem; color: var(--text-muted);">
+                        <span id="modalCmiReceiptsCount">0</span> verified payment slips recorded
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions footer within modal -->
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap;">
+                <a id="modalCmiFilterLedgerBtn" href="#" class="btn btn-sm btn-outline-primary">
+                    🔍 Filter Ledger For This Member
+                </a>
+                <button type="button" class="btn btn-sm btn-whatsapp" id="modalCmiWaBtn">
+                    💬 WhatsApp
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" id="modalCmiIssueBtn">
+                    ➕ Issue Receipt
+                </button>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="closeModal('commonMemberInfoModal')">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+// Master Lookup Dictionary for Common Member Info across all units
+window.MEMBERS_LOOKUP = {{ members_lookup_json|safe if members_lookup_json else '{}' }};
+
+function showCommonMemberInfo(flatNo) {
+    if (!flatNo) return;
+    const m = window.MEMBERS_LOOKUP[flatNo];
+    if (!m) {
+        fetch('/api/member-info?flat=' + encodeURIComponent(flatNo))
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    renderCommonMemberInfoData(data);
+                }
+            })
+            .catch(err => console.error(err));
+        return;
+    }
+    renderCommonMemberInfoData(m);
+}
+
+function renderCommonMemberInfoData(m) {
+    const card = document.getElementById('commonMemberInfoCard');
+    const selectorCard = document.getElementById('commonMemberSelectorCard');
+    if (!card) return;
+
+    card.style.display = 'block';
+    if (selectorCard) selectorCard.style.display = 'none';
+
+    document.getElementById('cmiFlatBadge').textContent = 'Flat ' + m.flat_no;
+    document.getElementById('cmiMemberName').textContent = m.member_name;
+    const countEl = document.getElementById('cmiReceiptsCountText');
+    if (countEl) countEl.textContent = m.receipts_count || 0;
+
+    const avatarEl = document.getElementById('cmiAvatar');
+    if (avatarEl) {
+        if (m.profile_pic) {
+            avatarEl.innerHTML = `<img src="${m.profile_pic}" alt="${m.member_name}" style="width: 100%; height: 100%; object-fit: cover;">`;
+        } else {
+            avatarEl.innerHTML = `<span>${(m.member_name ? m.member_name.charAt(0) : 'R').toUpperCase()}</span>`;
+        }
+    }
+
+    const phoneEl = document.getElementById('cmiPhone');
+    if (phoneEl) {
+        phoneEl.innerHTML = m.phone ? `<a href="tel:${m.phone}" style="color: var(--highlight-blue); text-decoration: none;">${m.phone}</a>` : `<span class="text-muted">Not registered</span>`;
+    }
+
+    const emailEl = document.getElementById('cmiEmail');
+    if (emailEl) {
+        emailEl.innerHTML = m.email ? `<a href="mailto:${m.email}" style="color: var(--highlight-blue); text-decoration: none;" title="${m.email}">${m.email}</a>` : `<span class="text-muted">Not registered</span>`;
+    }
+
+    const sizeEl = document.getElementById('cmiFlatSize');
+    if (sizeEl) {
+        let sizeHtml = `<span>${m.flat_size || '-'} Sq. Ft.</span>`;
+        if (m.car_parking_space && m.car_parking_space !== '-') {
+            sizeHtml += ` <span class="badge badge-info" style="font-size: 0.68rem; margin-left: 0.25rem;">CPS: ${m.car_parking_space}</span>`;
+        }
+        sizeEl.innerHTML = sizeHtml;
+    }
+
+    const rateEl = document.getElementById('cmiMonthlyRate');
+    if (rateEl) {
+        const mc = parseFloat(m.monthly_charge || 0);
+        rateEl.innerHTML = `₹ ${mc.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}<span style="font-size: 0.72rem; font-weight: 500; color: var(--text-muted);">/mo</span>`;
+    }
+
+    const paidEl = document.getElementById('cmiTotalPaid');
+    if (paidEl) {
+        const tp = parseFloat(m.total_paid || 0);
+        paidEl.textContent = `₹ ${tp.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+
+    const baseRateEl = document.getElementById('cmiBaseRate');
+    if (baseRateEl) baseRateEl.textContent = `₹ ${m.flat_charges || '-'}`;
+    const commExpEl = document.getElementById('cmiCommExp');
+    if (commExpEl) commExpEl.textContent = `₹ ${m.common_expenses || '-'}`;
+    const parkEl = document.getElementById('cmiParkingChg');
+    if (parkEl) {
+        const pchg = parseFloat(m.cps_charges || 0) + parseFloat(m.tws_charges || 0);
+        parkEl.textContent = `₹ ${pchg.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+    const capFundEl = document.getElementById('cmiCapFund');
+    if (capFundEl) capFundEl.textContent = `₹ ${m.capital_fund || '-'}`;
+
+    // Status Badge & Penalty
+    fetch('/api/penalties/calculate?flat=' + encodeURIComponent(m.flat_no))
+        .then(r => r.json())
+        .then(res => {
+            const statusEl = document.getElementById('cmiPenaltyStatus');
+            const badgeEl = document.getElementById('cmiStatusBadge');
+            if (res.success && res.data) {
+                const p = res.data;
+                if (p.is_overdue) {
+                    if (badgeEl) badgeEl.innerHTML = `<span class="badge badge-danger" style="font-size: 0.74rem; font-weight: 700;">⚠️ ${p.overdue_months} mo. Overdue</span>`;
+                    if (statusEl) statusEl.innerHTML = `<span class="text-amount-danger">₹ ${parseFloat(p.total_due).toLocaleString('en-IN', {minimumFractionDigits: 2})} Due</span><span class="text-muted" style="font-size: 0.7rem; display: block;">Late Fee: ₹ ${parseFloat(p.penalty_amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>`;
+                } else {
+                    if (badgeEl) badgeEl.innerHTML = `<span class="badge badge-success" style="font-size: 0.74rem; font-weight: 700;">✓ Paid Up</span>`;
+                    if (statusEl) statusEl.innerHTML = `<span class="text-amount-success">✓ Paid Up</span><span class="text-muted" style="font-size: 0.7rem; display: block;">Through ${p.coverage_display}</span>`;
+                }
+            }
+        })
+        .catch(() => {});
+
+    const btnIssue = document.getElementById('cmiBtnIssue');
+    if (btnIssue) btnIssue.setAttribute('onclick', `issueReceiptForMember('${m.flat_no}', ${m.monthly_charge || 2000})`);
+    const btnWa = document.getElementById('cmiBtnWa');
+    if (btnWa) btnWa.setAttribute('onclick', `openMemberWhatsApp('${m.flat_no}')`);
+    const btnDir = document.getElementById('cmiBtnDir');
+    if (btnDir) btnDir.href = `/admin/members?q=${encodeURIComponent(m.flat_no)}`;
+
+    const quickSel = document.getElementById('quickMemberSelect');
+    if (quickSel) quickSel.value = m.flat_no;
+
+    const section = document.getElementById('commonMemberInfoSection');
+    if (section) section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeCommonMemberInfoCard() {
+    const card = document.getElementById('commonMemberInfoCard');
+    const selectorCard = document.getElementById('commonMemberSelectorCard');
+    if (card) card.style.display = 'none';
+    if (selectorCard) selectorCard.style.display = 'block';
+}
+
+function openCommonMemberInfoModal(flatNo) {
+    if (!flatNo) return;
+    const m = window.MEMBERS_LOOKUP[flatNo];
+    if (!m) return;
+
+    document.getElementById('modalCmiFlatBadge').textContent = 'Flat ' + m.flat_no;
+    document.getElementById('modalCmiName').textContent = m.member_name;
+
+    const av = document.getElementById('modalCmiAvatar');
+    if (av) {
+        if (m.profile_pic) {
+            av.innerHTML = `<img src="${m.profile_pic}" alt="${m.member_name}" style="width: 100%; height: 100%; object-fit: cover;">`;
+        } else {
+            av.innerHTML = `<span>${(m.member_name ? m.member_name.charAt(0) : 'R').toUpperCase()}</span>`;
+        }
+    }
+
+    document.getElementById('modalCmiPhone').textContent = m.phone || 'Not registered';
+    document.getElementById('modalCmiEmail').textContent = m.email || 'Not registered';
+    document.getElementById('modalCmiSize').textContent = m.flat_size || '-';
+    document.getElementById('modalCmiParking').textContent = (m.car_parking_space && m.car_parking_space !== '-') ? 'CPS: ' + m.car_parking_space : 'None';
+    document.getElementById('modalCmiMonthly').textContent = '₹ ' + parseFloat(m.monthly_charge || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
+    document.getElementById('modalCmiTariffSummary').textContent = `Base: ₹ ${m.flat_charges || '-'} • Common: ₹ ${m.common_expenses || '-'}`;
+    document.getElementById('modalCmiPaid').textContent = '₹ ' + parseFloat(m.total_paid || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
+    document.getElementById('modalCmiReceiptsCount').textContent = m.receipts_count || 0;
+
+    document.getElementById('modalCmiFilterLedgerBtn').href = `/admin/receipts?flat=${encodeURIComponent(m.flat_no)}`;
+    document.getElementById('modalCmiWaBtn').setAttribute('onclick', `openMemberWhatsApp('${m.flat_no}')`);
+    document.getElementById('modalCmiIssueBtn').setAttribute('onclick', `closeModal('commonMemberInfoModal'); issueReceiptForMember('${m.flat_no}', ${m.monthly_charge || 2000});`);
+
+    fetch('/api/penalties/calculate?flat=' + encodeURIComponent(m.flat_no))
+        .then(r => r.json())
+        .then(res => {
+            const badge = document.getElementById('modalCmiOverdueBadge');
+            if (badge && res.success && res.data) {
+                if (res.data.is_overdue) {
+                    badge.className = 'badge badge-danger';
+                    badge.textContent = `⚠️ ₹ ${parseFloat(res.data.total_due).toLocaleString('en-IN', {minimumFractionDigits: 2})} Overdue (${res.data.overdue_months} mo.)`;
+                } else {
+                    badge.className = 'badge badge-success';
+                    badge.textContent = `✓ Paid Up (through ${res.data.coverage_display})`;
+                }
+            }
+        })
+        .catch(() => {});
+
+    openModal('commonMemberInfoModal');
+}
+
+function issueReceiptForMember(flatNo, monthlyRate) {
+    openModal('createReceiptModal');
+    setCreateReceiptType('Monthly Subscription');
+    const flatSelect = document.getElementById('rcpt_flat') || document.getElementById('rcpt_flat_no');
+    if (flatSelect && flatNo) {
+        flatSelect.value = flatNo;
+    }
+    const amtInput = document.getElementById('rcpt_amount');
+    if (amtInput && monthlyRate) {
+        amtInput.value = parseFloat(monthlyRate).toFixed(2);
+    }
+    onReceiptFlatOrDateChange('create');
+}
+
+// Toggle between Monthly Subscription and Other Income in Create Receipt Modal
+function setCreateReceiptType(type) {
+    const isOther = (type === 'Other Income');
+    const subTypeSelect = document.getElementById('rcpt_sub_type');
+    if (subTypeSelect) subTypeSelect.value = type;
+
+    const btnMonthly = document.getElementById('btnCategoryMonthly');
+    const btnOther = document.getElementById('btnCategoryOther');
+    const badge = document.getElementById('rcptCategoryStatusBadge');
+    
+    if (btnMonthly && btnOther) {
+        if (isOther) {
+            btnMonthly.className = 'btn btn-outline-primary';
+            btnOther.className = 'btn btn-primary';
+            if (badge) {
+                badge.className = 'badge badge-warning';
+                badge.textContent = 'Other Income';
+            }
+        } else {
+            btnMonthly.className = 'btn btn-primary';
+            btnOther.className = 'btn btn-outline-primary';
+            if (badge) {
+                badge.className = 'badge badge-primary';
+                badge.textContent = 'Flat Maintenance';
+            }
+        }
+    }
+
+    const flatSection = document.getElementById('rcptFlatResidentSection');
+    const otherSection = document.getElementById('rcptOtherPersonSection');
+    const otherWrapper = document.getElementById('otherPersonDynamicWrapper');
+    const flatSelect = document.getElementById('rcpt_flat');
+    const otherPersonName = document.getElementById('other_person_name');
+    const penaltyBox = document.getElementById('createPenaltyBox');
+    const remarksInput = document.getElementById('rcpt_remarks');
+
+    if (isOther) {
+        if (flatSection) flatSection.style.display = 'none';
+        if (flatSelect) flatSelect.required = false;
+        if (otherSection) otherSection.style.display = 'block';
+        if (otherWrapper) otherWrapper.style.display = 'block';
+        if (otherPersonName) otherPersonName.required = true;
+        if (penaltyBox) penaltyBox.style.display = 'none';
+
+        // Auto-select first person if nothing selected
+        const otherSelect = document.getElementById('other_person_select');
+        if (otherSelect && (!otherSelect.value || otherSelect.value === '')) {
+            otherSelect.value = 'Khokhon Routh';
+            onOtherPersonChange(otherSelect);
+        }
+
+        // Suggest remarks if currently a month format
+        if (remarksInput && (remarksInput.value === "Aug'2026" || remarksInput.value.match(/^[A-Za-z]{3}['\s]\d{4}$/))) {
+            const purposeSel = document.getElementById('other_income_purpose_select');
+            remarksInput.value = (purposeSel && purposeSel.value) ? purposeSel.value : '4 Wheeler Parking Charge';
+        }
+    } else {
+        if (flatSection) flatSection.style.display = 'block';
+        if (flatSelect) flatSelect.required = true;
+        if (otherSection) otherSection.style.display = 'none';
+        if (otherWrapper) otherWrapper.style.display = 'none';
+        if (otherPersonName) otherPersonName.required = false;
+
+        // Reset remarks if it had an Other Income purpose
+        if (remarksInput && !remarksInput.value.match(/^[A-Za-z]{3}['\s]\d{4}$/)) {
+            remarksInput.value = "Aug'2026";
+        }
+
+        // Trigger penalty check for selected flat
+        onReceiptFlatOrDateChange('create');
+    }
+}
+
+// When Other Person is selected from dropdown
+function onOtherPersonChange(selectEl) {
+    if (!selectEl) return;
+    const val = selectEl.value;
+    const opt = selectEl.options[selectEl.selectedIndex];
+    if (!opt) return;
+
+    const nameInput = document.getElementById('other_person_name');
+    const flatInput = document.getElementById('other_person_flat');
+    const phoneInput = document.getElementById('other_person_phone');
+    const cardName = document.getElementById('otherPersonCardName');
+    const roleBadge = document.getElementById('otherPersonRoleBadge');
+    const flatBadge = document.getElementById('otherPersonFlatBadge');
+    const inputsGrid = document.getElementById('otherPersonInputsGrid');
+    const remarksInput = document.getElementById('rcpt_remarks');
+
+    if (val === '__custom__') {
+        if (nameInput) {
+            nameInput.value = '';
+            nameInput.placeholder = 'Enter full name / organization';
+            nameInput.focus();
+        }
+        if (flatInput) flatInput.value = 'OTHER';
+        if (phoneInput) phoneInput.value = '';
+        if (cardName) cardName.textContent = 'Custom Other Person';
+        if (roleBadge) roleBadge.textContent = 'Custom Payer';
+        if (flatBadge) flatBadge.textContent = 'Unit: OTHER';
+        if (inputsGrid) inputsGrid.style.display = 'grid';
+        return;
+    }
+
+    const role = opt.getAttribute('data-role') || 'Other Person';
+    const flat = opt.getAttribute('data-flat') || 'OTHER';
+    const phone = opt.getAttribute('data-phone') || '';
+    const suggestedPurpose = opt.getAttribute('data-purpose') || '';
+
+    if (nameInput) nameInput.value = val;
+    if (flatInput) flatInput.value = flat;
+    if (phoneInput) phoneInput.value = phone;
+
+    if (cardName) cardName.textContent = val ? `${val}` : 'No Person Selected';
+    if (roleBadge) roleBadge.textContent = role;
+    if (flatBadge) flatBadge.textContent = (flat && flat !== 'OTHER' && flat !== 'STAFF') ? `Flat ${flat}` : `Unit: ${flat}`;
+
+    // Fill purpose if available and remarks doesn't have custom text
+    if (suggestedPurpose && remarksInput) {
+        remarksInput.value = suggestedPurpose;
+        const purposeSel = document.getElementById('other_income_purpose_select');
+        if (purposeSel) purposeSel.value = suggestedPurpose;
+    }
+
+    // By default keep custom inputs collapsed unless custom was picked
+    if (inputsGrid) inputsGrid.style.display = 'none';
+}
+
+function toggleOtherPersonInputs() {
+    const grid = document.getElementById('otherPersonInputsGrid');
+    if (grid) {
+        grid.style.display = (grid.style.display === 'none' || !grid.style.display) ? 'grid' : 'none';
+    }
+}
+
+function onOtherIncomePurposeChange(val) {
+    if (!val) return;
+    const remarksInput = document.getElementById('rcpt_remarks');
+    if (remarksInput) {
+        remarksInput.value = val;
+    }
+}
+
+function openMemberWhatsApp(flatNo) {
+    if (!flatNo) return;
+    const m = window.MEMBERS_LOOKUP[flatNo];
+    if (!m || !m.phone) {
+        alert(`No mobile number registered on file for Flat ${flatNo}.`);
+        return;
+    }
+    const cleanPhone = m.phone.replace(/[^0-9]/g, '');
+    const num = cleanPhone.startsWith('91') ? cleanPhone : '91' + cleanPhone;
+    const text = encodeURIComponent(`Hello ${m.member_name} (Flat ${m.flat_no}), contacting you from South Dumdum Enclave Residents' Association regarding maintenance receipts.`);
+    window.open(`https://wa.me/${num}?text=${text}`, '_blank');
+}
+
 // Live Penalty & Overdue Calculator on Payment Date change
 function onReceiptFlatOrDateChange(mode) {
     const isCreate = (mode === 'create');
+    const subType = isCreate ? (document.getElementById('rcpt_sub_type') ? document.getElementById('rcpt_sub_type').value : '') : (document.getElementById('edit_sub_type') ? document.getElementById('edit_sub_type').value : '');
+    const box = document.getElementById(isCreate ? 'createPenaltyBox' : 'editPenaltyBox');
+
+    // If Other Income, bypass penalty check
+    if (subType === 'Other Income') {
+        if (box) box.style.display = 'none';
+        return;
+    }
+
     const flatSelect = isCreate ? document.getElementById('rcpt_flat') : null;
     const flatNo = isCreate ? (flatSelect ? flatSelect.value : '') : document.getElementById('edit_flat_no').value;
     const payDateInput = document.getElementById(isCreate ? 'rcpt_payment_date' : 'edit_payment_date');
     const payDate = payDateInput ? payDateInput.value : '';
     const amtInput = document.getElementById(isCreate ? 'rcpt_amount' : 'edit_amount');
     const remarksInput = document.getElementById(isCreate ? 'rcpt_remarks' : 'edit_remarks');
-    const box = document.getElementById(isCreate ? 'createPenaltyBox' : 'editPenaltyBox');
     const badge = document.getElementById(isCreate ? 'createPenaltyBadge' : 'editPenaltyBadge');
     const details = document.getElementById(isCreate ? 'createPenaltyDetails' : 'editPenaltyDetails');
     const actions = document.getElementById(isCreate ? 'createPenaltyActions' : 'editPenaltyActions');
@@ -473,9 +1252,19 @@ function onReceiptFlatOrDateChange(mode) {
         if (amtInput && (!amtInput.dataset.userEdited || amtInput.value === '2000.00')) {
             if (monthlyCharge > 0) amtInput.value = monthlyCharge.toFixed(2);
         }
+        const createInfoEl = document.getElementById('modalCreateMemberInfo');
+        if (createInfoEl) {
+            const mData = (window.MEMBERS_LOOKUP && flatNo) ? window.MEMBERS_LOOKUP[flatNo] : null;
+            if (mData) {
+                createInfoEl.style.display = 'block';
+                createInfoEl.innerHTML = `👤 <strong>${mData.member_name}</strong> • Flat ${flatNo} • Area: ${mData.flat_size || '-'} sq.ft • Monthly: ₹ ${monthlyCharge.toFixed(2)} • Phone: ${mData.phone || 'None'}`;
+            } else {
+                createInfoEl.style.display = 'none';
+            }
+        }
     }
 
-    if (!flatNo || !payDate) {
+    if (!flatNo || !payDate || flatNo === 'OTHER' || flatNo === 'STAFF' || flatNo === '-') {
         if (box) box.style.display = 'none';
         return;
     }
@@ -578,8 +1367,8 @@ function openEditReceiptModal(receiptNo) {
             const r = data.receipt;
             document.getElementById('editReceiptForm').action = '/admin/receipts/' + receiptNo + '/edit';
             document.getElementById('editReceiptNoBadge').textContent = 'SDERA_' + receiptNo;
-            document.getElementById('edit_rcpt_no_display').value = 'SDERA_' + receiptNo;
-            document.getElementById('edit_flat_member_display').value = 'Flat ' + r.flat_no + ' (' + r.member_name + ')';
+            const unitLabel = ['OTHER', '-', 'N/A', 'STAFF'].includes(r.flat_no) ? r.flat_no : 'Flat ' + r.flat_no;
+            document.getElementById('edit_flat_member_display').value = unitLabel + ' (' + r.member_name + ')';
             document.getElementById('edit_flat_no').value = r.flat_no;
             document.getElementById('edit_payment_date').value = r.payment_date || '';
             document.getElementById('edit_receipt_date').value = r.receipt_date || r.payment_date || '';

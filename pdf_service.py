@@ -254,11 +254,20 @@ def generate_receipt_pdf_bytes(receipt, member_info=None, contact_info=None):
     elements.append(Spacer(1, 6))
     
     # 4. Details Grid
+    is_other_income = str(sub_type).strip().lower() == 'other income'
+    unit_str = str(flat_no).strip()
+    if unit_str.upper() in ['OTHER', '-', 'N/A', 'STAFF']:
+        unit_display = f"Unit: {unit_str}"
+    else:
+        unit_display = f"Flat {unit_str}"
+    unit_label = "Unit / Reference" if is_other_income else "Flat Number / Unit"
+    person_label = "Payer / Person Name" if is_other_income else "Resident Name"
+
     details_data = [
         [
-            Paragraph("Flat Number / Unit", cell_label_style),
-            Paragraph(f"<b><font color='#1E3A8A' size=10>Flat {flat_no}</font></b>", cell_value_style),
-            Paragraph("Resident Name", cell_label_style),
+            Paragraph(unit_label, cell_label_style),
+            Paragraph(f"<b><font color='#1E3A8A' size=10>{unit_display}</font></b>", cell_value_style),
+            Paragraph(person_label, cell_label_style),
             Paragraph(f"<b>{member_name}</b>", cell_value_style)
         ],
         [

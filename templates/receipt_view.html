@@ -48,7 +48,7 @@
         <p>Email: {{ config.ASSOCIATION_EMAIL }} | Phone: {{ config.ASSOCIATION_PHONE }}</p>
         <div style="margin-top: 0.6rem;">
             <span style="border: 2px solid #0f172a; padding: 3px 14px; font-weight: 800; font-size: 0.85rem; letter-spacing: 1px; text-transform: uppercase;">
-                OFFICIAL MAINTENANCE RECEIPT
+                {% if receipt.subscription_type == 'Other Income' %}OFFICIAL MISCELLANEOUS / SUNDRY RECEIPT{% else %}OFFICIAL MAINTENANCE RECEIPT{% endif %}
             </span>
         </div>
     </div>
@@ -64,10 +64,18 @@
 
     <table class="receipt-details-table">
         <tr>
-            <td class="label">Resident / Member Name:</td>
-            <td><strong>{{ receipt.member_name or member.member_name }}</strong></td>
-            <td class="label">Flat Number:</td>
-            <td><strong style="color: #1e40af; font-size: 1.05rem;">Flat {{ receipt.flat_no }}</strong></td>
+            <td class="label">{% if receipt.subscription_type == 'Other Income' %}Payer / Person Name:{% else %}Resident / Member Name:{% endif %}</td>
+            <td><strong>{{ receipt.member_name or (member.member_name if member else 'Other Person') }}</strong></td>
+            <td class="label">{% if receipt.subscription_type == 'Other Income' %}Unit / Reference:{% else %}Flat Number:{% endif %}</td>
+            <td>
+                <strong style="color: #1e40af; font-size: 1.05rem;">
+                    {% if receipt.flat_no in ['OTHER', '-', 'N/A', 'STAFF'] %}
+                        {{ receipt.flat_no }}
+                    {% else %}
+                        Flat {{ receipt.flat_no }}
+                    {% endif %}
+                </strong>
+            </td>
         </tr>
         <tr>
             <td class="label">Contact Mobile:</td>
@@ -211,8 +219,8 @@
                         <input type="text" class="form-control" style="background: var(--surface-card); font-weight: 700; color: var(--highlight-blue);" value="SDERA_{{ receipt.receipt_no }}" readonly>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Flat Resident</label>
-                        <input type="text" class="form-control" style="background: var(--surface-card); font-weight: 600;" value="Flat {{ receipt.flat_no }} ({{ receipt.member_name or member.member_name }})" readonly>
+                        <label class="form-label">{% if receipt.subscription_type == 'Other Income' %}Payer / Entity{% else %}Flat Resident{% endif %}</label>
+                        <input type="text" class="form-control" style="background: var(--surface-card); font-weight: 600;" value="{% if receipt.flat_no in ['OTHER', '-', 'N/A', 'STAFF'] %}{{ receipt.flat_no }}{% else %}Flat {{ receipt.flat_no }}{% endif %} ({{ receipt.member_name or (member.member_name if member else 'Other Person') }})" readonly>
                     </div>
                 </div>
 
@@ -286,11 +294,17 @@
 <script>
 function onViewEditDateChange() {
     const flatNo = "{{ receipt.flat_no }}";
+    const subType = "{{ receipt.subscription_type }}";
     const payDate = document.getElementById('view_edit_payment_date')?.value;
     const box = document.getElementById('viewEditPenaltyBox');
     const badge = document.getElementById('viewEditPenaltyBadge');
     const details = document.getElementById('viewEditPenaltyDetails');
     const actions = document.getElementById('viewEditPenaltyActions');
+
+    if (subType === 'Other Income' || ['OTHER', '-', 'N/A', 'STAFF'].includes(flatNo)) {
+        if (box) box.style.display = 'none';
+        return;
+    }
 
     if (!flatNo || !payDate) return;
 

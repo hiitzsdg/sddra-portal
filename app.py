@@ -1,6 +1,7 @@
 import os
 import io
 import re
+import json
 import zipfile
 import calendar
 import traceback
@@ -1644,8 +1645,82 @@ def admin_receipts():
     query += " ORDER BY receipt_no DESC"
     
     receipts = query_db(query, params)
-    all_flats = query_db("SELECT flat_no, member_name, monthly_charge FROM tbl_membership ORDER BY flat_no")
     
+    # Query all flats with extended member details and contact info
+    all_flats = query_db("""
+        SELECT 
+            m.id, m.flat_no, m.member_name, m.RvsdFlatSize, 
+            m.car_parking_space, m.cps_owner, m.tws_owner, m.tws_count,
+            m.flat_charges, m.common_expenses, m.cps_charges, m.tws_charges,
+            m.capital_fund, m.monthly_charge, m.profile_pic,
+            c.mobile_num_1, c.mobile_num_2, c.email_1, c.email_2
+        FROM tbl_membership m
+        LEFT JOIN tbl_mbr_cntct c ON m.flat_no = c.flat_no
+        ORDER BY m.flat_no
+    """) or []
+    
+    # Pre-aggregate receipts by flat for instant member financial summary
+    rcpt_aggregates = query_db("""
+        SELECT flat_no, COUNT(*) as cnt, COALESCE(SUM(amount), 0) as total, MAX(COALESCE(payment_date, receipt_date)) as latest_date
+        FROM tbl_receipts
+        GROUP BY flat_no
+    """) or []
+    rcpt_agg_map = {r['flat_no']: r for r in rcpt_aggregates}
+
+    # Build client-side lookup dictionary for instant switching & popovers
+    members_lookup = {}
+    for m in all_flats:
+        fn = m['flat_no']
+        agg = rcpt_agg_map.get(fn, {'cnt': 0, 'total': 0.0, 'latest_date': '-'})
+        phone = m.get('mobile_num_1') or m.get('mobile_num_2') or ''
+        email = m.get('email_1') or m.get('email_2') or ''
+        members_lookup[fn] = {
+            'flat_no': fn,
+            'member_name': m.get('member_name') or 'Resident',
+            'profile_pic': m.get('profile_pic') or '',
+            'flat_size': m.get('RvsdFlatSize') or 0,
+            'car_parking_space': m.get('car_parking_space') or '-',
+            'cps_charges': float(m.get('cps_charges') or 0),
+            'tws_count': m.get('tws_count') or 0,
+            'tws_charges': float(m.get('tws_charges') or 0),
+            'monthly_charge': float(m.get('monthly_charge') or 0),
+            'common_expenses': float(m.get('common_expenses') or 0),
+            'capital_fund': float(m.get('capital_fund') or 0),
+            'flat_charges': float(m.get('flat_charges') or 0),
+            'phone': phone,
+            'email': email,
+            'total_paid': float(agg['total']),
+            'receipts_count': int(agg['cnt']),
+            'latest_date': str(agg['latest_date']) if agg['latest_date'] else '-'
+        }
+
+    selected_member = None
+    selected_member_penalty = None
+    selected_member_stats = None
+
+    if flat_filter:
+        selected_member = next((f for f in all_flats if f['flat_no'].strip().upper() == flat_filter.strip().upper()), None)
+        if not selected_member:
+            selected_member = query_db("""
+                SELECT m.*, c.mobile_num_1, c.mobile_num_2, c.email_1, c.email_2
+                FROM tbl_membership m
+                LEFT JOIN tbl_mbr_cntct c ON m.flat_no = c.flat_no
+                WHERE m.flat_no = %s
+            """, (flat_filter,), one=True)
+            
+        if selected_member:
+            m_rcpts = query_db("SELECT amount, receipt_date, payment_date, remarks FROM tbl_receipts WHERE flat_no = %s ORDER BY receipt_no DESC", (selected_member['flat_no'],)) or []
+            selected_member_stats = {
+                'total_paid': sum(float(r['amount'] or 0) for r in m_rcpts),
+                'receipts_count': len(m_rcpts),
+                'latest_payment': (m_rcpts[0]['payment_date'] or m_rcpts[0]['receipt_date']) if m_rcpts else None,
+                'latest_remarks': m_rcpts[0]['remarks'] if m_rcpts else None
+            }
+            try:
+                selected_member_penalty = calculate_flat_penalty(selected_member['flat_no'], member=selected_member)
+            except Exception:
+                selected_member_penalty = None
+
     total_collected_row = query_db("SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM tbl_receipts", one=True)
     total_collected_sum = float(total_collected_row['total']) if total_collected_row else 0.0
     total_receipts_count = int(total_collected_row['count']) if total_collected_row else 0
@@ -1672,7 +1747,11 @@ def admin_receipts():
         selected_months=selected_months,
         month_filter=",".join(selected_months),
         search_q=search_q,
-        next_receipt_no=next_receipt_no
+        next_receipt_no=next_receipt_no,
+        selected_member=selected_member,
+        selected_member_penalty=selected_member_penalty,
+        selected_member_stats=selected_member_stats,
+        members_lookup_json=json.dumps(members_lookup)
     )
 
 @app.route('/admin/receipts/new', methods=['POST'])
@@ -1681,7 +1760,7 @@ def create_receipt():
     flat_no = request.form.get('flat_no', '').strip()
     amount = request.form.get('amount', '0').strip()
     pymnt_mode = request.form.get('pymnt_mode', 'Online')
-    subscription_type = request.form.get('subscription_type', 'Monthly Subscription')
+    subscription_type = request.form.get('subscription_type', 'Monthly Subscription').strip()
     remarks = request.form.get('remarks', "Aug'2026").strip()
     payment_date = request.form.get('payment_date', str(date.today()))
     receipt_date = request.form.get('receipt_date', str(date.today()))
@@ -1690,8 +1769,32 @@ def create_receipt():
     auto_email = request.form.get('auto_email') == '1'
     receipt_no_input = request.form.get('receipt_no', '').strip()
     
-    member = query_db("SELECT member_name FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
-    member_name = member['member_name'] if member else 'Resident'
+    # Other Person fields for Other Income receipts
+    other_person_select = request.form.get('other_person_select', '').strip()
+    other_person_name = request.form.get('other_person_name', '').strip()
+    other_person_flat = request.form.get('other_person_flat', '').strip()
+    other_person_phone = request.form.get('other_person_phone', '').strip()
+
+    if subscription_type == 'Other Income':
+        if other_person_name:
+            member_name = other_person_name
+        elif other_person_select and other_person_select != '__custom__':
+            member_name = other_person_select
+        elif flat_no:
+            member = query_db("SELECT member_name FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
+            member_name = member['member_name'] if member else 'Other Person'
+        else:
+            member_name = 'Other Person'
+
+        if other_person_flat:
+            flat_no = other_person_flat
+        elif not flat_no:
+            flat_no = 'OTHER'
+    else:
+        member = query_db("SELECT member_name FROM tbl_membership WHERE flat_no = %s", (flat_no,), one=True)
+        member_name = member['member_name'] if member else 'Resident'
+        if not flat_no:
+            flat_no = 'A/1-A'
     
     try:
         max_r_row = query_db("SELECT COALESCE(MAX(receipt_no), 2390) + 1 as next_r FROM tbl_receipts", one=True)
@@ -1704,13 +1807,14 @@ def create_receipt():
             (r_no, flat_no, member_name, float(amount), pymnt_mode, subscription_type, remarks, payment_date, receipt_date, coverage_start, coverage_end)
         )
         receipt_no = r_no
-        log_activity('RECEIPT_ISSUED', f"Generated Receipt #{receipt_no} for Flat {flat_no} ({member_name}) - INR {float(amount):,.2f} ({remarks})")
-        flash(f"✓ Receipt #{receipt_no} (SDERA_{receipt_no}) generated successfully for Flat {flat_no} ({member_name})!", 'success')
+        unit_str = f"Flat {flat_no}" if flat_no not in ['OTHER', '-', 'N/A'] else flat_no
+        log_activity('RECEIPT_ISSUED', f"Generated {subscription_type} Receipt #{receipt_no} for {member_name} ({unit_str}) - INR {float(amount):,.2f} ({remarks})")
+        flash(f"✓ {subscription_type} Receipt #{receipt_no} (SDERA_{receipt_no}) generated successfully for {member_name} ({unit_str})!", 'success')
         
-        if auto_email:
+        if auto_email and flat_no not in ['OTHER', '-', 'N/A']:
             send_res = send_receipt_email(receipt_no)
             if send_res['success']:
-                flash(f"✓ Official receipt PDF emailed to Flat {flat_no}.", 'info')
+                flash(f"✓ Official receipt PDF emailed to {unit_str}.", 'info')
     except Exception as e:
         flash(f"Error creating receipt: {e}", 'danger')
         
@@ -2213,8 +2317,60 @@ def api_member_receipts(flat_no=None):
         "total_paid": sum(float(r['amount'] or 0) for r in receipts),
         "receipts_count": len(receipts),
         "email": (contact.get('email_1') or contact.get('email_2')) if contact else None,
+        "profile_pic": member.get('profile_pic') if member else '',
+        "flat_size": member.get('RvsdFlatSize') if member else None,
+        "car_parking_space": member.get('car_parking_space') if member else '-',
+        "common_expenses": float(member.get('common_expenses') or 0) if member else 0,
         "phone": (contact.get('mobile_num_1') or contact.get('mobile_num_2')) if contact else None,
         "receipts": receipts
+    })
+
+@app.route('/api/member-info')
+@app.route('/api/members/<path:flat_no>/info')
+@roles_required('super_admin', 'billing_admin', 'president', 'secretary', 'treasurer', 'caretaker')
+def api_member_info(flat_no=None):
+    if not flat_no:
+        flat_no = request.args.get('flat', '').strip()
+    if not flat_no:
+        return jsonify({"success": False, "error": "Flat number is required"}), 400
+        
+    member = query_db("""
+        SELECT m.*, c.mobile_num_1, c.mobile_num_2, c.email_1, c.email_2
+        FROM tbl_membership m
+        LEFT JOIN tbl_mbr_cntct c ON m.flat_no = c.flat_no
+        WHERE m.flat_no = %s
+    """, (flat_no,), one=True)
+    if not member:
+        return jsonify({"success": False, "error": f"Member for Flat {flat_no} not found"}), 404
+        
+    receipts = query_db("SELECT * FROM tbl_receipts WHERE flat_no = %s ORDER BY receipt_no DESC", (flat_no,)) or []
+    total_paid = sum(float(r['amount'] or 0) for r in receipts)
+    
+    try:
+        penalty = calculate_flat_penalty(flat_no, member=member)
+    except Exception as e:
+        penalty = None
+        
+    return jsonify({
+        "success": True,
+        "flat_no": flat_no,
+        "member_name": member['member_name'],
+        "profile_pic": member.get('profile_pic') or '',
+        "flat_size": member.get('RvsdFlatSize') or 0,
+        "car_parking_space": member.get('car_parking_space') or '-',
+        "cps_charges": float(member.get('cps_charges') or 0),
+        "tws_count": member.get('tws_count') or 0,
+        "tws_charges": float(member.get('tws_charges') or 0),
+        "monthly_charge": float(member.get('monthly_charge') or 0),
+        "flat_charges": float(member.get('flat_charges') or 0),
+        "common_expenses": float(member.get('common_expenses') or 0),
+        "capital_fund": float(member.get('capital_fund') or 0),
+        "phone": member.get('mobile_num_1') or member.get('mobile_num_2') or '',
+        "email": member.get('email_1') or member.get('email_2') or '',
+        "total_paid": total_paid,
+        "receipts_count": len(receipts),
+        "latest_receipt": receipts[0] if receipts else None,
+        "penalty": penalty
     })
 
 # ================= Overdue Maintenance & Cumulative Penalty Engine =================
