@@ -79,6 +79,14 @@
                     {{ p.particulars }} ({{ p.cnt }})
                 </option>
                 {% endfor %}
+                {% set existing_particulars = particulars_list|map(attribute='particulars')|list %}
+                {% for extra in ["Beautification & Gardening", "Puja Donation to Surrounding Clubs", "Puja Incentives"] %}
+                    {% if extra not in existing_particulars %}
+                    <option value="{{ extra }}" {% if current_particulars == extra %}selected{% endif %}>
+                        {{ extra }} (0)
+                    </option>
+                    {% endif %}
+                {% endfor %}
             </select>
         </div>
 
@@ -262,12 +270,15 @@
                             <option value="Accounting Charges">Accounting Charges</option>
                             <option value="AGM">AGM</option>
                             <option value="AMC Lift">AMC Lift</option>
+                            <option value="Beautification & Gardening">Beautification & Gardening</option>
                             <option value="Capital Fund Refund">Capital Fund Refund</option>
                             <option value="Cultural Program & Milonotsav">Cultural Program & Milonotsav</option>
                             <option value="Electricity Charges">Electricity Charges</option>
                             <option value="Fire Extinguisher">Fire Extinguisher</option>
                             <option value="Misc & Other Expenses">Misc & Other Expenses</option>
                             <option value="Painting">Painting</option>
+                            <option value="Puja Donation to Surrounding Clubs">Puja Donation to Surrounding Clubs</option>
+                            <option value="Puja Incentives">Puja Incentives</option>
                             <option value="Repair & Maintenance">Repair & Maintenance</option>
                             <option value="Service Charges">Service Charges</option>
                             <option value="Stationary">Stationary</option>
@@ -353,12 +364,15 @@
                             <option value="Accounting Charges">Accounting Charges</option>
                             <option value="AGM">AGM</option>
                             <option value="AMC Lift">AMC Lift</option>
+                            <option value="Beautification & Gardening">Beautification & Gardening</option>
                             <option value="Capital Fund Refund">Capital Fund Refund</option>
                             <option value="Cultural Program & Milonotsav">Cultural Program & Milonotsav</option>
                             <option value="Electricity Charges">Electricity Charges</option>
                             <option value="Fire Extinguisher">Fire Extinguisher</option>
                             <option value="Misc & Other Expenses">Misc & Other Expenses</option>
                             <option value="Painting">Painting</option>
+                            <option value="Puja Donation to Surrounding Clubs">Puja Donation to Surrounding Clubs</option>
+                            <option value="Puja Incentives">Puja Incentives</option>
                             <option value="Repair & Maintenance">Repair & Maintenance</option>
                             <option value="Service Charges">Service Charges</option>
                             <option value="Stationary">Stationary</option>

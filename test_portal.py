@@ -326,6 +326,68 @@ class TestSDDRABillingPortal(unittest.TestCase):
         restored = query_db("SELECT * FROM tbl_membership WHERE flat_no = 'A/4-C'", one=True)
         self.assertEqual(int(restored['monthly_charge']), 2110)
 
+    def test_15_society_expenses_dropdown_heads(self):
+        """Verify the 3 new expense dropdown heads: Beautification & Gardening, Puja Incentives, and Puja Donation to Surrounding Clubs"""
+        # Login as treasurer (committee admin)
+        self.client.post('/login', data={'username': 'treasurer', 'password': 'sdera@123'}, follow_redirects=True)
+
+        resp = self.client.get('/expenses')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.data.decode('utf-8')
+
+        # 1. Verify all 3 heads exist in dropdowns
+        new_heads = [
+            "Beautification & Gardening",
+            "Puja Incentives",
+            "Puja Donation to Surrounding Clubs"
+        ]
+        for head in new_heads:
+            self.assertIn(f'value="{head}"', html)
+            self.assertIn(head, html)
+
+        # 2. Test recording expense voucher under each new head
+        execute_db("DELETE FROM tbl_expenses WHERE voucher_no IN (9994, 9995, 9996)")
+
+        test_vouchers = [
+            (9994, 'Beautification & Gardening', 3500.00, 'Garden landscaping & winter flower saplings'),
+            (9995, 'Puja Incentives', 5000.00, 'Durga Puja festive incentives for security & housekeeping staff'),
+            (9996, 'Puja Donation to Surrounding Clubs', 2000.00, 'Festive subscription donation to surrounding neighborhood youth club')
+        ]
+
+        for v_no, part, amt, desc in test_vouchers:
+            post_data = {
+                'voucher_no': str(v_no),
+                'voucher_date': '2026-10-27',
+                'particulars': part,
+                'spl_head': 'Festive / Estate Works',
+                'payment_by': 'Online',
+                'amount': str(amt),
+                'expense_description': desc
+            }
+            res = self.client.post('/admin/expenses/new', data=post_data, follow_redirects=True)
+            self.assertEqual(res.status_code, 200)
+
+            # Verify in DB
+            row = query_db("SELECT * FROM tbl_expenses WHERE voucher_no = %s", (v_no,), one=True)
+            self.assertIsNotNone(row)
+            self.assertEqual(row['particulars'], part)
+            self.assertEqual(float(row['amount']), amt)
+
+        # 3. Verify vouchers render on the /expenses page
+        import html as html_lib
+        resp_exp = self.client.get('/expenses')
+        self.assertEqual(resp_exp.status_code, 200)
+        exp_html = resp_exp.data.decode('utf-8')
+        for v_no, part, amt, desc in test_vouchers:
+            part_match = part in exp_html or html_lib.escape(part) in exp_html
+            desc_match = desc in exp_html or html_lib.escape(desc) in exp_html
+            self.assertTrue(part_match, f"Particulars '{part}' not found in rendered expenses HTML")
+            self.assertTrue(desc_match, f"Description '{desc}' not found in rendered expenses HTML")
+
+        # 4. Clean up test vouchers
+        execute_db("DELETE FROM tbl_expenses WHERE voucher_no IN (9994, 9995, 9996)")
+        print("[OK] Verified all 3 new Society Expense dropdown heads in UI, database persistence, and voucher ledger.")
+
 if __name__ == '__main__':
     unittest.main()
 

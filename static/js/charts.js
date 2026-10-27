@@ -264,6 +264,9 @@ const EXPENSE_PALETTE = [
     '#65a30d', // Lime (Capital Fund Refund)
     '#dc2626', // Bright Red (Fire Extinguisher)
     '#9333ea', // Purple Orchid (Painting)
+    '#10b981', // Jade Green (Beautification & Gardening)
+    '#f59e0b', // Festive Marigold (Puja Incentives)
+    '#f43f5e', // Festival Coral Rose (Puja Donation to Surrounding Clubs)
     '#0284c7', // Sky Blue
     '#ca8a04', // Yellow Gold
     '#475569', // Slate Grey
