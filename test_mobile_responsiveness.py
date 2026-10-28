@@ -136,5 +136,21 @@ class TestMobileResponsiveness(unittest.TestCase):
         self.assertIn('<meta name="viewport"', html)
         self.assertIn('@media (max-width: 640px)', html)
 
+    def test_mobile_version_and_cache_busting(self):
+        """Verify dynamic asset versioning for cache-busting on mobile and version display in mobile drawer & footer"""
+        self._login_as_resident()
+        resp = self.client.get('/dashboard')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.data.decode('utf-8')
+
+        # Cache-busting version query string must use dynamic asset_version (v2.3.0)
+        self.assertIn('style.css?v=2.3.0', html)
+        self.assertIn('main.js?v=2.3.0', html)
+        self.assertIn('charts.js?v=2.3.0', html)
+
+        # Version badge must be visible in mobile drawer and footer
+        self.assertIn('v2.3.0', html)
+        self.assertIn('mobile-nav-drawer', html)
+
 if __name__ == '__main__':
     unittest.main()

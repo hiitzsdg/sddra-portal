@@ -211,7 +211,7 @@ def inject_globals():
         'is_billing_admin': is_billing_admin,
         'open_issues_count': open_issues_cnt,
         'committee_whatsapp_contacts': get_whatsapp_committee_contacts(),
-        'asset_version': '2.2.0'
+        'asset_version': '2.3.0'
     }
 
 # --- Activity & Audit Logging Engine ---
