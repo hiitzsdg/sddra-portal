@@ -1761,9 +1761,21 @@ def create_receipt():
     amount = request.form.get('amount', '0').strip()
     pymnt_mode = request.form.get('pymnt_mode', 'Online')
     subscription_type = request.form.get('subscription_type', 'Monthly Subscription').strip()
-    remarks = request.form.get('remarks', "Aug'2026").strip()
-    payment_date = request.form.get('payment_date', str(date.today()))
-    receipt_date = request.form.get('receipt_date', str(date.today()))
+    payment_date = request.form.get('payment_date', str(date.today())).strip()
+    receipt_date = request.form.get('receipt_date', str(date.today())).strip()
+    
+    # Auto-determine default month string (e.g. Oct'2026 or Nov'2026 based on payment_date)
+    default_month_remark = ""
+    try:
+        if payment_date:
+            p_dt = datetime.strptime(payment_date, '%Y-%m-%d')
+            default_month_remark = p_dt.strftime("%b'%Y")
+    except Exception:
+        pass
+    if not default_month_remark:
+        default_month_remark = get_ist_now().strftime("%b'%Y")
+
+    remarks = request.form.get('remarks', '').strip() or default_month_remark
     coverage_start = request.form.get('coverage_start') or payment_date
     coverage_end = request.form.get('coverage_end') or payment_date
     auto_email = request.form.get('auto_email') == '1'

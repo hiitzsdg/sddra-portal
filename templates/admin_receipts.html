@@ -16,7 +16,7 @@
         <a href="{{ url_for('admin_penalties') }}" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem;">
             <span>⚖️</span> Dues &amp; Penalties
         </a>
-        <button type="button" class="btn btn-primary" onclick="openModal('createReceiptModal')">
+        <button type="button" class="btn btn-primary" onclick="openCreateReceiptModal()">
             ➕ Issue New Receipt <span class="badge badge-info" style="margin-left: 0.35rem; background: rgba(255,255,255,0.22); color: #fff; font-weight: 700;">#{{ next_receipt_no }}</span>
         </button>
     </div>
@@ -630,8 +630,17 @@
 
                 <div class="grid-2">
                     <div class="form-group">
-                        <label class="form-label" for="rcpt_remarks">Month / Remarks *</label>
-                        <input type="text" id="rcpt_remarks" name="remarks" class="form-control" value="Aug'2026" required>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                            <label class="form-label" for="rcpt_remarks" style="margin-bottom: 0;">Month / Remarks *</label>
+                            <span id="rcptMonthAutoIndicator" class="badge badge-info" style="font-size: 0.68rem; padding: 2px 6px;">
+                                ⚡ Auto-Month
+                            </span>
+                        </div>
+                        <input type="text" id="rcpt_remarks" name="remarks" class="form-control" value="{{ now.strftime('%b') }}'{{ now.strftime('%Y') }}" placeholder="e.g. {{ now.strftime('%b') }}'{{ now.strftime('%Y') }}" required>
+                        <div id="rcptMonthQuickPills" style="display: flex; gap: 0.35rem; margin-top: 0.4rem; flex-wrap: wrap; align-items: center;"></div>
+                        <small class="text-muted" style="font-size: 0.73rem; margin-top: 0.25rem; display: block;" id="rcpt_remarks_help">
+                            Auto-populated for the payment month (e.g. {{ now.strftime('%b') }}'{{ now.strftime('%Y') }}). Click a pill above or edit manually.
+                        </small>
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="rcpt_sub_type">Subscription Type *</label>
@@ -1066,6 +1075,105 @@ function openCommonMemberInfoModal(flatNo) {
     openModal('commonMemberInfoModal');
 }
 
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function formatMonthRemarks(dateStrOrObj) {
+    if (!dateStrOrObj) {
+        const d = new Date();
+        return `${SHORT_MONTHS[d.getMonth()]}\'${d.getFullYear()}`;
+    }
+    if (typeof dateStrOrObj === 'string') {
+        const parts = dateStrOrObj.split('-');
+        if (parts.length >= 2) {
+            const yr = parseInt(parts[0], 10);
+            const mIdx = parseInt(parts[1], 10) - 1;
+            if (!isNaN(yr) && mIdx >= 0 && mIdx < 12) {
+                return `${SHORT_MONTHS[mIdx]}\'${yr}`;
+            }
+        }
+    }
+    const d = new Date(dateStrOrObj);
+    if (isNaN(d.getTime())) {
+        const fallback = new Date();
+        return `${SHORT_MONTHS[fallback.getMonth()]}\'${fallback.getFullYear()}`;
+    }
+    return `${SHORT_MONTHS[d.getMonth()]}\'${d.getFullYear()}`;
+}
+
+function updateMonthQuickPills(baseDateStr) {
+    const pillsContainer = document.getElementById('rcptMonthQuickPills');
+    if (!pillsContainer) return;
+    
+    let yr, mIdx;
+    if (baseDateStr && typeof baseDateStr === 'string') {
+        const parts = baseDateStr.split('-');
+        if (parts.length >= 2) {
+            yr = parseInt(parts[0], 10);
+            mIdx = parseInt(parts[1], 10) - 1;
+        }
+    }
+    if (isNaN(yr) || isNaN(mIdx)) {
+        const today = new Date();
+        yr = today.getFullYear();
+        mIdx = today.getMonth();
+    }
+    
+    // Generate 4 adjacent months: previous month, payment month, and next 2 months
+    const offsets = [-1, 0, 1, 2];
+    const monthsToShow = offsets.map(offset => {
+        let m = mIdx + offset;
+        let y = yr;
+        while (m < 0) { m += 12; y--; }
+        while (m > 11) { m -= 12; y++; }
+        return {
+            label: `${SHORT_MONTHS[m]}'${y}`,
+            isBase: offset === 0
+        };
+    });
+    
+    const remarksInput = document.getElementById('rcpt_remarks');
+    const curVal = (remarksInput ? remarksInput.value : '').trim();
+    
+    pillsContainer.innerHTML = monthsToShow.map(item => {
+        const isSelected = curVal.startsWith(item.label);
+        const style = isSelected
+            ? 'background: var(--highlight-blue); color: #ffffff; border: 1px solid var(--highlight-blue); font-weight: 700; box-shadow: 0 1px 3px rgba(37,99,235,0.3);'
+            : 'background: rgba(255,255,255,0.06); color: var(--text-secondary); border: 1px solid var(--surface-border); font-weight: 500;';
+        const badgeTag = item.isBase ? ' ⚡' : '';
+        return `<button type="button" class="btn btn-sm" style="padding: 0.18rem 0.55rem; font-size: 0.73rem; border-radius: 9999px; cursor: pointer; transition: all 0.15s ease; ${style}" onclick="selectQuickMonth('${item.label}')">${item.label}${badgeTag}</button>`;
+    }).join('');
+}
+
+function selectQuickMonth(monthLabel) {
+    const remarksInput = document.getElementById('rcpt_remarks');
+    if (remarksInput) {
+        const curVal = remarksInput.value.trim();
+        if (curVal.includes('+ Penalty')) {
+            const penPart = curVal.substring(curVal.indexOf('+ Penalty'));
+            remarksInput.value = `${monthLabel} ${penPart}`;
+        } else {
+            remarksInput.value = monthLabel;
+        }
+        delete remarksInput.dataset.userCustom;
+        const payDateInput = document.getElementById('rcpt_payment_date');
+        updateMonthQuickPills(payDateInput ? payDateInput.value : '');
+    }
+}
+
+function openCreateReceiptModal() {
+    openModal('createReceiptModal');
+    setCreateReceiptType('Monthly Subscription');
+    const payDateInput = document.getElementById('rcpt_payment_date');
+    const payDateVal = payDateInput ? payDateInput.value : '';
+    const remarksInput = document.getElementById('rcpt_remarks');
+    if (remarksInput) {
+        delete remarksInput.dataset.userCustom;
+        remarksInput.value = formatMonthRemarks(payDateVal);
+    }
+    updateMonthQuickPills(payDateVal);
+    onReceiptFlatOrDateChange('create');
+}
+
 function issueReceiptForMember(flatNo, monthlyRate) {
     openModal('createReceiptModal');
     setCreateReceiptType('Monthly Subscription');
@@ -1077,6 +1185,14 @@ function issueReceiptForMember(flatNo, monthlyRate) {
     if (amtInput && monthlyRate) {
         amtInput.value = parseFloat(monthlyRate).toFixed(2);
     }
+    const payDateInput = document.getElementById('rcpt_payment_date');
+    const payDateVal = payDateInput ? payDateInput.value : '';
+    const remarksInput = document.getElementById('rcpt_remarks');
+    if (remarksInput) {
+        delete remarksInput.dataset.userCustom;
+        remarksInput.value = formatMonthRemarks(payDateVal);
+    }
+    updateMonthQuickPills(payDateVal);
     onReceiptFlatOrDateChange('create');
 }
 
@@ -1115,8 +1231,14 @@ function setCreateReceiptType(type) {
     const otherPersonName = document.getElementById('other_person_name');
     const penaltyBox = document.getElementById('createPenaltyBox');
     const remarksInput = document.getElementById('rcpt_remarks');
+    const pillsContainer = document.getElementById('rcptMonthQuickPills');
+    const remarksHelp = document.getElementById('rcpt_remarks_help');
+    const autoBadge = document.getElementById('rcptMonthAutoIndicator');
 
     if (isOther) {
+        if (pillsContainer) pillsContainer.style.display = 'none';
+        if (autoBadge) autoBadge.style.display = 'none';
+        if (remarksHelp) remarksHelp.textContent = 'Auto-suggested from selected purpose / payer, or enter custom description.';
         if (flatSection) flatSection.style.display = 'none';
         if (flatSelect) flatSelect.required = false;
         if (otherSection) otherSection.style.display = 'block';
@@ -1137,16 +1259,23 @@ function setCreateReceiptType(type) {
             remarksInput.value = (purposeSel && purposeSel.value) ? purposeSel.value : '4 Wheeler Parking Charge';
         }
     } else {
+        if (pillsContainer) pillsContainer.style.display = 'flex';
+        if (autoBadge) autoBadge.style.display = 'inline-block';
+        if (remarksHelp) remarksHelp.textContent = "Auto-populated for current payment month (e.g. Oct'2026, Nov'2026). Click a pill above or edit manually.";
         if (flatSection) flatSection.style.display = 'block';
         if (flatSelect) flatSelect.required = true;
         if (otherSection) otherSection.style.display = 'none';
         if (otherWrapper) otherWrapper.style.display = 'none';
         if (otherPersonName) otherPersonName.required = false;
 
-        // Reset remarks if it had an Other Income purpose
-        if (remarksInput && !remarksInput.value.match(/^[A-Za-z]{3}['\s]\d{4}$/)) {
-            remarksInput.value = "Aug'2026";
+        // Reset remarks to current payment month if it had an Other Income purpose or old default
+        const payDateInput = document.getElementById('rcpt_payment_date');
+        const payDateVal = payDateInput ? payDateInput.value : '';
+        if (remarksInput && (!remarksInput.value.match(/^[A-Za-z]{3}['\s]\d{4}$/) || remarksInput.value === "Aug'2026")) {
+            remarksInput.value = formatMonthRemarks(payDateVal);
+            delete remarksInput.dataset.userCustom;
         }
+        updateMonthQuickPills(payDateVal);
 
         // Trigger penalty check for selected flat
         onReceiptFlatOrDateChange('create');
@@ -1257,6 +1386,22 @@ function onReceiptFlatOrDateChange(mode) {
     const badge = document.getElementById(isCreate ? 'createPenaltyBadge' : 'editPenaltyBadge');
     const details = document.getElementById(isCreate ? 'createPenaltyDetails' : 'editPenaltyDetails');
     const actions = document.getElementById(isCreate ? 'createPenaltyActions' : 'editPenaltyActions');
+
+    // Auto-update Month/Remarks for Flat Maintenance in create mode based on Payment Date
+    if (isCreate && subType !== 'Other Income') {
+        if (remarksInput) {
+            const curVal = (remarksInput.value || '').trim();
+            // If empty, or matches single month pattern (e.g. Oct'2026, Nov'2026, Aug'2026), or was not manually custom-edited:
+            if (!remarksInput.dataset.userCustom || !curVal || curVal.match(/^[A-Za-z]{3}['\s]\d{4}$/) || curVal === "Aug'2026") {
+                remarksInput.value = formatMonthRemarks(payDate);
+            } else if (curVal.includes('+ Penalty')) {
+                const penIndex = curVal.indexOf('+ Penalty');
+                const penSuffix = curVal.substring(penIndex);
+                remarksInput.value = formatMonthRemarks(payDate) + ' ' + penSuffix;
+            }
+        }
+        updateMonthQuickPills(payDate);
+    }
 
     if (isCreate && flatSelect && flatSelect.selectedIndex > 0) {
         const opt = flatSelect.options[flatSelect.selectedIndex];
@@ -1434,17 +1579,37 @@ function openEditReceiptModal(receiptNo) {
         });
 }
 
-// Auto-open Issue Receipt Modal if requested via URL or hash
+// Auto-open Issue Receipt Modal if requested via URL or hash & setup Month remarks listener
 document.addEventListener('DOMContentLoaded', () => {
+    const remarksInput = document.getElementById('rcpt_remarks');
+    if (remarksInput) {
+        remarksInput.addEventListener('input', () => {
+            const val = remarksInput.value.trim();
+            // Mark userCustom if user enters non-standard month format
+            if (val && !val.match(/^[A-Za-z]{3}['\s]\d{4}$/)) {
+                remarksInput.dataset.userCustom = '1';
+            } else {
+                delete remarksInput.dataset.userCustom;
+            }
+            const payDateInput = document.getElementById('rcpt_payment_date');
+            updateMonthQuickPills(payDateInput ? payDateInput.value : '');
+        });
+    }
+
+    const payDateInput = document.getElementById('rcpt_payment_date');
+    if (payDateInput) {
+        updateMonthQuickPills(payDateInput.value);
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     const hash = window.location.hash;
     const prefillFlat = urlParams.get('flat') || urlParams.get('prefill');
     const isNew = urlParams.get('action') === 'new' || hash === '#issue-receipt';
 
     if (isNew || hash === '#issue-receipt') {
-        openModal('createReceiptModal');
+        openCreateReceiptModal();
         if (prefillFlat) {
-            const flatSelect = document.getElementById('rcpt_flat_no');
+            const flatSelect = document.getElementById('rcpt_flat') || document.getElementById('rcpt_flat_no');
             if (flatSelect) {
                 flatSelect.value = prefillFlat;
                 onReceiptFlatOrDateChange('create');

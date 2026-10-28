@@ -260,7 +260,7 @@
 
                 <div class="form-group">
                     <label class="form-label" for="exp_desc">Expense Description *</label>
-                    <input type="text" id="exp_desc" name="expense_description" class="form-control" placeholder="e.g. Security Agency Guard Bill for Aug'2026" required>
+                    <input type="text" id="exp_desc" name="expense_description" class="form-control" placeholder="e.g. Security Agency Guard Bill for {{ now.strftime('%b') }}'{{ now.strftime('%Y') }}" required>
                 </div>
 
                 <div class="grid-2">
@@ -354,7 +354,7 @@
 
                 <div class="form-group">
                     <label class="form-label" for="edit_exp_desc">Expense Description *</label>
-                    <input type="text" id="edit_exp_desc" name="expense_description" class="form-control" placeholder="e.g. Security Agency Guard Bill for Aug'2026" required>
+                    <input type="text" id="edit_exp_desc" name="expense_description" class="form-control" placeholder="e.g. Security Agency Guard Bill for {{ now.strftime('%b') }}'{{ now.strftime('%Y') }}" required>
                 </div>
 
                 <div class="grid-2">
